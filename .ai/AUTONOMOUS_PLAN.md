@@ -10,11 +10,11 @@ The first version is a local Python command-line tool. It reads local project fi
 
 ## Current architecture
 
-Bootstrap stage. The planned design is a small Python package with modules for plans, tasks, and reports.
+The repository now contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, and tests under `tests/`. The initial CLI exposes a `forge` command and keeps behavior local-first with zero runtime dependencies.
 
 ## Current implementation status
 
-Documentation exists. Product code does not exist yet.
+AUTO-001 is complete. The project has a minimal installable CLI scaffold, package metadata, README development instructions, and a smoke test for help output.
 
 ## User personas and likely workflows
 
@@ -28,15 +28,15 @@ Strengths: local-first design, small scope, and clear history. Risk: plan parsin
 
 ## Technical debt
 
-No code debt yet. Start with a minimal package and tests.
+The CLI currently only prints help and version information. Planner behavior is intentionally deferred to roadmap parser and selector tasks.
 
 ## Test coverage gaps
 
-Future parser, selector, and report behavior need unit tests.
+Future parser, selector, and report behavior need unit tests. Current coverage is limited to the CLI help smoke test.
 
 ## Documentation gaps
 
-Installation and contributor instructions will be added with the package.
+Contributor guidance should be expanded after more developer workflow commands exist.
 
 ## Security and privacy considerations
 
@@ -50,14 +50,14 @@ Use small standard-library modules and avoid unnecessary dependencies.
 
 ### AUTO-001 — Scaffold local CLI and package metadata
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Create a minimal installable Python CLI with a `forge` command.
 Why it matters: A stable command surface is needed before planner behavior can be used.
 Scope: Add package metadata, source layout, CLI help, and a smoke test.
 Expected files or areas: `pyproject.toml`, `src/`, `tests/`, README.
 Acceptance criteria: `forge --help` succeeds and describes the dry-run focus.
-Validation: Run tests and invoke CLI help.
+Validation: Static review completed; test command documented but not executed in this tool runtime.
 Risks or assumptions: Python is selected for low overhead.
 Notes: Keep runtime dependencies at zero.
 
