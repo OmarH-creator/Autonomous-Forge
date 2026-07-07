@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-024 — 2026-07-08 — Preview patch intent before patches exist
+
+Context: `forge review-artifact` already combines selected task context, implementation-plan signals, proposal intent, validation intent, validation command-candidate metadata, explicit planned-path review, and structured change intent. The next safe step toward patch review is to describe what a future patch would need to justify without reading file contents, inspecting diffs, or generating patches.
+Decision: Add a reusable patch-intent data layer and include it in review artifacts. Each planned patch preview reports file area, proposed operation, patch rationale, reviewer checks, validation expectations, blockers, and readiness for future patch review.
+Alternatives considered: Generate patches, inspect git diffs, read changed-file contents, run validation commands, write review artifacts to disk, approve policy exceptions, enforce policy decisions, or leave patch rationale implicit in the proposal text.
+Consequences: Maintainers get a clearer bridge from proposal planning to future patch review while the product still avoids file-content reads, diff inspection, patch generation, command execution, repository writes, approval decisions, network access, environment reads, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-023 — 2026-07-08 — Add change intent before patch behavior
 
 Context: `forge review-artifact` already combines selected task context, implementation-plan signals, proposal intent, validation intent, validation command-candidate metadata, and explicit planned-path review. The next safe step toward patch review is to connect each planned file area to its proposed operation and advisory policy/path status without inspecting diffs or reading file contents.
