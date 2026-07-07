@@ -136,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=".",
         help="repository root used for documented-file presence signals",
     )
+    propose_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="proposal format: text (default) or JSON",
+    )
 
     policy_parser = subparsers.add_parser(
         "policy",
@@ -285,9 +291,10 @@ def _print_proposal(
     state_path: Path,
     policy_path: Path,
     root: Path,
+    output_format: str,
 ) -> int:
     try:
-        print(read_change_proposal(plan_path, policy_path, state_path, root))
+        print(read_change_proposal(plan_path, policy_path, state_path, root, output_format))
     except FileNotFoundError as exc:
         print(f"Required file not found: {exc.filename}")
         return 2
@@ -378,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.state),
             Path(args.policy),
             Path(args.root),
+            args.format,
         )
 
     if args.command == "policy":
