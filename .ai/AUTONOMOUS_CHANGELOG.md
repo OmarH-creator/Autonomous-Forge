@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-022
+
+- Task ID: AUTO-022
+- Summary: Added `forge validate-plan`, a read-only validation-planning command that consumes structured proposal data and reports validation steps, expected file areas, approval-required items, blockers, risk notes, command-execution status, and a no-execution safety boundary in text or JSON.
+- Branch/PR assessment: Inspected branch and PR state before implementation. No open branch was returned by branch search. PR #5 remains closed obsolete and unmerged; no stale PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for validation-plan data, human-readable output, JSON output, CLI text output, CLI JSON output, and no-selected-task behavior. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Commit hash: ee4cfaa5d6953cf89ced7a7103c90e5d38987edd, 5e767eff0803806cc2c70fa68cb1eeffb7f0f0ac, d63c838f4b210c1d5502c2eb3a2c0231949bacd2, fe5905e0b2df7d07c3cb0f1ddbeb43a5fd3871ae, and related state commits in the same run.
+- Follow-up notes: Add a safe local diff/check summary for planned file areas before considering command execution, file writes, patch generation, or policy enforcement.
+
 ## 2026-07-07 — AUTO-021
 
 - Task ID: AUTO-021
