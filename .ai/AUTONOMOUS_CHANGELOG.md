@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-005
+
+- Task ID: AUTO-005
+- Summary: Documented the repository policy format and added a conservative example policy for future automation boundaries.
+- Validation completed: Static documentation review completed; runtime test execution was not available in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Run `PYTHONPATH=src python -m pytest` in a checkout-capable environment and proceed to AUTO-006.
+
 ## 2026-07-07 — AUTO-004
 
 - Task ID: AUTO-004
