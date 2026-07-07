@@ -10,15 +10,15 @@ The first product remains a local Python command-line tool. It reads repository 
 
 ## Current architecture
 
-The repository contains a Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, run-summary documentation under `docs/RUN_SUMMARIES.md`, run-history preview documentation under `docs/RUN_HISTORY_PREVIEWS.md`, preflight readiness documentation under `docs/PREFLIGHT_READINESS.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, change-proposal documentation under `docs/CHANGE_PROPOSALS.md`, review-artifact documentation under `docs/REVIEW_ARTIFACTS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes read-only planning, proposal, validation, validation-preview, changed-file review, review-artifact, run-history-preview, preflight-readiness, inventory, policy, report, run-summary, and roadmap task commands. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, run-summary documentation under `docs/RUN_SUMMARIES.md`, run-history preview documentation under `docs/RUN_HISTORY_PREVIEWS.md`, run-history write documentation under `docs/RUN_HISTORY_WRITES.md`, preflight readiness documentation under `docs/PREFLIGHT_READINESS.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, change-proposal documentation under `docs/CHANGE_PROPOSALS.md`, review-artifact documentation under `docs/REVIEW_ARTIFACTS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes planning, proposal, validation, validation-preview, changed-file review, review-artifact, run-history-preview, opt-in run-history-write, preflight-readiness, inventory, policy, report, run-summary, and roadmap task commands. All commands remain local-first and use zero runtime dependencies; only `forge run-history-write` writes a file, and only after explicit confirmation and clean preflight readiness.
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, structured change intent, read-only patch intent, read-only run-history previews, and preflight readiness checks. These commands do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, or change repository files when invoked.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, structured change intent, read-only patch intent, read-only run-history previews, preflight readiness checks, and an explicitly confirmed local run-history writer. Product commands still do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, inspect diffs, read changed-file contents, or commit changes.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, combine those signals into a structured review artifact with change intent and patch intent, preview the durable run-history record shape, and report a conservative readiness checklist before any persistence design. It does not yet persist run summaries in a machine-readable local format, inspect git diffs, read changed-file contents, generate patches, run validation commands, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, combine those signals into a structured review artifact with change intent and patch intent, preview the durable run-history record shape, report a conservative readiness checklist, and write one local run-history JSON artifact after explicit confirmation. It does not yet read or summarize persisted history files, append to a long-lived history index, inspect git diffs, read changed-file contents, generate patches, run validation commands, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
@@ -173,16 +173,29 @@ Notes: This is the last read-only gate before considering an explicitly opt-in p
 
 ### AUTO-030 — Add opt-in local run-history writer
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Persist the reviewed run-history record to a local file only when explicitly requested and only after preflight readiness is clean.
 Why it matters: A safe maintenance workflow needs durable local memory, but the write step must be separate, reviewable, and opt-in.
 Scope: Add a writer that reuses the run-history preview schema, refuses blocked preflight results, writes only under a documented safe history path, and never runs validation commands or generates patches.
-Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.ai` records.
+Expected files or areas: `src/autonomous_forge/run_history_writer.py`, `src/autonomous_forge/cli.py`, `tests/test_run_history_writer.py`, README, `docs/RUN_HISTORY_WRITES.md`, `.ai` records.
 Acceptance criteria: The command is explicitly opt-in, deterministic under test, writes only the requested local history record, refuses blocked readiness, and documents all safety boundaries.
+Validation: Static review completed through the GitHub repository API. Deterministic tests were added for payload building, confirmation refusal, path refusal, clean writes, blocked preflight refusal, relative output resolution, and CLI output. Direct local pytest execution remains unavailable in this environment.
+Risks or assumptions: The command writes exactly one local JSON file under `.ai/run-history/`; it does not execute commands, inspect diffs, read changed-file contents, generate patches, enforce policy, change remote settings, or commit from the command.
+Notes: This builds directly on AUTO-029 and is the first narrowly scoped product-side write behavior.
+
+### AUTO-031 — Add local run-history reader
+Priority: P1
+Status: TODO
+
+Goal: Read and summarize persisted local run-history JSON records without changing files.
+Why it matters: Once records can be written, maintainers need a safe way to inspect what was recorded before building indexes, validation execution, or patch behavior.
+Scope: Add a read-only command that loads one `.ai/run-history/*.json` record, validates its basic schema, and prints selected task, review status, preflight summary, persistence mode, blockers, and safety notes.
+Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.ai` records.
+Acceptance criteria: The reader is deterministic, handles missing or malformed files clearly, supports text and JSON output, and does not execute commands or mutate files.
 Validation: Run `python -m pytest` in a checkout-capable environment; if unavailable, perform static review and rely on deterministic tests committed to the repository.
-Risks or assumptions: Do not execute commands, inspect diffs, read changed-file contents, generate patches, enforce policy, change remote settings, or commit from the command.
-Notes: This should build directly on AUTO-029 rather than starting a separate feature thread.
+Risks or assumptions: Do not scan arbitrary directories recursively, inspect diffs, run validation, generate patches, enforce policy, or infer success beyond the contents of the selected record.
+Notes: This should consume the AUTO-030 record shape before adding any history index or validation executor.
 
 ## Future Ideas
 
