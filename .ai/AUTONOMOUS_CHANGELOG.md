@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-012
+
+- Task ID: AUTO-012
+- Summary: Added a read-only `forge run-summary` command that previews the documented local run-summary fields using the current plan and policy status, including placeholders for validation result, changed files, and commit.
+- Validation completed: Static implementation review completed against AUTO-012 acceptance criteria; runtime test execution was unavailable in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Reassess Roadmap v2 and add the next smallest read-only task before implementing further behavior.
+
 ## 2026-07-07 — AUTO-011
 
 - Task ID: AUTO-011
