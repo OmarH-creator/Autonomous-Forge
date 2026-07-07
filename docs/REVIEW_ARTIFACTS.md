@@ -8,6 +8,7 @@ It combines these existing review surfaces:
 - structured proposal intent from `forge propose`;
 - validation intent from `forge validate-plan`;
 - validation command-candidate metadata from `forge validation-preview`;
+- structured change intent that connects planned file areas to advisory path and policy status;
 - explicit planned-path review using the same advisory checks as `forge review-files`.
 
 ## Example
@@ -38,6 +39,7 @@ The artifact reports:
 - selected task identity and reason;
 - state-file and documented-file presence signals;
 - planned file areas and high-level operations;
+- change-intent entries with `reviewable`, `blocked`, or `needs classification` status;
 - validation steps and `validation_execution: not run`;
 - validation command candidates, conservative eligibility, and classification reasons;
 - advisory path review summary for planned file areas;
