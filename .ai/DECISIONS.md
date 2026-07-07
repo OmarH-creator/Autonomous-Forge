@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-010 — 2026-07-07 — Validate the installed package path in CI
+
+Context: The project documents an installable `forge` console script, but the workflow only tested source-tree imports through `PYTHONPATH=src`.
+Decision: Install the local package in the existing Python matrix, run `forge --version`, and execute the test suite without a source-path override.
+Alternatives considered: Keep source-tree-only testing, add a separate workflow, or change product behavior before proving packaging works.
+Consequences: CI now detects broken package metadata and console-script wiring while retaining pinned actions, `contents: read`, the existing timeout, and no runtime dependencies.
+Human decision still required: No.
+
 ## DEC-009 — 2026-07-07 — Keep inventory limited to file-presence signals
 
 Context: AUTO-013 documented a safe repository health inventory scope, and the next smallest coherent task was to expose that scope through the CLI.
