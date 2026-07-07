@@ -14,11 +14,11 @@ The repository contains a Python package under `src/autonomous_forge`, package m
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, and structured change intent. These commands do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, or change repository files when invoked.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, structured change intent, and read-only patch intent. These commands do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, or change repository files when invoked.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, and combine those signals into a structured review artifact. It does not yet persist run summaries in a machine-readable local format, inspect git diffs, read changed-file contents, generate patches, run validation commands, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, and combine those signals into a structured review artifact with change intent and patch intent. It does not yet persist run summaries in a machine-readable local format, inspect git diffs, read changed-file contents, generate patches, run validation commands, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
@@ -134,16 +134,29 @@ Notes: This materially advances the same review-artifact milestone without addin
 
 ### AUTO-027 — Preview patch intent without generating patches
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Add a read-only patch-intent preview that groups intended work by planned file area and review status without reading file contents, inspecting diffs, or generating patches.
 Why it matters: The next safe bridge toward reviewed implementation is to define what a patch would need to explain before any patch exists.
 Scope: Consume change-intent data and summarize proposed patch rationale, required reviewer checks, validation expectations, and blockers.
+Expected files or areas: `src/autonomous_forge/patch_intent.py`, `src/autonomous_forge/review_artifact.py`, `tests/test_review_artifact.py`, README, `docs/REVIEW_ARTIFACTS.md`, `.ai/` records.
+Acceptance criteria: Output is deterministic, supports JSON through `forge review-artifact --format json`, remains advisory and read-only, and has focused tests.
+Validation: Added deterministic tests for patch-intent data, text output, JSON output, no-task behavior, and CLI JSON output. Static review completed through the GitHub repository API; direct local checkout/test execution remained unavailable in this environment.
+Risks or assumptions: Patch intent is advisory only. It does not inspect diffs, read file contents, generate patches, run commands, approve exceptions, enforce policy, or write files when invoked.
+Notes: Continue only after the patch-intent surface remains stable.
+
+### AUTO-028 — Add durable local run-history preview
+Priority: P1
+Status: TODO
+
+Goal: Define the next safe run-history handoff before any persistence behavior writes local history files.
+Why it matters: A safe maintenance workflow needs durable run records, but the schema should be reviewable before writes exist.
+Scope: Preview a structured run-history record from selected task, review-artifact status, validation intent, and safety boundaries.
 Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.ai/` records.
-Acceptance criteria: Output is deterministic, supports JSON where useful, remains advisory and read-only, and has focused tests.
+Acceptance criteria: Output is deterministic, supports JSON where useful, remains read-only, and clearly states that no history file is written.
 Validation: Run `python -m pytest` in a checkout-capable environment; if unavailable, perform static review and rely on deterministic tests committed to the repository.
-Risks or assumptions: Do not inspect diffs, read file contents, generate patches, run commands, approve exceptions, enforce policy, or write files.
-Notes: Continue only after the change-intent surface remains stable.
+Risks or assumptions: Do not write history files, inspect diffs, read file contents, run commands, generate patches, approve exceptions, enforce policy, or commit from the command.
+Notes: This continues the same safe end-to-end maintenance workflow after patch-intent review.
 
 ## Future Ideas
 
