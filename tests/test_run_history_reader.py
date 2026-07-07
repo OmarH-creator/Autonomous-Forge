@@ -1,0 +1,145 @@
+import json
+
+import pytest
+
+from autonomous_forge.cli import main
+from autonomous_forge.run_history_reader import (
+    RunHistoryReadError,
+    read_run_history_record,
+    summarize_run_history_record,
+)
+
+
+VALID_PAYLOAD = {
+    "schema_version": "run-history/v1",
+    "mode": "opt-in local write",
+    "record": {
+        "schema_version": "run-history-preview/v1",
+        "task": {
+            "id": "AUTO-031",
+            "title": "Add local run-history reader",
+            "priority": "P1",
+            "status_before_run": "TODO",
+        },
+        "review_status": "ready for review",
+        "requires_attention": False,
+        "validation_execution": "not run",
+        "validation_result": "not run",
+        "changed_files_summary": "none",
+        "commit": "none",
+        "blockers": ["none"],
+    },
+    "preflight_summary": {
+        "pass": 5,
+        "warn": 0,
+        "block": 0,
+        "overall_status": "ready for opt-in persistence design",
+    },
+    "preflight_next_gate": "manual review before local persistence",
+    "persistence": "written by explicit request",
+    "safety_notes": ["does not run validation commands"],
+}
+
+
+def _write_record(root, name="record.json", payload=VALID_PAYLOAD):
+    path = root / ".ai" / "run-history" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_summarize_run_history_record_returns_core_fields():
+    summary = summarize_run_history_record(VALID_PAYLOAD, source_path=".ai/run-history/record.json")
+
+    assert summary["schema_version"] == "run-history/v1"
+    assert summary["record_schema_version"] == "run-history-preview/v1"
+    assert summary["task"]["id"] == "AUTO-031"
+    assert summary["review_status"] == "ready for review"
+    assert summary["preflight_summary"]["block"] == 0
+    assert summary["persistence"] == "written by explicit request"
+
+
+def test_read_run_history_record_formats_text(tmp_path):
+    path = _write_record(tmp_path)
+
+    output = read_run_history_record(path, root=tmp_path)
+
+    assert "Autonomous Forge run-history record" in output
+    assert "Selected task: AUTO-031 [P1/TODO] Add local run-history reader" in output
+    assert "Preflight summary:" in output
+    assert "Safety boundary: Run-history read output only" in output
+
+
+def test_read_run_history_record_formats_json(tmp_path):
+    path = _write_record(tmp_path)
+
+    output = read_run_history_record(path, root=tmp_path, output_format="json")
+    data = json.loads(output)
+
+    assert data["mode"] == "read-only"
+    assert data["task"]["id"] == "AUTO-031"
+    assert data["preflight_summary"]["overall_status"] == "ready for opt-in persistence design"
+
+
+def test_read_run_history_record_refuses_path_outside_history_dir(tmp_path):
+    path = tmp_path / "record.json"
+    path.write_text(json.dumps(VALID_PAYLOAD), encoding="utf-8")
+
+    with pytest.raises(RunHistoryReadError, match="under .ai/run-history"):
+        read_run_history_record(path, root=tmp_path)
+
+
+def test_read_run_history_record_refuses_malformed_json(tmp_path):
+    path = tmp_path / ".ai" / "run-history" / "bad.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{", encoding="utf-8")
+
+    with pytest.raises(RunHistoryReadError, match="record JSON is malformed"):
+        read_run_history_record(path, root=tmp_path)
+
+
+def test_read_run_history_record_refuses_unsupported_schema(tmp_path):
+    path = _write_record(tmp_path, payload={"schema_version": "other/v1"})
+
+    with pytest.raises(RunHistoryReadError, match="unsupported schema_version"):
+        read_run_history_record(path, root=tmp_path)
+
+
+def test_run_history_read_command_outputs_text(tmp_path, capsys):
+    path = _write_record(tmp_path)
+
+    assert main([
+        "run-history-read",
+        "--root", str(tmp_path),
+        "--record", str(path),
+    ]) == 0
+
+    printed = capsys.readouterr().out
+    assert "Autonomous Forge run-history record" in printed
+    assert "Selected task: AUTO-031 [P1/TODO] Add local run-history reader" in printed
+
+
+def test_run_history_read_command_outputs_json(tmp_path, capsys):
+    path = _write_record(tmp_path)
+
+    assert main([
+        "run-history-read",
+        "--root", str(tmp_path),
+        "--record", str(path),
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["task"]["id"] == "AUTO-031"
+
+
+def test_run_history_read_command_reports_schema_errors(tmp_path, capsys):
+    path = _write_record(tmp_path, payload={"schema_version": "other/v1"})
+
+    assert main([
+        "run-history-read",
+        "--root", str(tmp_path),
+        "--record", str(path),
+    ]) == 2
+
+    assert "Run-history read refused: unsupported schema_version" in capsys.readouterr().out
