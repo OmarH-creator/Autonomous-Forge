@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-029 — 2026-07-08 — Keep history persistence explicit and narrow
+
+Context: The preflight checklist can now show when existing review signals are ready for local persistence.
+Decision: Add `forge run-history-write` as an explicitly confirmed local writer that saves exactly one JSON record under `.ai/run-history/` after clean preflight readiness.
+Alternatives considered: Automatic writes, mutable indexes, broad output paths, or skipping confirmation.
+Consequences: Maintainers gain durable local memory while the write surface remains limited and reviewable.
+Human decision still required: No.
+
 ## DEC-028 — 2026-07-08 — Require typed inventory presence
 
 Context: `forge inventory` reported required paths with `exists()`, which could mark a directory as a present required file or a plain file as a present required directory.
@@ -12,8 +20,8 @@ Human decision still required: No.
 
 Context: `forge run-history-preview` now exposes the durable record shape, but a real writer would be a new side effect. The next safe step is to summarize whether current review, patch-intent, validation-preview, run-history-preview, and inventory signals are ready before any persistence command exists.
 Decision: Add `forge preflight-readiness` as a read-only command that reports deterministic pass/warn/block checks and refuses to imply that persistence or execution has happened.
-Alternatives considered: Add a writer immediately, inspect diffs, read changed-file contents, generate patches, run validation commands, make review decisions, enforce policy decisions, or keep readiness scattered across separate commands.
-Consequences: Maintainers get a single pre-persistence gate while the product still avoids command execution, file writes from product commands, diff inspection, file-content reads, patch generation, review-decision automation, network access, environment reads, and policy enforcement.
+Alternatives considered: Add a writer immediately, generate patches, run validation commands, make review decisions, enforce policy decisions, or keep readiness scattered across separate commands.
+Consequences: Maintainers get a single pre-persistence gate while the product keeps execution and persistence boundaries explicit.
 Human decision still required: No.
 
 ## Historical note
