@@ -19,6 +19,21 @@ def test_collect_inventory_signals_reports_present_and_missing_paths(tmp_path):
     ]
 
 
+def test_collect_inventory_signals_rejects_wrong_path_types(tmp_path):
+    (tmp_path / "README.md").mkdir()
+    (tmp_path / "docs").write_text("not a directory\n", encoding="utf-8")
+
+    signals = collect_inventory_signals(
+        tmp_path,
+        required_paths=("README.md", "docs/"),
+    )
+
+    assert [(signal.path, signal.present) for signal in signals] == [
+        ("README.md", False),
+        ("docs/", False),
+    ]
+
+
 def test_build_repository_inventory_reports_workflow_presence(tmp_path):
     workflow = tmp_path / ".github" / "workflows" / "test.yml"
     workflow.parent.mkdir(parents=True)
@@ -36,11 +51,12 @@ def test_build_repository_inventory_is_read_only_and_deterministic(tmp_path):
 
     assert "Repository health inventory" in output
     assert "Mode: read-only" in output
+    assert "Scope: typed file-presence signals only" in output
     assert "README.md: present" in output
     assert ".ai/AUTONOMOUS_PLAN.md: missing" in output
     assert ".github/workflows/test.yml: missing" in output
     assert "Health score: not calculated" in output
-    assert "scan secrets" in output
+    assert "credential scanning" in output
 
 
 def test_inventory_command_prints_read_only_summary(tmp_path, capsys):
