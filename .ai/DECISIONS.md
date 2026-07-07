@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-021 — 2026-07-08 — Include validation previews in review artifacts
+
+Context: `forge review-artifact` already combines planning, proposal, validation intent, and explicit planned-path review, while `forge validation-preview` separately classifies validation command candidates before any execution support exists.
+Decision: Extend `forge review-artifact` to include validation-preview command-candidate metadata so the single review handoff exposes planned validation steps, conservative command eligibility, classification reasons, and the no-execution boundary together.
+Alternatives considered: Keep validation-preview data only in a separate command, execute validation commands, inspect diffs, read changed file contents, generate patches, approve exceptions, enforce policy, or write review artifacts to disk.
+Consequences: Maintainers can review selected work, intended files, validation intent, planned-path review, and command-candidate eligibility from one output surface while the product still avoids command execution, repository writes, patch generation, diff inspection, approval decisions, network access, environment reads, credential scanning, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-020 — 2026-07-08 — Preview validation commands before execution
 
 Context: `forge validate-plan` can now describe validation intent and advisory path checks, but moving directly from validation steps to a runner would be unsafe without a reviewable command-candidate layer.
