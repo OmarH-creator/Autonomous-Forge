@@ -14,10 +14,11 @@ class RunHistoryWriteError(ValueError):
     """Raised when a run-history write is not safe to perform."""
 
 
-def _resolve_inside(root: Path, path: Path) -> tuple[Path, Path]:
+def _resolve_inside(root: Path, path: Path | str) -> tuple[Path, Path]:
     """Return resolved root/path and reject paths outside root."""
     resolved_root = root.resolve()
-    candidate = path if path.is_absolute() else resolved_root / path
+    requested_path = Path(path)
+    candidate = requested_path if requested_path.is_absolute() else resolved_root / requested_path
     resolved_path = candidate.resolve()
     try:
         resolved_path.relative_to(resolved_root)
@@ -28,7 +29,7 @@ def _resolve_inside(root: Path, path: Path) -> tuple[Path, Path]:
     return resolved_root, resolved_path
 
 
-def _validate_output_path(root: Path, output_path: Path) -> Path:
+def _validate_output_path(root: Path, output_path: Path | str) -> Path:
     """Validate the dedicated local history path before writing."""
     resolved_root, resolved_output = _resolve_inside(root, output_path)
     history_dir = (resolved_root / ".ai" / "run-history").resolve()
@@ -92,7 +93,7 @@ def write_run_history_record(
     plan_text: str,
     policy_text: str,
     *,
-    output_path: Path,
+    output_path: Path | str,
     confirm_write: bool,
     state_path: Path | None = None,
     root: Path = Path("."),
