@@ -10,15 +10,15 @@ The first product remains a local Python command-line tool. It reads repository 
 
 ## Current architecture
 
-The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, and `forge inventory`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, and `forge inventory`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
 
 ## Current implementation status
 
-Roadmap v1 is complete. Roadmap v2 has added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, and repository health inventory file-presence signals. The inventory command is read-only and does not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, or change files.
+Roadmap v1 is complete. Roadmap v2 has added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview linked from the README. The inventory command is read-only and does not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, or change files.
 
 ## Technical debt
 
-The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, provide documented command output contracts, preview local run-summary fields, and print repository health file-presence signals. It does not yet persist run summaries in a machine-readable local format.
+The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, provide documented command output contracts, preview local run-summary fields, and print repository health file-presence signals. It does not yet persist run summaries in a machine-readable local format. The available CI workflow has not yet been independently observed passing from this execution environment, so the next engineering run should verify a workflow result before extending behavior.
 
 ## Prioritized roadmap
 
