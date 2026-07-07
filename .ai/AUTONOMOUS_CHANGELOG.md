@@ -1,5 +1,31 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-019
+
+- Task ID: AUTO-019
+- Summary: Added structured JSON output for `forge plan` using a shared plan-data builder while preserving the default human-readable text plan. The JSON includes selected task details, policy boundaries, documentation signals, state-file status, the selection reason, and the read-only safety boundary.
+- Branch/PR assessment: Inspected recent PRs and closed draft PR #5 as obsolete because the policy-aware planning work had already been integrated directly on `main` with CLI wiring and tests. PR #4 remained merged; PR #3 and PR #5 are not needed for future integration.
+- Validation completed: Added deterministic tests for structured plan data, JSON formatting, and CLI JSON output. Static review completed through the GitHub repository API; local checkout execution was unavailable in this environment, and the main-branch workflow for the new direct commits has not yet been observed.
+- Commit hash: c92cdd91f8a4bca74df6220e6b1739c99db4f15b and follow-up documentation/state commits in the same run.
+- Follow-up notes: Use the structured plan data as the basis for a read-only change-proposal command before any patch generation, validation execution, or write behavior is introduced.
+
+## 2026-07-07 — AUTO-018
+
+- Task ID: AUTO-018
+- Summary: Added `forge plan`, a read-only policy-aware implementation plan command that selects the highest-priority eligible TODO task and prints task scope, expected files, acceptance criteria, validation, risks, policy paths, approval requirements, documentation signals, and state-file availability.
+- Branch/PR assessment: Draft PR #5 was superseded by direct `main` integration and later closed as obsolete.
+- Validation completed: Deterministic planner and CLI tests were added. Static review completed through the GitHub repository API because local checkout execution was unavailable in this environment.
+- Commit hash: 061cfd0e6dfbbeb1b189a7af471a528cbd2b3333, 0361dc95e857a38124bde6e4903bf09396d9f3de, 9ffdd130dcf5b0ee894679d1573dc2bb6ad0b615, and related documentation/state commits.
+- Follow-up notes: Extend the same planning milestone toward structured plan artifacts and reviewable change proposals.
+
+## 2026-07-07 — AUTO-017
+
+- Task ID: AUTO-017
+- Summary: Added JSON output support to the read-only `forge run-summary` preview while keeping text output as the default.
+- Validation completed: PR #4 passed GitHub Actions before merge and was integrated directly on `main`.
+- Commit hash: 11d1b9f08a27f6ffec63722186dd6fb3bb60d0e3
+- Follow-up notes: Use structured output only where it supports the end-to-end maintenance workflow.
+
 ## 2026-07-07 — Documentation overview link
 
 - Task ID: Documentation overview link
