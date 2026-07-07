@@ -1,14 +1,14 @@
 # Autonomous State
 
 - Current roadmap version: v2
-- Current task ID: AUTO-015 — Verify installed package behavior in CI
+- Current task ID: AUTO-016 — Resolve stale duplicate pull-request work
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-07-07T19:35:00+04:00
-- Last successful implementation commit hash: 8605b2340b14579e6ce5c26b08683045acec5c69
-- Latest run summary: Integrated CI hardening that installs the local package, smoke-tests the installed `forge --version` console script, compiles source, and runs tests without `PYTHONPATH=src`.
-- Files changed in the latest run: `.github/workflows/test.yml`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`.
-- Validation commands and results: GitHub Actions run 28873809513 for the same workflow change completed successfully on pull request #2. The workflow preserves `contents: read`, pinned `actions/checkout` and `actions/setup-python` revisions, the 3.10–3.12 matrix, and the five-minute timeout. Local checkout execution remains unavailable because this environment cannot resolve github.com.
-- Current blockers: The post-push workflow result for commit 8605b2340b14579e6ce5c26b08683045acec5c69 has not yet been observed from this environment.
-- Known risks and assumptions: This change validates package installation and entry-point wiring but adds no runtime dependency, product behavior, network feature, or write capability.
-- Recommended next task: Observe the main-branch workflow result, then reassess the validated JSON run-summary preview in pull request #3 after separating its unnecessary project-memory rewrites.
+- Last run timestamp: 2026-07-07T19:07:00+04:00
+- Last successful implementation commit hash: 1b370b8039a1bb235a550083dc150a12c48f51d8
+- Latest run summary: Reviewed all open pull requests after successful CI. Closed stale duplicate PR #2 because its installed-package CI hardening is already present on main. PR #3 remains open because it has merge conflicts after main advanced; its JSON run-summary preview CI passed and requires a clean conflict-resolving rebase before integration.
+- Files changed in the latest run: GitHub pull request #2 state; `.ai/AUTONOMOUS_STATE.md`.
+- Validation commands and results: GitHub Actions run 28873809513 for PR #2 and run 28874927536 for PR #3 both completed successfully. Main workflow configuration was reviewed and still pins actions, uses `contents: read`, runs Python 3.10–3.12, installs the package, smoke-tests `forge --version`, compiles source, and runs pytest. Local checkout execution remains unavailable because this environment cannot resolve github.com.
+- Current blockers: PR #3 is based on an older main commit and has merge conflicts in shared documentation/project-memory files; no conflict resolution was applied directly without reviewing a rebased diff.
+- Known risks and assumptions: PR #3 has validated feature behavior on its head commit, but compatibility with current main has not yet been independently validated after conflict resolution.
+- Recommended next task: Rebase or reconstruct PR #3 cleanly onto current main, preserve only its JSON run-summary feature and aligned docs/tests, then run CI before merge.
