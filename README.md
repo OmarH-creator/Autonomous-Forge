@@ -12,11 +12,12 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, and one explicit local run-history write command.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, and one read-only run-history record reader.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
+- `forge run-history-read` for summarizing one saved `.ai/run-history/*.json` record without scanning directories or mutating files.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
@@ -93,7 +94,7 @@ forge preflight-readiness \
   --format json
 ```
 
-## Opt-in local run-history write
+## Opt-in local run-history write and read
 
 `forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
 
@@ -107,9 +108,18 @@ forge run-history-write \
   --confirm-write
 ```
 
-It still does not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings.
+`forge run-history-read` summarizes one saved record without changing files or scanning the history directory.
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, and `docs/COMMANDS.md` for focused contracts.
+```bash
+forge run-history-read \
+  --root . \
+  --record .ai/run-history/latest.json \
+  --format json
+```
+
+These history commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings.
+
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
@@ -140,9 +150,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge run-history-write`, an explicitly confirmed local writer for one durable run-history JSON record after clean preflight readiness.
-- **What changed:** Added `src/autonomous_forge/run_history_writer.py`, wired `run-history-write --output .ai/run-history/<name>.json --confirm-write`, added deterministic writer and CLI tests, and documented the command in README and `docs/RUN_HISTORY_WRITES.md`.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for payload building, confirmation refusal, output path refusal, clean JSON writes, blocked preflight refusal, relative output resolution, and CLI output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
-- **Visual updates:** No new visual asset was needed; this change adds a narrow persistence command rather than a new architecture diagram.
-- **Current limitations:** `forge run-history-write` writes one local JSON artifact only. It does not append to a history index, read persisted history, inspect git diffs, read changed-file contents, read local settings, run validation commands, generate patches, make approval decisions, enforce policy decisions, commit, push, or call networks.
-- **Next autonomous objective:** Add a read-only local run-history reader that can inspect one persisted `.ai/run-history/*.json` record and summarize its task, review, preflight, blocker, and safety fields before any history index or validation executor is considered.
+- **Latest run:** Added `forge run-history-read`, a read-only command for summarizing one persisted `.ai/run-history/*.json` record.
+- **What changed:** Added `src/autonomous_forge/run_history_reader.py`, wired `run-history-read --record .ai/run-history/<name>.json --root . --format json`, added deterministic reader and CLI tests, and documented the command in README and `docs/RUN_HISTORY_READS.md`.
+- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for summary data, text output, JSON output, path refusal, malformed JSON, unsupported schema refusal, and CLI success/failure paths. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
+- **Visual updates:** No new visual asset was needed; this change adds a narrow record-inspection command rather than a new workflow diagram.
+- **Current limitations:** `forge run-history-read` reads one explicit JSON record only. It does not list records, append to an index, compare runs, verify commits, inspect git diffs, read changed-file contents, read local settings, run validation commands, generate patches, make approval decisions, enforce policy decisions, commit, push, or call networks.
+- **Next autonomous objective:** Add a minimal local run-history index preview or reader-driven list command so maintainers can inspect multiple saved records before any validation executor or patch-generation workflow is considered.
