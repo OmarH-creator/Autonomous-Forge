@@ -19,6 +19,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - A documented repository policy format with a conservative example policy.
 - A read-only `forge policy` command for parsing policy section readiness.
 - Documented command output contracts in `docs/COMMANDS.md`.
+- A documented local run-summary format in `docs/RUN_SUMMARIES.md` for future preview/write behavior.
 - Contributor development guidance in `CONTRIBUTING.md`.
 - Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, and policy parsing.
 
@@ -35,7 +36,8 @@ The MVP roadmap focuses on practical, reviewable automation:
 7. Surface policy readiness in dry-run reports without enforcing path decisions.
 8. Lint roadmap task blocks before adding higher-risk automation.
 9. Document command output contracts so contributors and future automation understand current CLI behavior.
-10. Keep contributor setup and safety guidance clear as the CLI evolves.
+10. Define a local run-summary format before any command is allowed to write execution history.
+11. Keep contributor setup and safety guidance clear as the CLI evolves.
 
 ## Repository policy boundaries
 
@@ -100,6 +102,10 @@ The command is read-only. It parses the documented policy headings and reports h
 ## Command output contracts
 
 See `docs/COMMANDS.md` for the current command purposes, expected output patterns, exit-code expectations, and safety limitations.
+
+## Local run summaries
+
+See `docs/RUN_SUMMARIES.md` for the future local run-summary format. The format is documented only; Autonomous Forge does not automatically write execution history files yet.
 
 ## Run tests
 
