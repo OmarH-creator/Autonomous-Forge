@@ -19,9 +19,39 @@ from autonomous_forge.policy import PolicyParseError, RepositoryPolicy, parse_re
 from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
+from autonomous_forge.run_history_preview import read_run_history_preview
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
 from autonomous_forge.validation_preview import read_validation_preview
+
+
+def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
+    parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for review signals",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help=format_help,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -89,124 +119,36 @@ def build_parser() -> argparse.ArgumentParser:
         "plan",
         help="build a policy-aware implementation plan without changing files",
     )
-    plan_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    plan_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    plan_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    plan_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for documented-file presence signals",
-    )
-    plan_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="plan format: text (default) or JSON",
+    _add_plan_state_policy_root_format(
+        plan_parser,
+        format_help="plan format: text (default) or JSON",
     )
 
     propose_parser = subparsers.add_parser(
         "propose",
         help="build a read-only change proposal from the selected plan task",
     )
-    propose_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    propose_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    propose_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    propose_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for documented-file presence signals",
-    )
-    propose_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="proposal format: text (default) or JSON",
+    _add_plan_state_policy_root_format(
+        propose_parser,
+        format_help="proposal format: text (default) or JSON",
     )
 
     validation_parser = subparsers.add_parser(
         "validate-plan",
         help="build a read-only validation plan from the selected proposal",
     )
-    validation_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    validation_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    validation_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    validation_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for documented-file presence signals",
-    )
-    validation_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="validation plan format: text (default) or JSON",
+    _add_plan_state_policy_root_format(
+        validation_parser,
+        format_help="validation plan format: text (default) or JSON",
     )
 
     validation_preview_parser = subparsers.add_parser(
         "validation-preview",
         help="preview validation command eligibility without running commands",
     )
-    validation_preview_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    validation_preview_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    validation_preview_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    validation_preview_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for validation preview signals",
-    )
-    validation_preview_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="validation preview format: text (default) or JSON",
+    _add_plan_state_policy_root_format(
+        validation_preview_parser,
+        format_help="validation preview format: text (default) or JSON",
     )
 
     review_files_parser = subparsers.add_parser(
@@ -240,31 +182,18 @@ def build_parser() -> argparse.ArgumentParser:
         "review-artifact",
         help="combine plan, proposal, validation, and path review without changing files",
     )
-    review_artifact_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
+    _add_plan_state_policy_root_format(
+        review_artifact_parser,
+        format_help="review artifact format: text (default) or JSON",
     )
-    review_artifact_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
+
+    run_history_preview_parser = subparsers.add_parser(
+        "run-history-preview",
+        help="preview a durable run-history record without writing files",
     )
-    review_artifact_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    review_artifact_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for review signals",
-    )
-    review_artifact_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="review artifact format: text (default) or JSON",
+    _add_plan_state_policy_root_format(
+        run_history_preview_parser,
+        format_help="run-history preview format: text (default) or JSON",
     )
 
     policy_parser = subparsers.add_parser(
@@ -511,6 +440,27 @@ def _print_review_artifact(
     return 0
 
 
+def _print_run_history_preview(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+    output_format: str,
+) -> int:
+    try:
+        print(read_run_history_preview(plan_path, policy_path, state_path, root, output_format))
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_policy(policy_path: Path) -> int:
     try:
         policy = parse_repository_policy(policy_path.read_text(encoding="utf-8"))
@@ -620,6 +570,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "review-artifact":
         return _print_review_artifact(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
+            args.format,
+        )
+
+    if args.command == "run-history-preview":
+        return _print_run_history_preview(
             Path(args.plan),
             Path(args.state),
             Path(args.policy),
