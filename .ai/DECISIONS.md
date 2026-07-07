@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-013 — 2026-07-07 — Add proposals before patches or execution
+
+Context: `forge plan --format json` now exposes structured planning data, and the next safe product step is to make intended implementation work reviewable before any file-write, patch-generation, validation-execution, or policy-enforcement behavior exists.
+Decision: Add `forge propose` as a read-only human-readable change-proposal command backed by structured plan data.
+Alternatives considered: Generate patches immediately, run validation commands, write proposal artifacts to disk, add policy enforcement, or keep proposals as documentation only.
+Consequences: Maintainers get a clearer bridge from selected roadmap task to intended work while the tool still avoids writes, command execution, network calls, diff inspection, approval decisions, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-012 — 2026-07-07 — Keep plan JSON as stdout-only structured data
 
 Context: `forge plan` now provides a useful human-readable policy-aware plan, and the next safe step toward change proposals is making that plan consumable without scraping terminal text.
