@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-008 — 2026-07-07 — Scope health inventory before implementation
+
+Context: Roadmap v2 completed run-summary preview work, and the state file recommended adding the next smallest read-only task before implementing further behavior.
+Decision: Document the first repository health inventory scope in `docs/HEALTH_INVENTORY.md` before adding any `forge inventory` command.
+Alternatives considered: Implement the inventory command immediately, add scoring or audit language, or skip inventory work and move directly to run-summary persistence.
+Consequences: Future inventory work has clear local-only, read-only boundaries and avoids implying enforcement, secret scanning, health scoring, or external command execution before those behaviors are explicitly approved.
+Human decision still required: No.
+
 ## DEC-007 — 2026-07-07 — Preview run summaries before persistence
 
 Context: AUTO-011 documented the local run-summary format, and the project still prohibits automatic execution-history writes.
