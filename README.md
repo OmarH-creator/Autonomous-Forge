@@ -123,7 +123,7 @@ forge review-files \
   --file tests/test_path_review.py
 ```
 
-`forge review-files` checks only the paths provided on the command line. It reports local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`. It does not read file contents, inspect git diffs, scan secrets, run validation, approve policy exceptions, enforce policy, or change files.
+`forge review-files` checks only the paths provided on the command line. It reports local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`. It does not read file contents, inspect git diffs, scan secrets, run validation, approve policy exceptions, enforce policy, or change files. See `docs/CHANGED_FILE_REVIEW.md` for the focused contract.
 
 For automation-friendly review, print the same changed-file review as deterministic JSON:
 
