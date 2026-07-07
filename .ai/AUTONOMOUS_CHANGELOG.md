@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-024
+
+- Task ID: AUTO-024 — Add guarded validation-run previews
+- Summary: Added `forge validation-preview`, a read-only validation-run preview command that consumes validation-plan data and classifies documented validation steps into conservative command-candidate metadata before any validation execution behavior exists.
+- Branch/PR assessment: Inspected repository metadata, recent commits, recent PRs, branch search, README, roadmap/state/changelog/decisions, source, tests, and command documentation before implementation. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for preview data, text output, JSON output, CLI JSON output, no-selected-task behavior, eligible local pytest command previews, unknown command-like steps, and blocked shell-control patterns. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Commit hash: 7be7fba0c16985237b51fe826b8a909c56955851, 45179b40707a2f1a8091425bc46accceed84df42, 830d1d31e300f025d8b3e0b07ffde907349872f7, 32e5f3751b7ef17056e32bdf556b5e28665db189, 6add6c153df21cb236d87adc57d8b88f88cd355b, and related state/documentation commits in the same run.
+- Follow-up notes: Add a structured changed-file intent artifact only as a review surface. Do not add validation execution, file writes, patch generation, approval decisions, secret scanning, or policy enforcement yet.
+
 ## 2026-07-07 — Maintenance
 
 - Task ID: Maintenance — contain validation-plan path checks within the resolved repository root
