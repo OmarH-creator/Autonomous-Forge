@@ -13,15 +13,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
 - Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, and combined review artifacts.
-- `forge run-summary --format json` for script-friendly, read-only run-summary previews.
-- `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
-- `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
-- `forge propose` for a read-only change proposal that turns the selected plan task into planned file areas, high-level operations, validation steps, risks, blockers, and approval-required items.
-- `forge propose --format json` for structured proposal data that future validation orchestration can consume without scraping human-readable text.
-- `forge validate-plan` for a read-only validation plan that turns proposal data into reviewable validation steps, expected file areas, advisory path checks, blockers, risks, and a clear no-execution boundary.
-- `forge validation-preview` for read-only command-candidate metadata that classifies documented validation steps before any validation runner exists.
-- `forge review-files` for explicit changed-file path review against documented allowed/prohibited policy patterns before any diff inspection, patch generation, or command execution exists.
-- `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, validation intent, and explicit planned-path review.
+- `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
@@ -33,144 +25,31 @@ forge --help
 
 For full setup, contribution workflow, and safety expectations, see `CONTRIBUTING.md`.
 
-## Inspect roadmap tasks
+## Core read-only workflow
 
 ```bash
-forge tasks --plan .ai/AUTONOMOUS_PLAN.md
 forge tasks --plan .ai/AUTONOMOUS_PLAN.md --next
+forge plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge propose --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge validate-plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge validation-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge review-artifact --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 ```
 
-The selector considers only `TODO` tasks. It chooses priorities in `P0`, `P1`, `P2`, `P3` order and preserves roadmap source order when priorities tie.
+Every command above is local-first and read-only. The commands print review information only; they do not change repository files, run validation commands, inspect diffs, approve exceptions, or enforce policy decisions.
 
-## Build a policy-aware implementation plan
+## Combined review artifact
 
-```bash
-forge plan \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root .
-```
+`forge review-artifact` is the current safest pre-execution handoff. It combines:
 
-This is the current end-to-end planning surface. It remains read-only: it explains the next eligible task, its documented acceptance criteria and validation, and the applicable policy boundaries before any implementation behavior is introduced.
+- selected task identity and reason from the roadmap;
+- policy-aware implementation-plan context;
+- proposal intent and planned file areas;
+- validation intent and command-execution status;
+- validation command-candidate preview metadata;
+- explicit planned-path review against documented policy patterns.
 
-For automation-friendly review, print the same plan data as deterministic JSON:
-
-```bash
-forge plan \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root . \
-  --format json
-```
-
-The JSON output is still a proposal only. It does not write a plan file, execute validation, inspect diffs, or enforce policy decisions.
-
-## Build a read-only change proposal
-
-```bash
-forge propose \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root .
-```
-
-`forge propose` consumes the same structured planning data and prints the intended file areas, high-level operations, validation steps, approval-required items, risk notes, and blockers for the selected task. It does not edit files, create patches, run tests, approve policy exceptions, or execute the plan.
-
-For automation-friendly review, print the same proposal as deterministic JSON:
-
-```bash
-forge propose \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root . \
-  --format json
-```
-
-The JSON output is still read-only proposal data on stdout. It does not write proposal artifacts, generate patches, inspect diffs, execute validation, approve exceptions, or enforce policy decisions.
-
-## Build a read-only validation plan
-
-```bash
-forge validate-plan \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root .
-```
-
-`forge validate-plan` consumes the same structured proposal data and prints the validation steps, expected file areas, advisory path checks, approval-required items, blockers, risk notes, and command-execution status for the selected task. Its local path-presence checks stay inside the resolved `--root` and return `unknown` for unsafe or ambiguous paths. It is planning output only: it does not run tests, execute shell commands, write artifacts, inspect diffs, scan secrets, or enforce policy decisions.
-
-For automation-friendly review, print the validation plan as deterministic JSON:
-
-```bash
-forge validate-plan \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root . \
-  --format json
-```
-
-## Preview validation command candidates
-
-```bash
-forge validation-preview \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root .
-```
-
-`forge validation-preview` consumes validation-plan data and classifies documented validation steps into conservative command-candidate metadata. It marks local Python validation commands as `eligible preview`, blocks shell-control or redirection patterns, and reports unfamiliar command-like steps as `unknown`. It remains read-only and does not execute validation, read environment variables, inspect diffs, approve exceptions, or change files. See `docs/VALIDATION_PREVIEWS.md` for the focused contract.
-
-For automation-friendly review, print the same preview as deterministic JSON:
-
-```bash
-forge validation-preview \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root . \
-  --format json
-```
-
-## Review explicit changed-file paths
-
-```bash
-forge review-files \
-  --policy .forge/policy.md \
-  --root . \
-  --file src/autonomous_forge/cli.py \
-  --file tests/test_path_review.py
-```
-
-`forge review-files` checks only the paths provided on the command line. It reports local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`. It does not read file contents, inspect git diffs, scan secrets, run validation, approve policy exceptions, enforce policy, or change files. See `docs/CHANGED_FILE_REVIEW.md` for the focused contract.
-
-For automation-friendly review, print the same changed-file review as deterministic JSON:
-
-```bash
-forge review-files \
-  --policy .forge/policy.md \
-  --root . \
-  --file src/autonomous_forge/cli.py \
-  --format json
-```
-
-## Build a combined review artifact
-
-```bash
-forge review-artifact \
-  --plan .ai/AUTONOMOUS_PLAN.md \
-  --state .ai/AUTONOMOUS_STATE.md \
-  --policy .forge/policy.md \
-  --root .
-```
-
-`forge review-artifact` combines the selected task, plan context, proposal intent, validation intent, and explicit planned-path review into one handoff before any diff inspection, patch generation, validation execution, or file-write behavior exists. It remains read-only and supports deterministic JSON output:
+For deterministic JSON output:
 
 ```bash
 forge review-artifact \
@@ -181,7 +60,9 @@ forge review-artifact \
   --format json
 ```
 
-## Produce other read-only views
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, and `docs/COMMANDS.md` for focused contracts.
+
+## Other read-only views
 
 ```bash
 forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
@@ -190,9 +71,8 @@ forge policy --policy .forge/policy.md
 forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md
 forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md --format json
 forge inventory --root .
+forge review-files --policy .forge/policy.md --root . --file src/autonomous_forge/cli.py
 ```
-
-All current commands inspect local files and print results. They do not change repository files, execute external commands, call networks, read environment variables, or enforce policy decisions.
 
 ## Repository policy boundaries
 
@@ -207,13 +87,13 @@ python -m pytest
 
 ## Safe contribution expectations
 
-Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, secret handling, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
+Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, private credential handling, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge validation-preview`, a read-only validation-run preview command that classifies documented validation steps before any command execution behavior exists.
-- **What changed:** Added `src/autonomous_forge/validation_preview.py`, wired the CLI, added deterministic tests, and documented the validation-preview contract. The preview reports command candidates, conservative eligibility, classification reasons, blockers, risks, and a no-execution boundary.
-- **Validation:** Added deterministic unit and CLI tests covering text output, JSON output, no-task behavior, eligible local pytest commands, unknown command-like steps, and blocked shell-control patterns. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
-- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change is a terminal/JSON review surface.
-- **Current limitations:** Validation previews, validation plans, review artifacts, and changed-file reviews are advisory only. They do not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
-- **Next autonomous objective:** Add a structured changed-file intent artifact that can connect planned file areas to future patch review without reading file contents or generating patches.
+- **Latest run:** Extended `forge review-artifact` so the combined read-only handoff now includes validation command-candidate preview metadata.
+- **What changed:** Updated `src/autonomous_forge/review_artifact.py` to reuse validation-preview data, added deterministic review-artifact test coverage, and updated the focused review-artifact documentation plus project memory.
+- **Validation:** Added tests covering validation-preview data in the review artifact, text output, JSON output, no-task behavior, and CLI JSON output. Static review was completed through the GitHub repository API; direct repository clone/test execution was blocked by authorization in this environment.
+- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change improves terminal/JSON review output.
+- **Current limitations:** Review artifacts, validation previews, validation plans, and changed-file reviews are advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
+- **Next autonomous objective:** Add a structured change-intent surface that can connect planned file areas to future patch review without reading file contents, generating patches, or executing commands.
