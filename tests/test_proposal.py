@@ -1,3 +1,5 @@
+import json
+
 from autonomous_forge.cli import main
 from autonomous_forge.proposal import build_change_proposal, build_change_proposal_data
 from autonomous_forge.planner import build_repository_plan_data
@@ -87,6 +89,37 @@ def test_build_change_proposal_formats_reviewable_output(tmp_path):
     assert "Safety boundary: Proposal output only" in output
 
 
+def test_build_change_proposal_formats_json_output(tmp_path):
+    state = tmp_path / "AUTONOMOUS_STATE.md"
+    state.write_text("# State\n", encoding="utf-8")
+
+    output = build_change_proposal(
+        VALID_PLAN,
+        VALID_POLICY,
+        state_path=state,
+        root=tmp_path,
+        output_format="json",
+    )
+    data = json.loads(output)
+
+    assert data["title"] == "Autonomous Forge change proposal"
+    assert data["mode"] == "read-only"
+    assert data["selected_task"]["id"] == "AUTO-020"
+    assert data["planned_file_areas"] == [
+        "src/autonomous_forge/proposal.py",
+        "src/autonomous_forge/cli.py",
+        "tests",
+        "README",
+    ]
+    assert data["planned_operations"][0] == (
+        "Review and update src/autonomous_forge/proposal.py if needed for the selected task."
+    )
+    assert data["validation_steps"] == ["Run targeted tests.", "Run full pytest."]
+    assert data["policy"]["prohibited_paths"] == [".env", ".github/workflows/**"]
+    assert data["blocked_items"] == ["none"]
+    assert data["safety_boundary"].startswith("Proposal output only")
+
+
 def test_propose_command_prints_change_proposal(tmp_path, capsys):
     plan = tmp_path / "AUTONOMOUS_PLAN.md"
     policy = tmp_path / "policy.md"
@@ -109,6 +142,33 @@ def test_propose_command_prints_change_proposal(tmp_path, capsys):
     assert "Validation steps:" in output
     assert "Policy prohibited paths:" in output
     assert "Proposal output only" in output
+
+
+def test_propose_command_prints_json_change_proposal(tmp_path, capsys):
+    plan = tmp_path / "AUTONOMOUS_PLAN.md"
+    policy = tmp_path / "policy.md"
+    state = tmp_path / "AUTONOMOUS_STATE.md"
+    plan.write_text(VALID_PLAN, encoding="utf-8")
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    state.write_text("# State\n", encoding="utf-8")
+
+    assert main([
+        "propose",
+        "--plan", str(plan),
+        "--policy", str(policy),
+        "--state", str(state),
+        "--root", str(tmp_path),
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["title"] == "Autonomous Forge change proposal"
+    assert data["selected_task"]["id"] == "AUTO-020"
+    assert data["approval_required_items"] == [
+        "Adding network access.",
+        "Running external commands from product code.",
+    ]
+    assert data["blocked_items"] == ["none"]
 
 
 def test_change_proposal_reports_no_selected_task():
