@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -131,6 +132,7 @@ def build_change_proposal(
     *,
     state_path: Path | None = None,
     root: Path = Path("."),
+    output_format: str = "text",
 ) -> str:
     """Build a local, reviewable change proposal without changing files."""
     plan_data = build_repository_plan_data(
@@ -139,7 +141,12 @@ def build_change_proposal(
         state_path=state_path,
         root=root,
     )
-    return format_change_proposal(build_change_proposal_data(plan_data))
+    data = build_change_proposal_data(plan_data)
+    if output_format == "json":
+        return json.dumps(data, indent=2, sort_keys=True)
+    if output_format != "text":
+        raise ValueError(f"Unsupported proposal output format: {output_format}")
+    return format_change_proposal(data)
 
 
 def read_change_proposal(
@@ -147,6 +154,7 @@ def read_change_proposal(
     policy_path: Path = Path(".forge/policy.md"),
     state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
     root: Path = Path("."),
+    output_format: str = "text",
 ) -> str:
     """Read local planning inputs and return a read-only change proposal."""
     return build_change_proposal(
@@ -154,4 +162,5 @@ def read_change_proposal(
         policy_path.read_text(encoding="utf-8"),
         state_path=state_path,
         root=root,
+        output_format=output_format,
     )
