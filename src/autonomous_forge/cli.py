@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from autonomous_forge.plan import PlanParseError, parse_plan_tasks
+from autonomous_forge.plan import (
+    PlanParseError,
+    PlanSelectionError,
+    parse_plan_tasks,
+    select_eligible_task,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,25 +38,42 @@ def build_parser() -> argparse.ArgumentParser:
         default=".ai/AUTONOMOUS_PLAN.md",
         help="path to the autonomous roadmap file",
     )
+    tasks_parser.add_argument(
+        "--next",
+        action="store_true",
+        help="print only the next eligible TODO task",
+    )
     return parser
 
 
-def _print_tasks(plan_path: Path) -> int:
+def _format_task(task) -> str:
+    return f"{task.task_id} [{task.priority}/{task.status}] {task.title}"
+
+
+def _print_tasks(plan_path: Path, *, next_only: bool = False) -> int:
     try:
         tasks = parse_plan_tasks(plan_path.read_text(encoding="utf-8"))
+        selected_task = select_eligible_task(tasks) if next_only else None
     except FileNotFoundError:
         print(f"Plan file not found: {plan_path}")
         return 2
-    except PlanParseError as exc:
-        print(f"Plan parse error: {exc}")
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
         return 2
+
+    if next_only:
+        if selected_task is None:
+            print("No eligible TODO task found.")
+        else:
+            print(_format_task(selected_task))
+        return 0
 
     if not tasks:
         print("No autonomous tasks found.")
         return 0
 
     for task in tasks:
-        print(f"{task.task_id} [{task.priority}/{task.status}] {task.title}")
+        print(_format_task(task))
 
     return 0
 
@@ -68,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "tasks":
-        return _print_tasks(Path(args.plan))
+        return _print_tasks(Path(args.plan), next_only=args.next)
 
     parser.print_help()
     return 0
