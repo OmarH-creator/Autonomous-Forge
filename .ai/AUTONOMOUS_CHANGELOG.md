@@ -1,13 +1,13 @@
 # Autonomous Changelog
 
-## 2026-07-08 — CI-001
+## 2026-07-08 — AUTO-026
 
-- Task ID: CI-001 — Smoke-test repository planning inputs in CI
-- Summary: Hardened the test workflow so the installed `forge` command validates the live roadmap, policy, and state inputs and emits a JSON review artifact from repository files before the test suite runs.
-- Branch and PR assessment: Inspected recent commits, recent PRs, workflow configuration, README, roadmap, state, changelog, decisions, source, tests, and current read-only command surfaces. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Added `forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md` and `forge review-artifact --format json` smoke checks to the existing Python matrix. Static review completed through the GitHub repository API; direct repository clone and local test execution were unavailable in this environment.
-- Commit hash: 827f0f1f550bd8155de53d95ae598348b3200892 and related state/documentation commits in the same run.
-- Follow-up notes: Continue toward a structured change-intent surface only after review artifacts and CI smoke checks remain stable.
+- Task ID: AUTO-026 — Add structured change intent to review artifacts
+- Summary: Added a reusable read-only change-intent layer and included it in `forge review-artifact` text and JSON output. Each planned file area now carries proposed operation, local path status, advisory policy status, and review status before any patch or execution behavior exists.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, open issues, README, roadmap, state, changelog, decisions, source, tests, review-artifact documentation, and the current CI/status signals. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic review-artifact tests for change-intent data, text output, JSON output, no-task behavior, and CLI JSON output. Static review completed through the GitHub repository API; direct repository clone and local test execution were unavailable in this environment, and no final workflow run was visible at completion time.
+- Commit hash: 81972654afb5be97ed5cb439fbe756dbe1577664, c67672937740710cd728e7654f10cdb9045cce20, 30089ea6b965570c95d63ca7c853fc0b40e96732, and related documentation/state commits in the same run.
+- Follow-up notes: Add a read-only patch-intent preview only after the change-intent surface remains stable. Do not add file-content reads, diff inspection, patch generation, command execution, write behavior, approval decisions, or policy enforcement yet.
 
 ## Historical note
 
