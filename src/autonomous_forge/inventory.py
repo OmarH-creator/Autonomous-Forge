@@ -12,6 +12,7 @@ _INVENTORY_PATHS = (
     ".ai/AUTONOMOUS_CHANGELOG.md",
     ".ai/DECISIONS.md",
     ".forge/policy.md",
+    ".github/workflows/test.yml",
     "README.md",
     "CONTRIBUTING.md",
     "LICENSE",
