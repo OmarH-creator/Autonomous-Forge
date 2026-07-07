@@ -1,3 +1,5 @@
+import json
+
 from autonomous_forge.cli import main
 
 
@@ -128,17 +130,7 @@ Status: DONE
     state.write_text("# State\n", encoding="utf-8")
     policy.write_text(VALID_POLICY, encoding="utf-8")
 
-    assert main(
-        [
-            "report",
-            "--plan",
-            str(plan),
-            "--state",
-            str(state),
-            "--policy",
-            str(policy),
-        ]
-    ) == 0
+    assert main(["report", "--plan", str(plan), "--state", str(state), "--policy", str(policy)]) == 0
 
     output = capsys.readouterr().out
     assert "Autonomous Forge dry-run report" in output
@@ -153,26 +145,13 @@ def test_report_command_marks_missing_policy(tmp_path, capsys):
     plan = tmp_path / "AUTONOMOUS_PLAN.md"
     state = tmp_path / "AUTONOMOUS_STATE.md"
     missing_policy = tmp_path / "missing-policy.md"
-    plan.write_text(
-        """### AUTO-010 — Ready task
+    plan.write_text("""### AUTO-010 — Ready task
 Priority: P2
 Status: TODO
-""",
-        encoding="utf-8",
-    )
+""", encoding="utf-8")
     state.write_text("# State\n", encoding="utf-8")
 
-    assert main(
-        [
-            "report",
-            "--plan",
-            str(plan),
-            "--state",
-            str(state),
-            "--policy",
-            str(missing_policy),
-        ]
-    ) == 0
+    assert main(["report", "--plan", str(plan), "--state", str(state), "--policy", str(missing_policy)]) == 0
 
     output = capsys.readouterr().out
     assert "Policy file: missing" in output
@@ -182,13 +161,10 @@ def test_report_command_marks_malformed_policy(tmp_path, capsys):
     plan = tmp_path / "AUTONOMOUS_PLAN.md"
     state = tmp_path / "AUTONOMOUS_STATE.md"
     policy = tmp_path / "policy.md"
-    plan.write_text(
-        """### AUTO-010 — Ready task
+    plan.write_text("""### AUTO-010 — Ready task
 Priority: P2
 Status: TODO
-""",
-        encoding="utf-8",
-    )
+""", encoding="utf-8")
     state.write_text("# State\n", encoding="utf-8")
     policy.write_text(
         """## Allowed paths
@@ -206,17 +182,7 @@ src/**
         encoding="utf-8",
     )
 
-    assert main(
-        [
-            "report",
-            "--plan",
-            str(plan),
-            "--state",
-            str(state),
-            "--policy",
-            str(policy),
-        ]
-    ) == 0
+    assert main(["report", "--plan", str(plan), "--state", str(state), "--policy", str(policy)]) == 0
 
     output = capsys.readouterr().out
     assert "Policy file: malformed:" in output
@@ -251,17 +217,10 @@ def test_run_summary_command_prints_read_only_preview(tmp_path, capsys):
     plan.write_text(VALID_PLAN, encoding="utf-8")
     policy.write_text(VALID_POLICY, encoding="utf-8")
 
-    assert main(
-        [
-            "run-summary",
-            "--plan",
-            str(plan),
-            "--policy",
-            str(policy),
-            "--timestamp",
-            "2026-07-07T15:00:00+04:00",
-        ]
-    ) == 0
+    assert main([
+        "run-summary", "--plan", str(plan), "--policy", str(policy),
+        "--timestamp", "2026-07-07T15:00:00+04:00",
+    ]) == 0
 
     output = capsys.readouterr().out
     assert "Run timestamp: 2026-07-07T15:00:00+04:00" in output
@@ -270,3 +229,28 @@ def test_run_summary_command_prints_read_only_preview(tmp_path, capsys):
     assert "Policy status: present and readable" in output
     assert "Validation result: not run" in output
     assert "Commit: none" in output
+
+
+def test_run_summary_command_prints_machine_readable_json_preview(tmp_path, capsys):
+    plan = tmp_path / "AUTONOMOUS_PLAN.md"
+    policy = tmp_path / "policy.md"
+    plan.write_text(VALID_PLAN, encoding="utf-8")
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+
+    assert main([
+        "run-summary", "--plan", str(plan), "--policy", str(policy),
+        "--timestamp", "2026-07-07T15:00:00+04:00", "--format", "json",
+    ]) == 0
+
+    summary = json.loads(capsys.readouterr().out)
+    assert summary == {
+        "run_timestamp": "2026-07-07T15:00:00+04:00",
+        "selected_task": "AUTO-010 — Ready task",
+        "task_status_before_run": "TODO",
+        "policy_status": "present and readable",
+        "validation_plan": "PYTHONPATH=src python -m pytest",
+        "validation_result": "not run",
+        "changed_files_summary": "none",
+        "commit": "none",
+        "notes": "Read-only preview only; no run-summary file was written.",
+    }
