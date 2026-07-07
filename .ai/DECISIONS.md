@@ -1,5 +1,21 @@
 # Autonomous Decisions
 
+## DEC-012 — 2026-07-07 — Keep plan JSON as stdout-only structured data
+
+Context: `forge plan` now provides a useful human-readable policy-aware plan, and the next safe step toward change proposals is making that plan consumable without scraping terminal text.
+Decision: Add `forge plan --format json` backed by the same structured plan-data builder used for text output, but keep it stdout-only and read-only.
+Alternatives considered: Write a plan artifact to disk immediately, add patch generation, add validation execution, or leave downstream workflows to parse text output.
+Consequences: Future proposal and validation workflows can consume stable planning data while the current command still avoids file writes, command execution, diff inspection, approval decisions, and policy enforcement.
+Human decision still required: No.
+
+## DEC-011 — 2026-07-07 — Close obsolete planning draft PR
+
+Context: Draft PR #5 contained an early planning-core branch, but the same policy-aware `forge plan` capability had already been integrated directly on `main` with CLI wiring, tests, and documentation.
+Decision: Close PR #5 as obsolete and continue the main-only workflow from the integrated code.
+Alternatives considered: Merge the draft PR, recreate a replacement PR, or leave it open as a misleading duplicate.
+Consequences: The repository has one source of truth on `main`, and future planning work continues without duplicate branch/PR state.
+Human decision still required: No.
+
 ## DEC-010 — 2026-07-07 — Validate the installed package path in CI
 
 Context: The project documents an installable `forge` console script, but the workflow only tested source-tree imports through `PYTHONPATH=src`.
