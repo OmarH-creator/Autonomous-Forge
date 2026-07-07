@@ -101,7 +101,7 @@ forge validate-plan \
   --root .
 ```
 
-`forge validate-plan` consumes the same structured proposal data and prints the validation steps, expected file areas, advisory path checks, approval-required items, blockers, risk notes, and command-execution status for the selected task. It is planning output only: it does not run tests, execute shell commands, write artifacts, inspect diffs, scan secrets, or enforce policy decisions.
+`forge validate-plan` consumes the same structured proposal data and prints the validation steps, expected file areas, advisory path checks, approval-required items, blockers, risk notes, and command-execution status for the selected task. Its local path-presence checks stay inside the resolved `--root` and return `unknown` for unsafe or ambiguous paths. It is planning output only: it does not run tests, execute shell commands, write artifacts, inspect diffs, scan secrets, or enforce policy decisions.
 
 For automation-friendly review, print the validation plan as deterministic JSON:
 
@@ -187,9 +187,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge review-artifact`, a read-only combined handoff for the selected maintenance task.
-- **What changed:** The new command combines selected task context, documentation signals, proposal file areas and operations, validation intent, explicit planned-path review, attention status, and text/JSON output without reading file contents or running commands.
-- **Validation:** Added deterministic unit and CLI tests for review artifact data, text output, JSON output, no-selected-task behavior, and CLI JSON output. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
-- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change is a terminal/JSON review artifact.
-- **Current limitations:** Review artifacts are advisory only. They do not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files.
-- **Next autonomous objective:** Add guarded validation-run preview metadata, still read-only, so the tool can explain exactly which validation commands would be eligible before any execution behavior is considered.
+- **Latest run:** Hardened `forge validate-plan` advisory path checks so they cannot disclose the presence of files reached through paths that resolve outside the repository root.
+- **What changed:** Validation-plan path normalization now rejects absolute paths, backslash paths, parent-directory traversal, undocumented placeholders, and wildcard-like planned areas before local presence checks. Presence checks now resolve `--root` and each candidate path and report `unknown` when the candidate cannot be proven to stay inside the resolved repository root.
+- **Validation:** Added a deterministic regression test that creates an in-root symbolic link pointing to an external file and verifies validation-plan output reports the path as `unknown` while preserving advisory policy status. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change is a safety hardening of terminal/JSON path-check output.
+- **Current limitations:** Validation plans, review artifacts, and changed-file reviews are advisory only. They do not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
+- **Next autonomous objective:** Add guarded validation-run preview metadata so the tool can explain exactly which documented validation commands would be eligible before any execution behavior is considered.
