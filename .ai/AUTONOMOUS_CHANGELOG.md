@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — Documentation overview link
+
+- Task ID: Documentation overview link
+- Summary: Linked the existing `docs/OVERVIEW.md` visual workflow from `README.md`, resolving the prior discoverability blocker without changing CLI behavior or safety boundaries.
+- Validation completed: Reviewed the README target, overview Mermaid diagram, and read-only claims through the GitHub repository API. A checkout and `PYTHONPATH=src python -m pytest` could not run because this environment could not resolve github.com.
+- Commit hash: a236ceed18f7ffd75f8b29ec4ef23c8a7868e5fa (README link); state and changelog records follow in subsequent documentation commits.
+- Follow-up notes: Inspect the first available CI result before adding behavior. Avoid expanding beyond local, read-only inspection without a revised roadmap and policy review.
+
 ## 2026-07-07 — AUTO-014
 
 - Task ID: AUTO-014
@@ -28,7 +36,7 @@
 
 - Task ID: AUTO-011
 - Summary: Added `docs/RUN_SUMMARIES.md` documenting the future local run-summary format, required fields, example preview, and safety limits that prevent automatic history-file writes until explicitly planned.
-- Validation completed: Static documentation review completed against AUTO-011 acceptance criteria; runtime test execution was unavailable in this automation environment.
+- Validation completed: Static documentation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Reassess Roadmap v2 and add the next smallest read-only task before implementing further behavior.
 
@@ -36,7 +44,7 @@
 
 - Task ID: AUTO-010
 - Summary: Added `docs/COMMANDS.md` documenting implemented CLI command purposes, inputs, expected human-readable output patterns, exit-code expectations, and safety limitations; linked the command contracts from README.
-- Validation completed: Static documentation review completed against AUTO-010 acceptance criteria; runtime test execution was unavailable in this automation environment.
+- Validation completed: Static documentation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Proceed to AUTO-011 next so local run-summary format work can be designed without adding execution behavior.
 
@@ -44,7 +52,7 @@
 
 - Task ID: AUTO-009
 - Summary: Added read-only roadmap structure linting through `forge lint-plan`, including required task fields, supported priority values, supported status values, CLI diagnostics, tests, and README usage notes.
-- Validation completed: Static implementation review completed against AUTO-009 acceptance criteria; added unit and CLI coverage for valid plans, missing required fields, unsupported priorities, and unsupported statuses; runtime test execution was unavailable in this automation environment.
+- Validation completed: Static implementation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Proceed to AUTO-010 next so command output contracts are documented after the new read-only command exists.
 
@@ -52,7 +60,7 @@
 
 - Task ID: AUTO-008
 - Summary: Extended the read-only `forge report` output to include repository policy readiness as present/readable, missing, or malformed while avoiding any path enforcement claims.
-- Validation completed: Static implementation review completed against AUTO-008 acceptance criteria; added CLI coverage for present, missing, and malformed policy states; runtime test execution was unavailable in this automation environment.
+- Validation completed: Static implementation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Proceed to AUTO-009 next so roadmap structure can be linted before adding more commands.
 
@@ -60,7 +68,7 @@
 
 - Task ID: AUTO-007
 - Summary: Added conservative read-only parsing for `.forge/policy.md`, exposed a `forge policy` summary command, documented the command, and added parser/CLI coverage for valid, missing, and malformed policy inputs.
-- Validation completed: Static implementation review completed against the documented policy format; runtime test execution was unavailable in this automation environment.
+- Validation completed: Static implementation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Proceed to AUTO-008 next so `forge report` can surface policy readiness without claiming enforcement.
 
