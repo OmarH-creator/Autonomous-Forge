@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-006
+
+- Task ID: AUTO-006
+- Summary: Added contributor development guidance for local setup, tests, task discipline, safe file handling, safety boundaries, and commit-message expectations.
+- Validation completed: Static documentation review completed; runtime test execution was not available in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Roadmap v1 is complete. Reassess the repository and prepare Roadmap v2 before implementing new work.
+
 ## 2026-07-07 — AUTO-005
 
 - Task ID: AUTO-005
