@@ -18,7 +18,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
 - `forge propose` for a read-only change proposal that turns the selected plan task into planned file areas, high-level operations, validation steps, risks, blockers, and approval-required items.
 - `forge propose --format json` for structured proposal data that future validation orchestration can consume without scraping human-readable text.
-- `forge validate-plan` for a read-only validation plan that turns proposal data into reviewable validation steps, expected file areas, blockers, risks, and a clear no-execution boundary.
+- `forge validate-plan` for a read-only validation plan that turns proposal data into reviewable validation steps, expected file areas, advisory path checks, blockers, risks, and a clear no-execution boundary.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
@@ -99,7 +99,7 @@ forge validate-plan \
   --root .
 ```
 
-`forge validate-plan` consumes the same structured proposal data and prints the validation steps, expected file areas, approval-required items, blockers, risk notes, and command-execution status for the selected task. It is planning output only: it does not run tests, execute shell commands, write artifacts, inspect diffs, or enforce policy decisions.
+`forge validate-plan` consumes the same structured proposal data and prints the validation steps, expected file areas, advisory path checks, approval-required items, blockers, risk notes, and command-execution status for the selected task. It is planning output only: it does not run tests, execute shell commands, write artifacts, inspect diffs, scan secrets, or enforce policy decisions.
 
 For automation-friendly review, print the validation plan as deterministic JSON:
 
@@ -142,9 +142,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Advanced the policy-aware maintenance milestone by adding `forge validate-plan`, a read-only validation-planning command built from structured proposal data.
-- **What changed:** Added a validation-planning core, exposed `forge validate-plan` with text and JSON output, added deterministic builder and CLI tests, documented usage, marked stale roadmap state for AUTO-021 as complete, and refreshed project-memory records.
-- **Validation:** Added tests for structured validation-plan data, human-readable output, JSON output, CLI text output, CLI JSON output, and the no-selected-task case. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
-- **Visual updates:** No new visual asset was needed; this is a terminal validation-planning capability, and the existing overview remains the factual workflow visual.
-- **Current limitations:** `forge validate-plan` still emits validation intent only. It does not run validation commands, write artifacts, inspect diffs, generate patches, execute plans, approve policy exceptions, or enforce policy decisions.
-- **Next autonomous objective:** Add a safe local diff/check summary for planned file areas before considering command execution or write behavior.
+- **Latest run:** Advanced the validation-planning milestone by adding advisory local path checks to `forge validate-plan`.
+- **What changed:** Validation-plan data now includes `path_checks` for each planned file area, reporting local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`; text and JSON output both expose the checks.
+- **Validation:** Added deterministic tests for path-check data, text output, JSON output, CLI text output, CLI JSON output, and the no-selected-task case. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
+- **Visual updates:** No new visual asset was needed; this is still a terminal review capability, and the existing overview remains the factual workflow visual.
+- **Current limitations:** Path checks are advisory only. They do not inspect git diffs, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files.
+- **Next autonomous objective:** Add a read-only changed-files/diff intent review surface only after path-area checks remain stable, then defer command execution until validation orchestration has explicit safeguards.
