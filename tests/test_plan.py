@@ -3,6 +3,7 @@ import pytest
 from autonomous_forge.plan import (
     PlanParseError,
     PlanSelectionError,
+    lint_plan_structure,
     parse_plan_tasks,
     select_eligible_task,
 )
@@ -13,12 +14,26 @@ VALID_PLAN = """# Roadmap
 ### AUTO-001 — First task
 Priority: P1
 Status: TODO
-
 Goal: Do one thing.
+Why it matters: It proves parsing works.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: The task parses.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
 
 ### AUTO-002 — Done task
 Priority: P2
 Status: DONE
+Goal: Finish another thing.
+Why it matters: It proves statuses work.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: The task parses.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
 """
 
 
@@ -42,6 +57,48 @@ def test_malformed_task_reports_missing_field():
 Priority: P1
 """
         )
+
+
+def test_lint_valid_plan_returns_no_diagnostics():
+    assert lint_plan_structure(VALID_PLAN) == []
+
+
+def test_lint_reports_missing_required_task_field():
+    diagnostics = lint_plan_structure(
+        """### AUTO-009 — Missing goal
+Priority: P2
+Status: TODO
+Why it matters: It catches incomplete tasks.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: It reports missing fields.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
+"""
+    )
+
+    assert any("missing required field: Goal" in item.message for item in diagnostics)
+
+
+def test_lint_reports_unsupported_priority_and_status():
+    diagnostics = lint_plan_structure(
+        """### AUTO-009 — Bad values
+Priority: PX
+Status: STARTED
+Goal: Validate values.
+Why it matters: It catches ambiguous selection input.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: It reports invalid values.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
+"""
+    )
+
+    assert any("unsupported priority: PX" in item.message for item in diagnostics)
+    assert any("unsupported status: STARTED" in item.message for item in diagnostics)
 
 
 def test_select_eligible_task_uses_priority_before_source_order():
