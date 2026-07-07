@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-011
+
+- Task ID: AUTO-011
+- Summary: Added `docs/RUN_SUMMARIES.md` documenting the future local run-summary format, required fields, example preview, and safety limits that prevent automatic history-file writes until explicitly planned.
+- Validation completed: Static documentation review completed against AUTO-011 acceptance criteria; runtime test execution was unavailable in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Reassess Roadmap v2 and add the next smallest read-only task before implementing further behavior.
+
 ## 2026-07-07 — AUTO-010
 
 - Task ID: AUTO-010
