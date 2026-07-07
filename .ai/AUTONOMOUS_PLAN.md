@@ -10,13 +10,13 @@ The first product remains a local Python command-line tool. It reads repository 
 
 ## Current architecture
 
-The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, and `forge policy`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, command output contracts under `docs/COMMANDS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, and `forge policy`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
 
 ## Current implementation status
 
 Roadmap v1 is complete. Autonomous Forge has a minimal installable CLI scaffold, package metadata, README development instructions, deterministic roadmap task parsing, deterministic eligible-task selection, a dry-run repository report, policy format documentation, an example policy, contributor development guidance, and tests covering CLI help, plan parsing, selector behavior, and report output.
 
-Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. `forge report` surfaces policy-file readiness without claiming policy enforcement. `forge lint-plan` now checks roadmap task block structure before higher-risk automation is considered.
+Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. `forge report` surfaces policy-file readiness without claiming policy enforcement. `forge lint-plan` checks roadmap task block structure before higher-risk automation is considered. Current command output contracts are now documented for maintainers, contributors, and future automation.
 
 ## User personas and likely workflows
 
@@ -27,13 +27,13 @@ Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md`
 
 ## Strengths and risks
 
-Strengths: local-first design, small scope, clear durable memory, deterministic task selection, explicit policy boundaries, roadmap structure linting, and contributor setup guidance.
+Strengths: local-first design, small scope, clear durable memory, deterministic task selection, explicit policy boundaries, roadmap structure linting, documented command output contracts, and contributor setup guidance.
 
 Risks: policy parsing must remain intentionally conservative; reporting must not imply enforcement before enforcement exists; any future command execution must remain out of scope until explicitly planned and approved.
 
 ## Technical debt
 
-The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, and lint roadmap task blocks. It does not yet persist run summaries in a machine-readable local format.
+The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, and provide documented command output contracts. It does not yet persist run summaries in a machine-readable local format.
 
 ## Test coverage gaps
 
@@ -41,7 +41,7 @@ Report behavior has unit tests, including policy present, missing, and malformed
 
 ## Documentation gaps
 
-The contributor guide covers local setup, tests, task discipline, safe file handling, and safety boundaries. Future documentation should explain command output contracts and run-record commands only after they exist.
+Future documentation should explain run-record commands only after they exist.
 
 ## Security and privacy considerations
 
@@ -176,14 +176,14 @@ Notes: Read-only command only.
 
 ### AUTO-010 — Document command output contracts
 Priority: P2
-Status: TODO
+Status: DONE
 
 Goal: Document the current CLI commands, exit codes, and stable human-readable output expectations.
 Why it matters: Contributors and future automation need predictable behavior before more commands are added.
 Scope: Add concise command reference documentation for `forge`, `forge tasks`, `forge tasks --next`, `forge report`, and any new read-only commands completed before this task.
 Expected files or areas: README, `docs/`, tests if examples are added.
 Acceptance criteria: Documentation lists commands, purpose, inputs, outputs, exit-code expectations, and safety limitations.
-Validation: Documentation review and existing tests; run `PYTHONPATH=src python -m pytest` when runtime execution is available.
+Validation: Added `docs/COMMANDS.md` covering implemented commands, output patterns, exit-code expectations, and safety limits; linked it from README; static documentation review completed because runtime test execution was unavailable in this automation environment.
 Risks or assumptions: Keep docs aligned with implemented behavior only.
 Notes: Do not document future commands as complete.
 
