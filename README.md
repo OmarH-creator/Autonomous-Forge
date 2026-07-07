@@ -20,13 +20,13 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - A read-only `forge report` command for dry-run repository summaries and policy-readiness reporting.
 - A documented repository policy format with a conservative example policy.
 - A read-only `forge policy` command for parsing policy section readiness.
-- A read-only `forge run-summary` command for previewing the documented local run-summary format.
+- A read-only `forge run-summary` command with human-readable and JSON preview output.
 - A read-only `forge inventory` command for repository health file-presence signals.
 - Documented command output contracts in `docs/COMMANDS.md`.
 - A documented local run-summary format in `docs/RUN_SUMMARIES.md` for future preview/write behavior.
 - A documented repository health inventory scope in `docs/HEALTH_INVENTORY.md`.
 - Contributor development guidance in `CONTRIBUTING.md`.
-- Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, policy parsing, run-summary preview output, and inventory output.
+- Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, policy parsing, text and JSON run-summary preview output, and inventory output.
 
 ## Planned direction
 
@@ -46,6 +46,7 @@ The MVP roadmap focuses on practical, reviewable automation:
 12. Define repository health inventory scope before adding an inventory command.
 13. Print read-only repository health file-presence signals without scoring or scanning.
 14. Keep contributor setup and safety guidance clear as the CLI evolves.
+15. Provide machine-readable preview output before considering any run-summary persistence.
 
 ## Repository policy boundaries
 
@@ -113,7 +114,15 @@ The command is read-only. It parses the documented policy headings and reports h
 forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md
 ```
 
-The command is read-only. It prints the documented run-summary fields to standard output, including selected task, policy status, validation plan, validation result, changed-files summary placeholder, commit placeholder, and notes. It does not write execution history files.
+The default preview is human-readable. It prints the documented run-summary fields, including selected task, policy status, validation plan, validation result, changed-files summary placeholder, commit placeholder, and notes. It does not write execution history files.
+
+For local automation that should not parse display text, use JSON output:
+
+```bash
+forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md --format json
+```
+
+The JSON mode previews the same fields with stable key names. It remains read-only and does not run validation, inspect diffs, write history, commit, or push.
 
 ## Inspect repository health inventory
 
@@ -129,7 +138,7 @@ See `docs/COMMANDS.md` for the current command purposes, expected output pattern
 
 ## Local run summaries
 
-See `docs/RUN_SUMMARIES.md` for the local run-summary format. Autonomous Forge can preview this format, but it does not automatically write execution history files yet.
+See `docs/RUN_SUMMARIES.md` for the local run-summary format. Autonomous Forge can preview this format as text or JSON, but it does not automatically write execution history files yet.
 
 ## Repository health inventory
 
@@ -144,3 +153,15 @@ PYTHONPATH=src python -m pytest
 ## Safe contribution expectations
 
 Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, secret handling, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
+
+## Autonomous maintenance run — 2026-07-07
+
+| Item | Result |
+| --- | --- |
+| Assessment | The tool had a useful read-only planning surface but no safe machine-readable run-summary contract for local automation. |
+| Decision | Added `forge run-summary --format json`; text output remains the default. |
+| Changed areas | CLI, run-summary builder, CLI coverage, run-summary documentation, command contracts, and `.ai/` project memory. |
+| Practical effect | Local scripts can consume the exact preview fields without parsing display text; no persistence or execution capability was added. |
+| Validation | Added a deterministic CLI JSON test. Runtime execution is still pending CI observation because no checkout-capable runtime is available here. |
+| Known limitation | JSON is preview-only and carries placeholder validation, changed-file, and commit values. |
+| Next opportunity | Observe the pull-request CI result, then consider a policy-aware, explicitly opt-in local file writer only through a new reviewed roadmap task. |
