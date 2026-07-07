@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — Roadmap v2 planning
+
+- Task ID: Roadmap v2 planning
+- Summary: Added Roadmap v2 with conservative read-only tasks for policy parsing, policy readiness reporting, roadmap linting, command output documentation, and local run-summary planning.
+- Validation completed: Static roadmap consistency review completed; runtime test execution was not available in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Begin AUTO-007 next; do not implement later roadmap items during the same planning run.
+
 ## 2026-07-07 — AUTO-006
 
 - Task ID: AUTO-006
