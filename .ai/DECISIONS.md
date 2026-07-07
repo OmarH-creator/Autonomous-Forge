@@ -39,3 +39,51 @@ Decision: Add `forge propose` as a read-only human-readable change-proposal comm
 Alternatives considered: Generate patches immediately, run validation commands, write proposal artifacts to disk, add policy enforcement, or keep proposals as documentation only.
 Consequences: Maintainers get a clearer bridge from selected roadmap task to intended work while the tool still avoids writes, command execution, network calls, diff inspection, approval decisions, and policy enforcement.
 Human decision still required: No.
+
+## DEC-012 — 2026-07-07 — Keep plan JSON as stdout-only structured data
+
+Context: `forge plan` now provides a useful human-readable policy-aware plan, and the next safe step toward change proposals is making that plan consumable without scraping terminal text.
+Decision: Add `forge plan --format json` backed by the same structured plan-data builder used for text output, but keep it stdout-only and read-only.
+Alternatives considered: Write a plan artifact to disk immediately, add patch generation, add validation execution, or leave downstream workflows to parse text output.
+Consequences: Future proposal and validation workflows can consume stable planning data while the current command still avoids file writes, command execution, diff inspection, approval decisions, and policy enforcement.
+Human decision still required: No.
+
+## DEC-011 — 2026-07-07 — Close obsolete planning draft PR
+
+Context: Draft PR #5 contained an early planning-core branch, but the same policy-aware `forge plan` capability had already been integrated directly on `main` with CLI wiring, tests, and documentation.
+Decision: Close PR #5 as obsolete and continue the main-only workflow from the integrated code.
+Alternatives considered: Merge the draft PR, recreate a replacement PR, or leave it open as a misleading duplicate.
+Consequences: The repository has one source of truth on `main`, and future planning work continues without duplicate branch/PR state.
+Human decision still required: No.
+
+## DEC-010 — 2026-07-07 — Validate the installed package path in CI
+
+Context: The project documents an installable `forge` console script, but the workflow only tested source-tree imports through `PYTHONPATH=src`.
+Decision: Install the local package in the existing Python matrix, run `forge --version`, and execute the test suite without a source-path override.
+Alternatives considered: Keep source-tree-only testing, add a separate workflow, or change product behavior before proving packaging works.
+Consequences: CI now detects broken package metadata and console-script wiring while retaining pinned actions, `contents: read`, the existing timeout, and no runtime dependencies.
+Human decision still required: No.
+
+## DEC-009 — 2026-07-07 — Keep inventory limited to file-presence signals
+
+Context: AUTO-013 documented a safe repository health inventory scope, and the next smallest coherent task was to expose that scope through the CLI.
+Decision: Add `forge inventory` as a read-only file-presence summary over the documented paths only.
+Alternatives considered: Add scoring, inspect file contents, inspect environment settings, enforce policy boundaries, or run validation commands.
+Consequences: Maintainers get a quick local readiness view while the tool avoids broader audit, enforcement, scanning, or execution claims.
+Human decision still required: No.
+
+## DEC-008 — 2026-07-07 — Scope health inventory before implementation
+
+Context: Roadmap v2 completed run-summary preview work, and the state file recommended adding the next smallest read-only task before implementing further behavior.
+Decision: Document the first repository health inventory scope in `docs/HEALTH_INVENTORY.md` before adding any `forge inventory` command.
+Alternatives considered: Implement the inventory command immediately, add scoring or audit language, or skip inventory work and move directly to run-summary persistence.
+Consequences: Future inventory work has clear local-only, read-only boundaries and avoids implying enforcement, credential scanning, health scoring, or external command execution before those behaviors are explicitly approved.
+Human decision still required: No.
+
+## DEC-007 — 2026-07-07 — Preview run summaries before persistence
+
+Context: AUTO-011 documented the local run-summary format, and the project still prohibits automatic execution-history writes.
+Decision: Add `forge run-summary` as a read-only preview command that prints the documented fields without writing files, running validation, inspecting diffs, or creating commits.
+Alternatives considered: Add automatic history persistence immediately, leave the format documentation-only, or fold preview output into `forge report`.
+Consequences: Maintainers can inspect the future record shape with real plan and policy context while preserving the current read-only safety boundary.
+Human decision still required: No.
