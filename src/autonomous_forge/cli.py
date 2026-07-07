@@ -21,6 +21,7 @@ from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
 from autonomous_forge.run_history_preview import read_run_history_preview
+from autonomous_forge.run_history_writer import RunHistoryWriteError, write_run_history_record
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
 from autonomous_forge.validation_preview import read_validation_preview
@@ -52,6 +53,29 @@ def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, forma
         choices=("text", "json"),
         default="text",
         help=format_help,
+    )
+
+
+def _add_plan_state_policy_root(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for review signals",
     )
 
 
@@ -127,6 +151,22 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command_parser = subparsers.add_parser(command, help=help_text)
         _add_plan_state_policy_root_format(command_parser, format_help=format_help)
+
+    run_history_write_parser = subparsers.add_parser(
+        "run-history-write",
+        help="explicitly write one local run-history JSON record after clean preflight",
+    )
+    _add_plan_state_policy_root(run_history_write_parser)
+    run_history_write_parser.add_argument(
+        "--output",
+        required=True,
+        help="output path under .ai/run-history/ for the JSON record",
+    )
+    run_history_write_parser.add_argument(
+        "--confirm-write",
+        action="store_true",
+        help="required acknowledgement that this command writes one local JSON file",
+    )
 
     review_files_parser = subparsers.add_parser(
         "review-files",
@@ -359,6 +399,42 @@ def _print_inventory(root_path: Path) -> int:
     return 0
 
 
+def _write_run_history(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+    output_path: Path,
+    confirm_write: bool,
+) -> int:
+    try:
+        result = write_run_history_record(
+            plan_path.read_text(encoding="utf-8"),
+            policy_path.read_text(encoding="utf-8"),
+            state_path=state_path,
+            root=root,
+            output_path=output_path,
+            confirm_write=confirm_write,
+        )
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    except RunHistoryWriteError as exc:
+        print(f"Run-history write refused: {exc}")
+        return 2
+
+    print(f"Run-history record written: {result['path']}")
+    print(f"Schema version: {result['payload']['schema_version']}")
+    print(f"Selected task: {result['payload']['record']['task']['id'] or 'none'}")
+    return 0
+
+
 _POLICY_AWARE_READERS = {
     "plan": read_repository_plan,
     "propose": read_change_proposal,
@@ -398,6 +474,16 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.policy),
             Path(args.root),
             args.format,
+        )
+
+    if args.command == "run-history-write":
+        return _write_run_history(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
+            Path(args.output),
+            args.confirm_write,
         )
 
     if args.command == "review-files":
