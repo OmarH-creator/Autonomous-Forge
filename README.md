@@ -16,6 +16,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
+- Repository health inventory coverage for the primary GitHub Actions workflow file.
 
 ## Install for local development
 
@@ -94,9 +95,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added read-only patch intent into `forge review-artifact` so the combined handoff now previews future patch rationale, reviewer checks, validation expectations, blockers, and readiness without generating a patch.
-- **What changed:** Added `src/autonomous_forge/patch_intent.py`, integrated patch-intent data into `src/autonomous_forge/review_artifact.py`, expanded review-artifact tests, and updated review-artifact documentation and project-memory records.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for patch-intent data, text output, JSON output, no-task behavior, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
-- **Visual updates:** No new visual asset was needed; this change improves structured pre-patch review data rather than workflow visualization.
-- **Current limitations:** Review artifacts, patch intent, change intent, validation previews, validation plans, and changed-file reviews remain advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
-- **Next autonomous objective:** Add a durable local run-history preview or a structured preflight checklist only after patch-intent output remains stable, still without command execution, diff inspection, patch generation, or repository writes.
+- **Latest run:** Hardened the read-only repository inventory so workflow presence is part of the standard health surface.
+- **What changed:** Added `.github/workflows/test.yml` to `forge inventory` signals, added deterministic inventory tests for present and missing workflow states, and updated health-inventory documentation and project-memory records.
+- **Validation:** Static review completed through the GitHub repository API. Focused tests were added for workflow inventory coverage. Direct local checkout/test execution remains unavailable in this environment.
+- **Visual updates:** No new visual asset was needed; this change strengthens a text-based health signal rather than changing the workflow architecture.
+- **Current limitations:** Inventory remains file-presence only. It does not validate workflow syntax, execute GitHub Actions, inspect workflow permissions, scan secrets, read environment variables, run commands, or enforce policy decisions.
+- **Next autonomous objective:** Add a durable local run-history preview only after the inventory and review-artifact surfaces remain stable, still without command execution, diff inspection, patch generation, workflow execution, or repository writes from product commands.
