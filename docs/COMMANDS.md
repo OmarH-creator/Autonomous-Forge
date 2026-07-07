@@ -1,6 +1,6 @@
 # Command Output Contracts
 
-Autonomous Forge commands are currently read-only. They inspect local files, print human-readable summaries, and do not modify repository files.
+Autonomous Forge commands are currently read-only. They inspect local files and print human-readable summaries or documented JSON preview data; they do not modify repository files.
 
 These contracts describe implemented behavior only. They are intentionally plain so contributors and future automation can rely on stable command purposes without assuming enforcement or execution features that do not exist yet.
 
@@ -10,7 +10,7 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Commands return exit code `0` when the requested read-only inspection succeeds.
 - Commands return exit code `2` for missing required input files or malformed roadmap/policy input.
 - Commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions.
-- Output is human-readable and may be extended conservatively, but existing status phrases should remain stable when practical.
+- Text output is human-readable. `forge run-summary --format json` is the sole implemented machine-readable output mode.
 
 ## `forge`
 
@@ -201,8 +201,9 @@ Inputs:
 - `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
 - `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
 - `--timestamp`: optional ISO-8601 timestamp for deterministic preview output.
+- `--format`: `text` (default) or `json`.
 
-Expected successful output:
+Expected successful text output:
 
 ```text
 Run timestamp: <ISO-8601 timestamp with timezone>
@@ -216,12 +217,28 @@ Commit: none
 Notes: Read-only preview only; no run-summary file was written.
 ```
 
+Expected successful JSON output contains the same values under these keys:
+
+```json
+{
+  "run_timestamp": "<ISO-8601 timestamp with timezone>",
+  "selected_task": "<AUTO-### — title, or none>",
+  "task_status_before_run": "<status>",
+  "policy_status": "<readiness>",
+  "validation_plan": "PYTHONPATH=src python -m pytest",
+  "validation_result": "not run",
+  "changed_files_summary": "none",
+  "commit": "none",
+  "notes": "Read-only preview only; no run-summary file was written."
+}
+```
+
 Exit codes:
 
 - `0` when the preview is built.
 - `2` when the plan file is missing, malformed, or contains an unsupported priority for selection.
 
-Safety limits: prints a preview only; it does not create history files, run validation, inspect diffs, commit, push, or change repository files.
+Safety limits: both formats print a preview only; they do not create history files, run validation, inspect diffs, commit, push, or change repository files.
 
 ## `forge inventory`
 
