@@ -4,6 +4,8 @@ Autonomous Forge is an open-source, AI-built and AI-maintained developer tool fo
 
 The project starts as a local-first Python CLI. Its first goal is deliberately small: provide a `forge` command that can grow into dry-run planning, task selection, validation reporting, and durable repository memory without requiring uncontrolled autonomous behavior.
 
+For a visual orientation to the current read-only workflow and its safety boundary, see [the project overview](docs/OVERVIEW.md).
+
 ## Current status
 
 Autonomous Forge is pre-alpha. The repository now contains:
