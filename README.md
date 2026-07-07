@@ -12,13 +12,14 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, and validation plans.
+- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, and changed-file reviews.
 - `forge run-summary --format json` for script-friendly, read-only run-summary previews.
 - `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
 - `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
 - `forge propose` for a read-only change proposal that turns the selected plan task into planned file areas, high-level operations, validation steps, risks, blockers, and approval-required items.
 - `forge propose --format json` for structured proposal data that future validation orchestration can consume without scraping human-readable text.
 - `forge validate-plan` for a read-only validation plan that turns proposal data into reviewable validation steps, expected file areas, advisory path checks, blockers, risks, and a clear no-execution boundary.
+- `forge review-files` for explicit changed-file path review against documented allowed/prohibited policy patterns before any diff inspection, patch generation, or command execution exists.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
@@ -112,6 +113,28 @@ forge validate-plan \
   --format json
 ```
 
+## Review explicit changed-file paths
+
+```bash
+forge review-files \
+  --policy .forge/policy.md \
+  --root . \
+  --file src/autonomous_forge/cli.py \
+  --file tests/test_path_review.py
+```
+
+`forge review-files` checks only the paths provided on the command line. It reports local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`. It does not read file contents, inspect git diffs, scan secrets, run validation, approve policy exceptions, enforce policy, or change files.
+
+For automation-friendly review, print the same changed-file review as deterministic JSON:
+
+```bash
+forge review-files \
+  --policy .forge/policy.md \
+  --root . \
+  --file src/autonomous_forge/cli.py \
+  --format json
+```
+
 ## Produce other read-only views
 
 ```bash
@@ -142,9 +165,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Advanced the validation-planning milestone by adding advisory local path checks to `forge validate-plan`.
-- **What changed:** Validation-plan data now includes `path_checks` for each planned file area, reporting local presence as `present`, `missing`, or `unknown` and advisory policy status as `allowed`, `prohibited`, or `unknown`; text and JSON output both expose the checks.
-- **Validation:** Added deterministic tests for path-check data, text output, JSON output, CLI text output, CLI JSON output, and the no-selected-task case. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
-- **Visual updates:** No new visual asset was needed; this is still a terminal review capability, and the existing overview remains the factual workflow visual.
-- **Current limitations:** Path checks are advisory only. They do not inspect git diffs, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files.
-- **Next autonomous objective:** Add a read-only changed-files/diff intent review surface only after path-area checks remain stable, then defer command execution until validation orchestration has explicit safeguards.
+- **Latest run:** Added `forge review-files` as a read-only changed-file path review surface.
+- **What changed:** The new command accepts repeated `--file` paths, checks each path against documented allowed/prohibited policy patterns, reports local presence, summarizes allowed/prohibited/unknown counts, and supports deterministic text and JSON output.
+- **Validation:** Added deterministic unit and CLI tests for changed-file review data, text output, JSON output, allowed/prohibited/unknown paths, and dotfile handling. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- **Visual updates:** No new visual asset was needed; this remains a terminal review capability, and the existing overview remains the factual workflow visual.
+- **Current limitations:** Changed-file review is advisory only. It does not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files.
+- **Next autonomous objective:** Add a safe review artifact that combines selected task, proposal, validation plan, and explicit changed-file review before considering guarded validation execution.
