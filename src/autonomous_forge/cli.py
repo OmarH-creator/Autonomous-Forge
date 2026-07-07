@@ -21,6 +21,7 @@ from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
+from autonomous_forge.validation_preview import read_validation_preview
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -175,6 +176,37 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="validation plan format: text (default) or JSON",
+    )
+
+    validation_preview_parser = subparsers.add_parser(
+        "validation-preview",
+        help="preview validation command eligibility without running commands",
+    )
+    validation_preview_parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    validation_preview_parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    validation_preview_parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    validation_preview_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for validation preview signals",
+    )
+    validation_preview_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="validation preview format: text (default) or JSON",
     )
 
     review_files_parser = subparsers.add_parser(
@@ -420,6 +452,27 @@ def _print_validation_plan(
     return 0
 
 
+def _print_validation_preview(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+    output_format: str,
+) -> int:
+    try:
+        print(read_validation_preview(plan_path, policy_path, state_path, root, output_format))
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_path_review(
     policy_path: Path,
     root: Path,
@@ -541,6 +594,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "validate-plan":
         return _print_validation_plan(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
+            args.format,
+        )
+
+    if args.command == "validation-preview":
+        return _print_validation_preview(
             Path(args.plan),
             Path(args.state),
             Path(args.policy),
