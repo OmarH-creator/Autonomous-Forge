@@ -63,6 +63,7 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
         "prohibited": 0,
         "unknown": 0,
     }
+    assert artifact["requires_attention"] is False
     assert artifact["review_status"] == "ready for human review"
 
 
@@ -75,6 +76,7 @@ def test_build_review_artifact_formats_text_output(tmp_path):
     assert "Planned file areas:" in output
     assert "Validation execution: not run" in output
     assert "Explicit path review:" in output
+    assert "Requires attention: false" in output
     assert "Commands allowed: false" in output
     assert "Safety boundary: Review artifact output only" in output
 
@@ -91,6 +93,7 @@ def test_build_review_artifact_supports_json_output(tmp_path):
     assert data["title"] == "Autonomous Forge review artifact"
     assert data["selected_task"]["id"] == "AUTO-025"
     assert data["explicit_path_review"]["summary"]["allowed"] == 2
+    assert data["requires_attention"] is False
     assert data["validation"]["commands_allowed"] is False
 
 
@@ -108,6 +111,8 @@ def test_build_review_artifact_blocks_when_no_task_selected(tmp_path):
         "prohibited": 0,
         "unknown": 0,
     }
+    assert artifact["requires_attention"] is True
+    assert artifact["review_status"] == "needs attention"
 
 
 def test_review_artifact_command_prints_json(tmp_path, capsys):
