@@ -10,11 +10,11 @@ The first version is a local Python command-line tool. It reads local project fi
 
 ## Current architecture
 
-The repository now contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, and tests under `tests/`. The CLI exposes a `forge` command, a read-only `forge tasks` command backed by a deterministic roadmap parser, and keeps behavior local-first with zero runtime dependencies.
+The repository now contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, and tests under `tests/`. The CLI exposes a `forge` command, a read-only `forge tasks` command backed by a deterministic roadmap parser, a `forge tasks --next` selection mode, and keeps behavior local-first with zero runtime dependencies.
 
 ## Current implementation status
 
-AUTO-001 and AUTO-002 are complete. The project has a minimal installable CLI scaffold, package metadata, README development instructions, a parser for roadmap task blocks, and tests covering CLI help and plan parsing behavior.
+AUTO-001, AUTO-002, and AUTO-003 are complete. The project has a minimal installable CLI scaffold, package metadata, README development instructions, a parser for roadmap task blocks, deterministic TODO task selection, and tests covering CLI help, plan parsing, and selector behavior.
 
 ## User personas and likely workflows
 
@@ -24,15 +24,15 @@ AUTO-001 and AUTO-002 are complete. The project has a minimal installable CLI sc
 
 ## Strengths and risks
 
-Strengths: local-first design, small scope, and clear history. Risk: plan parsing must remain easy to understand and intentionally limited to the documented task block format.
+Strengths: local-first design, small scope, clear history, and deterministic task selection. Risk: plan parsing must remain easy to understand and intentionally limited to the documented task block format.
 
 ## Technical debt
 
-The CLI can list parsed tasks, but it does not yet choose an eligible task or produce a complete repository report.
+The CLI can list parsed tasks and select the next eligible TODO task, but it does not yet produce a complete repository report.
 
 ## Test coverage gaps
 
-Selector and report behavior need unit tests. Parser coverage now includes valid, empty, and malformed roadmap inputs.
+Report behavior needs unit tests. Parser coverage includes valid, empty, and malformed roadmap inputs. Selector coverage includes priority ordering, source-order tie-breaking, non-TODO exclusion, no-task outcomes, and unsupported priorities.
 
 ## Documentation gaps
 
@@ -76,14 +76,14 @@ Notes: Use deterministic parsing.
 
 ### AUTO-003 — Add deterministic eligible-task selection
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Select one TODO task using priority and source order.
 Why it matters: Predictable selection makes maintenance reviewable.
 Scope: Implement pure selection logic over parsed task records.
-Expected files or areas: selector module, tests, documentation.
+Expected files or areas: `src/autonomous_forge/plan.py`, `src/autonomous_forge/cli.py`, `tests/test_plan.py`, `tests/test_cli.py`, README.
 Acceptance criteria: P0-to-P3 ordering is enforced and non-TODO tasks are excluded.
-Validation: Unit tests for priority, ordering, and no-task outcomes.
+Validation: Added unit tests for priority ordering, source-order tie-breaking, non-TODO exclusion, no-task outcomes, unsupported priorities, and CLI `--next` output; static review completed because runtime test execution was unavailable in this automation environment.
 Risks or assumptions: Preserve source order as the v1 tie-breaker.
 Notes: Selection only reports a result.
 
