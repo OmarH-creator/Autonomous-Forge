@@ -10,53 +10,12 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 Autonomous Forge is pre-alpha. The repository now contains:
 
-- Apache-2.0 licensing.
-- Durable autonomous planning files in `.ai/`.
-- A minimal Python package scaffold.
-- A `forge` console script entry point.
-- A roadmap task parser and read-only `forge tasks` command.
-- Deterministic TODO task selection with `forge tasks --next`.
-- A read-only `forge lint-plan` command for roadmap structure checks.
-- A read-only `forge report` command for dry-run repository summaries and policy-readiness reporting.
-- A documented repository policy format with a conservative example policy.
-- A read-only `forge policy` command for parsing policy section readiness.
-- A read-only `forge run-summary` command for previewing the documented local run-summary format.
-- A read-only `forge inventory` command for repository health file-presence signals.
-- Documented command output contracts in `docs/COMMANDS.md`.
-- A documented local run-summary format in `docs/RUN_SUMMARIES.md` for future preview/write behavior.
-- A documented repository health inventory scope in `docs/HEALTH_INVENTORY.md`.
-- Contributor development guidance in `CONTRIBUTING.md`.
-- Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, policy parsing, run-summary preview output, and inventory output.
-
-## Planned direction
-
-The MVP roadmap focuses on practical, reviewable automation:
-
-1. Scaffold a local CLI and package metadata.
-2. Parse roadmap task headings from `.ai/AUTONOMOUS_PLAN.md`.
-3. Select one eligible task deterministically.
-4. Produce a read-only dry-run repository report.
-5. Document repository policy boundaries before any higher-risk behavior.
-6. Parse the repository policy into a conservative read-only summary.
-7. Surface policy readiness in dry-run reports without enforcing path decisions.
-8. Lint roadmap task blocks before adding higher-risk automation.
-9. Document command output contracts so contributors and future automation understand current CLI behavior.
-10. Define a local run-summary format before any command is allowed to write execution history.
-11. Preview the documented run-summary format without writing files.
-12. Define repository health inventory scope before adding an inventory command.
-13. Print read-only repository health file-presence signals without scoring or scanning.
-14. Keep contributor setup and safety guidance clear as the CLI evolves.
-
-## Repository policy boundaries
-
-Policy documentation lives in `docs/POLICY.md`. The current example policy lives in `.forge/policy.md` and defines:
-
-- paths that routine autonomous work may consider;
-- prohibited paths that should not be changed automatically;
-- categories that require explicit human approval;
-- validation expectations before a change is committed.
-
-The policy format is conservative by design. If future tooling cannot read or understand a policy file, it should avoid implementation work rather than guessing.
+- Apache-2.0 licensing and durable planning files in `.ai/`.
+- A minimal Python package with a `forge` console script.
+- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, and repository inventory.
+- `forge run-summary --format json` for script-friendly, read-only run-summary previews.
+- `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
+- Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
 
@@ -71,69 +30,39 @@ For full setup, contribution workflow, and safety expectations, see `CONTRIBUTIN
 
 ```bash
 forge tasks --plan .ai/AUTONOMOUS_PLAN.md
-```
-
-The command reads the roadmap and prints task IDs, priorities, statuses, and titles without changing files.
-
-## Select the next eligible task
-
-```bash
 forge tasks --plan .ai/AUTONOMOUS_PLAN.md --next
 ```
 
-The selector only considers `TODO` tasks. It chooses the highest priority in `P0`, `P1`, `P2`, `P3` order and preserves roadmap source order when priorities tie.
+The selector considers only `TODO` tasks. It chooses priorities in `P0`, `P1`, `P2`, `P3` order and preserves roadmap source order when priorities tie.
 
-## Lint the roadmap structure
+## Build a policy-aware implementation plan
+
+```bash
+forge plan \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root .
+```
+
+This is the current end-to-end planning surface. It remains read-only: it explains the next eligible task, its documented acceptance criteria and validation, and the applicable policy boundaries before any implementation behavior is introduced.
+
+## Produce other read-only views
 
 ```bash
 forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
-```
-
-The command is read-only. It checks roadmap task headings, required task fields, supported priorities, and supported statuses. It prints `Plan lint: ok` when the roadmap is structurally valid and exits with diagnostics when a task block is ambiguous or incomplete.
-
-## Produce a dry-run repository report
-
-```bash
 forge report --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md
-```
-
-The report is read-only. It summarizes roadmap task counts, the next eligible task, state-file availability, policy-file readiness, and the suggested validation command without changing repository files. Policy readiness is only informational; the report does not enforce path decisions.
-
-## Inspect repository policy
-
-```bash
 forge policy --policy .forge/policy.md
-```
-
-The command is read-only. It parses the documented policy headings and reports how many entries are present for allowed paths, prohibited paths, human-approval requirements, and validation expectations. It does not enforce path decisions or change repository files.
-
-## Preview a local run summary
-
-```bash
 forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md
-```
-
-The command is read-only. It prints the documented run-summary fields to standard output, including selected task, policy status, validation plan, validation result, changed-files summary placeholder, commit placeholder, and notes. It does not write execution history files.
-
-## Inspect repository health inventory
-
-```bash
+forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md --format json
 forge inventory --root .
 ```
 
-The command is read-only. It reports deterministic file-presence signals for the documented repository health inventory scope. It does not calculate a score, scan secrets, read environment variables, call networks, run external commands, enforce policy decisions, or change repository files.
+All current commands inspect local files and print results. They do not change repository files, execute external commands, call networks, read environment variables, or enforce policy decisions.
 
-## Command output contracts
+## Repository policy boundaries
 
-See `docs/COMMANDS.md` for the current command purposes, expected output patterns, exit-code expectations, and safety limitations.
-
-## Local run summaries
-
-See `docs/RUN_SUMMARIES.md` for the local run-summary format. Autonomous Forge can preview this format, but it does not automatically write execution history files yet.
-
-## Repository health inventory
-
-See `docs/HEALTH_INVENTORY.md` for the implemented read-only inventory command scope and safety boundaries.
+Policy documentation lives in `docs/POLICY.md`. The example policy at `.forge/policy.md` defines allowed paths, prohibited paths, human-approval requirements, and validation expectations. If future tooling cannot understand a policy file, it should avoid implementation work rather than guessing.
 
 ## Run tests
 
@@ -148,9 +77,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Reviewed open pull requests and branch divergence after the installed-package CI hardening was integrated.
-- **What changed:** Closed stale duplicate PR #2; its CI hardening is already present on `main`. Updated this status section and the autonomous state record.
-- **Validation:** PR #2 and PR #3 each have a completed successful GitHub Actions run. Main’s workflow was reviewed: it uses pinned actions, `contents: read`, Python 3.10–3.12, package installation, an installed-CLI smoke test, compilation, and pytest.
-- **Visual updates:** No new visual asset was needed; this run resolved repository integration state rather than changing a user workflow.
-- **Current limitations:** PR #3’s JSON run-summary feature is tested on its branch but has conflicts against current `main`; it was not merged without a clean rebase and fresh compatibility check.
-- **Next autonomous objective:** Reconstruct or rebase PR #3 cleanly onto `main`, retaining only its JSON-preview feature, aligned documentation, and tests before merging.
+- **Latest run:** Integrated the validated JSON run-summary preview and delivered the first policy-aware `forge plan` command directly on `main`.
+- **What changed:** Added `src/autonomous_forge/planner.py`, `forge plan` CLI options, deterministic planner and CLI tests, and JSON run-summary preview support.
+- **Validation:** PR #4 passed GitHub Actions before merge. The new planning feature has deterministic test coverage committed to `main`; local checkout execution was unavailable because this environment could not resolve GitHub, and the post-push main workflow has not yet been observed.
+- **Visual updates:** No new visual asset was needed; this feature is a terminal planning workflow, and the existing overview remains the factual visual orientation.
+- **Current limitations:** `forge plan` is intentionally a read-only proposal. It does not yet generate a change set, run validation, or execute an approved plan. A dedicated planning document could not be created because the repository contents write guard rejected it.
+- **Next autonomous objective:** Verify the main workflow, then extend the same planning milestone toward a structured plan artifact that remains reviewable and policy-aware.
