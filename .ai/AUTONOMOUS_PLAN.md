@@ -16,7 +16,7 @@ The repository contains a minimal Python package under `src/autonomous_forge`, p
 
 Roadmap v1 is complete. Autonomous Forge has a minimal installable CLI scaffold, package metadata, README development instructions, deterministic roadmap task parsing, deterministic eligible-task selection, a dry-run repository report, policy format documentation, an example policy, contributor development guidance, and tests covering CLI help, plan parsing, selector behavior, and report output.
 
-Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. Next work should surface policy readiness in dry-run reports before any higher-risk automation is considered.
+Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. `forge report` now surfaces policy-file readiness without claiming policy enforcement. Next work should improve roadmap structure linting before any higher-risk automation is considered.
 
 ## User personas and likely workflows
 
@@ -33,15 +33,15 @@ Risks: policy parsing must remain intentionally conservative; reporting must not
 
 ## Technical debt
 
-The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, and parse the documented repository policy format. It does not yet surface policy readiness in reports, lint plan structure, or persist run summaries in a machine-readable local format.
+The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, and surface policy readiness in reports. It does not yet lint plan structure or persist run summaries in a machine-readable local format.
 
 ## Test coverage gaps
 
-Report behavior has unit tests. Parser coverage includes valid, empty, and malformed roadmap inputs. Selector coverage includes priority ordering, source-order tie-breaking, non-TODO exclusion, no-task outcomes, and unsupported priorities. Policy parser coverage includes valid policy sections, missing required section content, unexpected section content, and missing-policy CLI behavior. Plan linting and policy report behavior still need coverage.
+Report behavior has unit tests, including policy present, missing, and malformed readiness states. Parser coverage includes valid, empty, and malformed roadmap inputs. Selector coverage includes priority ordering, source-order tie-breaking, non-TODO exclusion, no-task outcomes, and unsupported priorities. Policy parser coverage includes valid policy sections, missing required section content, unexpected section content, and missing-policy CLI behavior. Plan linting still needs coverage.
 
 ## Documentation gaps
 
-The contributor guide covers local setup, tests, task discipline, safe file handling, and safety boundaries. Future documentation should explain any new policy readiness, linting, and run-record commands only after they exist.
+The contributor guide covers local setup, tests, task discipline, safe file handling, and safety boundaries. Future documentation should explain any new linting and run-record commands only after they exist.
 
 ## Security and privacy considerations
 
@@ -150,14 +150,14 @@ Notes: Do not enforce changes yet; report only.
 
 ### AUTO-008 — Surface policy readiness in dry-run reports
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Include policy-file availability and required-section readiness in `forge report`.
 Why it matters: Maintainers need to see whether future autonomous work has a readable safety boundary.
 Scope: Extend report output to include policy present/missing/malformed status without enforcing path decisions.
 Expected files or areas: `src/autonomous_forge/report.py`, `src/autonomous_forge/policy.py`, `src/autonomous_forge/cli.py`, tests, README.
 Acceptance criteria: Reports show policy status, keep existing plan/task output stable, and return clear errors for malformed policies.
-Validation: Add report and CLI tests; run `PYTHONPATH=src python -m pytest` when runtime execution is available.
+Validation: Added report CLI support and tests for present, missing, and malformed policy readiness; static implementation review completed because runtime test execution was unavailable in this automation environment.
 Risks or assumptions: Do not overstate policy enforcement; this is readiness reporting only.
 Notes: Depends on AUTO-007.
 
