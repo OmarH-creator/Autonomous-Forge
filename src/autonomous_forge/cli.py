@@ -15,6 +15,7 @@ from autonomous_forge.plan import (
 )
 from autonomous_forge.planner import read_repository_plan
 from autonomous_forge.policy import PolicyParseError, RepositoryPolicy, parse_repository_policy
+from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.run_summary import read_run_summary_preview
 
@@ -109,6 +110,31 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="plan format: text (default) or JSON",
+    )
+
+    propose_parser = subparsers.add_parser(
+        "propose",
+        help="build a read-only change proposal from the selected plan task",
+    )
+    propose_parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    propose_parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    propose_parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    propose_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for documented-file presence signals",
     )
 
     policy_parser = subparsers.add_parser(
@@ -254,6 +280,26 @@ def _print_plan(
     return 0
 
 
+def _print_proposal(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+) -> int:
+    try:
+        print(read_change_proposal(plan_path, policy_path, state_path, root))
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_policy(policy_path: Path) -> int:
     try:
         policy = parse_repository_policy(policy_path.read_text(encoding="utf-8"))
@@ -324,6 +370,14 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.policy),
             Path(args.root),
             args.format,
+        )
+
+    if args.command == "propose":
+        return _print_proposal(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
         )
 
     if args.command == "policy":
