@@ -10,6 +10,7 @@ from autonomous_forge.path_review import build_path_review_data
 from autonomous_forge.planner import build_repository_plan_data
 from autonomous_forge.proposal import build_change_proposal_data
 from autonomous_forge.validation import build_validation_plan_data
+from autonomous_forge.validation_preview import build_validation_preview_data
 
 
 def _has_blockers(blocked_items: list[str]) -> bool:
@@ -33,6 +34,7 @@ def build_review_artifact_data(
     )
     proposal_data = build_change_proposal_data(plan_data)
     validation_data = build_validation_plan_data(proposal_data, root=root)
+    validation_preview_data = build_validation_preview_data(validation_data)
     explicit_paths = list(proposal_data["planned_file_areas"])
     path_review_data = build_path_review_data(policy_text, explicit_paths, root=root)
     requires_attention = path_review_data["requires_attention"] or _has_blockers(proposal_data["blocked_items"])
@@ -40,7 +42,7 @@ def build_review_artifact_data(
     return {
         "title": "Autonomous Forge review artifact",
         "mode": "read-only",
-        "source": "plan + proposal + validation plan + explicit path review",
+        "source": "plan + proposal + validation plan + validation preview + explicit path review",
         "selected_task": plan_data["selected_task"],
         "reason": plan_data["reason"],
         "plan": {
@@ -60,6 +62,12 @@ def build_review_artifact_data(
             "validation_steps": validation_data["validation_steps"],
             "path_checks": validation_data["path_checks"],
             "commands_allowed": validation_data["commands_allowed"],
+        },
+        "validation_preview": {
+            "source": validation_preview_data["source"],
+            "command_candidates": validation_preview_data["command_candidates"],
+            "commands_allowed": validation_preview_data["commands_allowed"],
+            "validation_execution": validation_preview_data["validation_execution"],
         },
         "explicit_path_review": {
             "source": path_review_data["source"],
@@ -117,6 +125,14 @@ def format_review_artifact(data: dict[str, Any]) -> str:
             "Validation steps:",
             *[f"- {step}" for step in data["validation"]["validation_steps"]],
             f"Validation execution: {data['validation']['validation_execution']}",
+            "Validation command candidates:",
+            *[
+                (
+                    f"- {candidate['source_step']}: command={candidate['command']}; "
+                    f"eligibility={candidate['eligibility']}; reason={candidate['reason']}"
+                )
+                for candidate in data["validation_preview"]["command_candidates"]
+            ],
             "Explicit path review:",
             *[
                 f"- {check['path']}: path={check['path_status']}; policy={check['policy_status']}"
