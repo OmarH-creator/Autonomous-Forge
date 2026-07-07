@@ -14,11 +14,12 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - A `forge` console script entry point.
 - A roadmap task parser and read-only `forge tasks` command.
 - Deterministic TODO task selection with `forge tasks --next`.
+- A read-only `forge lint-plan` command for roadmap structure checks.
 - A read-only `forge report` command for dry-run repository summaries and policy-readiness reporting.
 - A documented repository policy format with a conservative example policy.
 - A read-only `forge policy` command for parsing policy section readiness.
 - Contributor development guidance in `CONTRIBUTING.md`.
-- Smoke tests for CLI help, task parsing, eligible task selection, report behavior, and policy parsing.
+- Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, and policy parsing.
 
 ## Planned direction
 
@@ -31,7 +32,8 @@ The MVP roadmap focuses on practical, reviewable automation:
 5. Document repository policy boundaries before any higher-risk behavior.
 6. Parse the repository policy into a conservative read-only summary.
 7. Surface policy readiness in dry-run reports without enforcing path decisions.
-8. Keep contributor setup and safety guidance clear as the CLI evolves.
+8. Lint roadmap task blocks before adding higher-risk automation.
+9. Keep contributor setup and safety guidance clear as the CLI evolves.
 
 ## Repository policy boundaries
 
@@ -68,6 +70,14 @@ forge tasks --plan .ai/AUTONOMOUS_PLAN.md --next
 ```
 
 The selector only considers `TODO` tasks. It chooses the highest priority in `P0`, `P1`, `P2`, `P3` order and preserves roadmap source order when priorities tie.
+
+## Lint the roadmap structure
+
+```bash
+forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
+```
+
+The command is read-only. It checks roadmap task headings, required task fields, supported priorities, and supported statuses. It prints `Plan lint: ok` when the roadmap is structurally valid and exits with diagnostics when a task block is ambiguous or incomplete.
 
 ## Produce a dry-run repository report
 
