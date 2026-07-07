@@ -108,6 +108,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="optional ISO-8601 timestamp to make preview output deterministic",
     )
+    run_summary_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="preview format: text (default) or JSON",
+    )
 
     inventory_parser = subparsers.add_parser(
         "inventory",
@@ -209,9 +215,21 @@ def _print_policy(policy_path: Path) -> int:
     return 0
 
 
-def _print_run_summary(plan_path: Path, policy_path: Path, timestamp: str | None) -> int:
+def _print_run_summary(
+    plan_path: Path,
+    policy_path: Path,
+    timestamp: str | None,
+    output_format: str,
+) -> int:
     try:
-        print(read_run_summary_preview(plan_path, policy_path, timestamp=timestamp))
+        print(
+            read_run_summary_preview(
+                plan_path,
+                policy_path,
+                timestamp=timestamp,
+                output_format=output_format,
+            )
+        )
     except FileNotFoundError:
         print(f"Plan file not found: {plan_path}")
         return 2
@@ -250,7 +268,12 @@ def main(argv: list[str] | None = None) -> int:
         return _print_policy(Path(args.policy))
 
     if args.command == "run-summary":
-        return _print_run_summary(Path(args.plan), Path(args.policy), args.timestamp)
+        return _print_run_summary(
+            Path(args.plan),
+            Path(args.policy),
+            args.timestamp,
+            args.format,
+        )
 
     if args.command == "inventory":
         return _print_inventory(Path(args.root))
