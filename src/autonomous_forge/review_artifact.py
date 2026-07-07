@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from autonomous_forge.change_intent import build_change_intent_data
 from autonomous_forge.path_review import build_path_review_data
 from autonomous_forge.planner import build_repository_plan_data
 from autonomous_forge.proposal import build_change_proposal_data
@@ -37,12 +38,17 @@ def build_review_artifact_data(
     validation_preview_data = build_validation_preview_data(validation_data)
     explicit_paths = list(proposal_data["planned_file_areas"])
     path_review_data = build_path_review_data(policy_text, explicit_paths, root=root)
-    requires_attention = path_review_data["requires_attention"] or _has_blockers(proposal_data["blocked_items"])
+    change_intent_data = build_change_intent_data(proposal_data, path_review_data)
+    requires_attention = (
+        path_review_data["requires_attention"]
+        or change_intent_data["requires_attention"]
+        or _has_blockers(proposal_data["blocked_items"])
+    )
 
     return {
         "title": "Autonomous Forge review artifact",
         "mode": "read-only",
-        "source": "plan + proposal + validation plan + validation preview + explicit path review",
+        "source": "plan + proposal + validation plan + validation preview + change intent + explicit path review",
         "selected_task": plan_data["selected_task"],
         "reason": plan_data["reason"],
         "plan": {
@@ -69,6 +75,12 @@ def build_review_artifact_data(
             "commands_allowed": validation_preview_data["commands_allowed"],
             "validation_execution": validation_preview_data["validation_execution"],
         },
+        "change_intent": {
+            "source": change_intent_data["source"],
+            "planned_changes": change_intent_data["planned_changes"],
+            "summary": change_intent_data["summary"],
+            "requires_attention": change_intent_data["requires_attention"],
+        },
         "explicit_path_review": {
             "source": path_review_data["source"],
             "reviewed_paths": path_review_data["reviewed_paths"],
@@ -80,8 +92,8 @@ def build_review_artifact_data(
         "review_status": "needs attention" if requires_attention else "ready for human review",
         "safety_boundary": (
             "Review artifact output only; no files are changed, no diffs are inspected, "
-            "no file contents are read, no commands are run, no approvals are granted, "
-            "and policy is not enforced."
+            "no file contents are read, no patches are generated, no commands are run, "
+            "no approvals are granted, and policy is not enforced."
         ),
     }
 
@@ -122,6 +134,19 @@ def format_review_artifact(data: dict[str, Any]) -> str:
             *[f"- {area}" for area in data["proposal"]["planned_file_areas"]],
             "Planned operations:",
             *[f"- {operation}" for operation in data["proposal"]["planned_operations"]],
+            "Change intent:",
+            *[
+                (
+                    f"- {change['file_area']}: intent={change['intent_status']}; "
+                    f"path={change['path_status']}; policy={change['policy_status']}"
+                )
+                for change in data["change_intent"]["planned_changes"]
+            ],
+            "Change intent summary:",
+            f"- total: {data['change_intent']['summary']['total']}",
+            f"- reviewable: {data['change_intent']['summary']['reviewable']}",
+            f"- blocked: {data['change_intent']['summary']['blocked']}",
+            f"- needs classification: {data['change_intent']['summary']['needs_classification']}",
             "Validation steps:",
             *[f"- {step}" for step in data["validation"]["validation_steps"]],
             f"Validation execution: {data['validation']['validation_execution']}",
