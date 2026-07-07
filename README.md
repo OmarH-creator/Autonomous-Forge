@@ -16,6 +16,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - Deterministic TODO task selection with `forge tasks --next`.
 - A read-only `forge report` command for dry-run repository summaries.
 - A documented repository policy format with a conservative example policy.
+- Contributor development guidance in `CONTRIBUTING.md`.
 - Smoke tests for CLI help, task parsing, eligible task selection, and report behavior.
 
 ## Planned direction
@@ -27,6 +28,7 @@ The MVP roadmap focuses on practical, reviewable automation:
 3. Select one eligible task deterministically.
 4. Produce a read-only dry-run repository report.
 5. Document repository policy boundaries before any higher-risk behavior.
+6. Keep contributor setup and safety guidance clear as the CLI evolves.
 
 ## Repository policy boundaries
 
@@ -45,6 +47,8 @@ The policy format is conservative by design. If future tooling cannot read or un
 python -m pip install -e .
 forge --help
 ```
+
+For full setup, contribution workflow, and safety expectations, see `CONTRIBUTING.md`.
 
 ## Inspect roadmap tasks
 
