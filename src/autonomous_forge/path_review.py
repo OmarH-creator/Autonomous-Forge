@@ -11,7 +11,10 @@ from autonomous_forge.policy import parse_repository_policy
 
 def _clean_path(value: str) -> str:
     """Normalize one user-supplied path for conservative review output."""
-    return value.strip().strip("`").lstrip("./").rstrip("/")
+    cleaned = value.strip().strip("`").rstrip("/")
+    if cleaned.startswith("./"):
+        return cleaned[2:]
+    return cleaned
 
 
 def _matches_policy_pattern(path: str, pattern: str) -> bool:
