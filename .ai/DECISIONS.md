@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-019 — 2026-07-07 — Contain validation path checks within repository root
+
+Context: `forge review-files` already resolves candidate paths and reports `unknown` when a path would escape the configured repository root, but `forge validate-plan` had separate local path-presence logic for planned file areas. Keeping separate behavior risks inconsistent advisory output and could expose whether an external path exists through an in-root symbolic link.
+Decision: Harden `forge validate-plan` planned-area path checks by normalizing repository-relative paths, rejecting absolute/backslash/parent traversal inputs, resolving candidates against `--root`, and returning `unknown` unless the candidate can be proven to stay inside the resolved root.
+Alternatives considered: Reuse the older unchecked `(root / area).exists()` behavior, remove validation-plan path presence entirely, follow symlinks without containment, or convert advisory checks into policy enforcement.
+Consequences: Validation-plan output stays deterministic and useful while avoiding external-path presence disclosure through symlink escapes. The command remains advisory and still does not read file contents, inspect diffs, run commands, write files, approve exceptions, or enforce policy decisions.
+Human decision still required: No.
+
 ## DEC-018 — 2026-07-07 — Combine review surfaces before execution
 
 Context: The CLI now has separate read-only surfaces for implementation planning, change proposals, validation planning, and explicit changed-file path review. Future guarded validation or execution behavior needs one reviewable handoff before any command execution, patch generation, diff inspection, or repository writes are considered.
