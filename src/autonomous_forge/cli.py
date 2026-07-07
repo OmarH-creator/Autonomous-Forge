@@ -18,6 +18,7 @@ from autonomous_forge.planner import read_repository_plan
 from autonomous_forge.policy import PolicyParseError, RepositoryPolicy, parse_repository_policy
 from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
+from autonomous_forge.review_artifact import read_review_artifact
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
 
@@ -201,6 +202,37 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="changed-file review format: text (default) or JSON",
+    )
+
+    review_artifact_parser = subparsers.add_parser(
+        "review-artifact",
+        help="combine plan, proposal, validation, and path review without changing files",
+    )
+    review_artifact_parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    review_artifact_parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    review_artifact_parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    review_artifact_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for review signals",
+    )
+    review_artifact_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="review artifact format: text (default) or JSON",
     )
 
     policy_parser = subparsers.add_parser(
@@ -405,6 +437,27 @@ def _print_path_review(
     return 0
 
 
+def _print_review_artifact(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+    output_format: str,
+) -> int:
+    try:
+        print(read_review_artifact(plan_path, policy_path, state_path, root, output_format))
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_policy(policy_path: Path) -> int:
     try:
         policy = parse_repository_policy(policy_path.read_text(encoding="utf-8"))
@@ -500,6 +553,15 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.policy),
             Path(args.root),
             args.file,
+            args.format,
+        )
+
+    if args.command == "review-artifact":
+        return _print_review_artifact(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
             args.format,
         )
 
