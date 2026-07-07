@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-020 — 2026-07-08 — Preview validation commands before execution
+
+Context: `forge validate-plan` can now describe validation intent and advisory path checks, but moving directly from validation steps to a runner would be unsafe without a reviewable command-candidate layer.
+Decision: Add `forge validation-preview` as a read-only text/JSON command that consumes validation-plan data and classifies documented validation steps into conservative command-candidate metadata. It marks local Python validation commands as `eligible preview`, blocks shell-control or redirection patterns, and reports unfamiliar command-like steps as `unknown`.
+Alternatives considered: Execute validation commands immediately, write validation artifacts, read environment variables, inspect diffs, generate patches, approve policy exceptions, enforce policy decisions, or keep command eligibility implicit in human-readable validation steps.
+Consequences: Maintainers can review which documented validation commands might be eligible before any execution support exists, while the product still avoids command execution, repository writes, patch generation, diff inspection, approval decisions, network access, environment reads, credential scanning, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-019 — 2026-07-07 — Contain validation path checks within repository root
 
 Context: `forge review-files` already resolves candidate paths and reports `unknown` when a path would escape the configured repository root, but `forge validate-plan` had separate local path-presence logic for planned file areas. Keeping separate behavior risks inconsistent advisory output and could expose whether an external path exists through an in-root symbolic link.
