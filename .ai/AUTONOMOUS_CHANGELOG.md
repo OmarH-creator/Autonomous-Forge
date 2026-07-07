@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-010
+
+- Task ID: AUTO-010
+- Summary: Added `docs/COMMANDS.md` documenting implemented CLI command purposes, inputs, expected human-readable output patterns, exit-code expectations, and safety limitations; linked the command contracts from README.
+- Validation completed: Static documentation review completed against AUTO-010 acceptance criteria; runtime test execution was unavailable in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Proceed to AUTO-011 next so local run-summary format work can be designed without adding execution behavior.
+
 ## 2026-07-07 — AUTO-009
 
 - Task ID: AUTO-009
