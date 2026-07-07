@@ -1,0 +1,8 @@
+# AUTO-024 Run Record
+
+- Task ID: AUTO-024
+- Summary: Added `forge review-files`, a read-only changed-file path review command. It accepts repeated `--file` arguments, checks each explicit path against documented allowed/prohibited policy patterns, reports local presence, summarizes allowed/prohibited/unknown counts, and supports deterministic text and JSON output.
+- Branch/PR assessment: Inspected repository metadata, recent commits, open issue state, branch search, and recent PRs before implementation. No open PR required integration. PR #5 remains closed obsolete because the planning work was integrated directly on `main`; PR #4 remains merged; older PRs remain closed and unnecessary. The run stayed on `main`.
+- Validation completed: Added deterministic tests for path-review data, text output, JSON output, CLI text output, CLI JSON output, allowed/prohibited/unknown statuses, and dotfile handling. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Implementation commits: 2c441efc93d840bced56ea22c3eebaeed2c9d627, a2bfc49fbd5cebece89ad8d86d1ac09d4ec195ed, e7a75272f2e79c5f94561be19226b769e081b4c9, d99f9fec2bae5c2fe92f77981f956c945a797eac, 9252e95b694f030f07e9f5ec25bf4da4a1be6654, 6c68ace3cde27b7d6ef1351728b8ebfcbdd7b995, dab651289b3d08341bb8f170769f7bf98dcee1e8, ef4eae57db0a84b3a26d4c999ad6fc54a54c6865, and dce8cc08570217576b4a94191f813f639bb7d16c.
+- Follow-up notes: Add a single review artifact that combines selected task, proposal, validation plan, and explicit changed-file review before considering guarded validation execution. Do not add command execution, file writes, patch generation, approval decisions, or policy enforcement yet.
