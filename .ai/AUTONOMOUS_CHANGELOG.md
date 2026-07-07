@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-002
+
+- Task ID: AUTO-002
+- Summary: Added deterministic roadmap task parsing and a read-only `forge tasks` command with parser and CLI tests.
+- Validation completed: Static review completed; runtime test execution was not available in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Run `PYTHONPATH=src python -m pytest` in a checkout-capable environment and proceed to AUTO-003.
+
 ## 2026-07-07 — AUTO-001
 
 - Task ID: AUTO-001
