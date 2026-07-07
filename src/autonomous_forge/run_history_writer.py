@@ -29,7 +29,12 @@ def _resolve_inside(root: Path, path: Path | str) -> tuple[Path, Path]:
     return resolved_root, resolved_path
 
 
-def _validate_output_path(root: Path, output_path: Path | str) -> Path:
+def _validate_output_path(
+    root: Path,
+    output_path: Path | str,
+    *,
+    allow_overwrite: bool = False,
+) -> Path:
     """Validate the dedicated local history path before writing."""
     resolved_root, resolved_output = _resolve_inside(root, output_path)
     history_dir = (resolved_root / ".ai" / "run-history").resolve()
@@ -43,6 +48,10 @@ def _validate_output_path(root: Path, output_path: Path | str) -> Path:
         raise RunHistoryWriteError("output path must use a .json extension")
     if resolved_output.exists() and resolved_output.is_dir():
         raise RunHistoryWriteError("output path points to a directory")
+    if resolved_output.exists() and not allow_overwrite:
+        raise RunHistoryWriteError(
+            "output path already exists; pass --allow-overwrite to replace it"
+        )
     return resolved_output
 
 
@@ -97,12 +106,15 @@ def write_run_history_record(
     confirm_write: bool,
     state_path: Path | None = None,
     root: Path = Path("."),
+    allow_overwrite: bool = False,
 ) -> dict[str, Any]:
     """Write one local run-history JSON record only after explicit confirmation."""
     if not confirm_write:
         raise RunHistoryWriteError("--confirm-write is required")
 
-    safe_output = _validate_output_path(root, output_path)
+    safe_output = _validate_output_path(
+        root, output_path, allow_overwrite=allow_overwrite
+    )
     payload = build_run_history_write_payload(
         plan_text,
         policy_text,

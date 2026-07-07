@@ -25,8 +25,11 @@ The writer refuses to persist a record unless all of these are true:
 - The output path stays inside the repository root.
 - The output path is under `.ai/run-history/`.
 - The output path uses a `.json` extension.
+- The output path does not already exist, unless `--allow-overwrite` is also passed.
 
 Relative output paths are resolved under `--root`, so `.ai/run-history/latest.json` is valid when `--root .` points at the repository root.
+
+Because durable run-history records are the project's persistent memory, `run-history-write` refuses to silently replace an existing file. Pass `--allow-overwrite` when the caller has reviewed the existing record and explicitly wants to replace it.
 
 ## Record shape
 
@@ -42,4 +45,4 @@ The persisted JSON payload includes:
 
 ## Current limitations
 
-This command writes a local history artifact only. It does not append to a long-lived index, rotate files, inspect Git state, compare existing records, detect secrets, run tests, or validate the repository after writing. Callers should still review the output and run the repository test suite separately.
+This command writes a local history artifact only. It does not append to a long-lived index, rotate files, inspect Git state, compare existing records, detect secrets, run tests, or validate the repository after writing. Callers should still review the output and run the repository test suite separately. Overwriting an existing record still requires the explicit `--allow-overwrite` flag.

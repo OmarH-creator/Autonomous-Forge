@@ -167,6 +167,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="required acknowledgement that this command writes one local JSON file",
     )
+    run_history_write_parser.add_argument(
+        "--allow-overwrite",
+        action="store_true",
+        help="allow replacing an existing local run-history JSON record",
+    )
 
     review_files_parser = subparsers.add_parser(
         "review-files",
@@ -406,6 +411,7 @@ def _write_run_history(
     root: Path,
     output_path: Path,
     confirm_write: bool,
+    allow_overwrite: bool,
 ) -> int:
     try:
         result = write_run_history_record(
@@ -415,6 +421,7 @@ def _write_run_history(
             root=root,
             output_path=output_path,
             confirm_write=confirm_write,
+            allow_overwrite=allow_overwrite,
         )
     except FileNotFoundError as exc:
         print(f"Required file not found: {exc.filename}")
@@ -484,6 +491,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.root),
             Path(args.output),
             args.confirm_write,
+            args.allow_overwrite,
         )
 
     if args.command == "review-files":
