@@ -24,9 +24,68 @@ def _validation_steps(proposal_data: dict[str, Any]) -> list[str]:
     return steps
 
 
-def build_validation_plan_data(proposal_data: dict[str, Any]) -> dict[str, Any]:
+def _matches_policy_pattern(area: str, pattern: str) -> bool:
+    """Return whether a planned area matches one simple documented policy pattern."""
+    clean_area = area.strip().strip("`").rstrip("/")
+    clean_pattern = pattern.strip().strip("`").rstrip("/")
+
+    if not clean_area or not clean_pattern:
+        return False
+    if clean_area == "not documented":
+        return False
+    if clean_pattern.endswith("/**"):
+        prefix = clean_pattern[:-3].rstrip("/")
+        return clean_area == prefix or clean_area.startswith(f"{prefix}/")
+    return clean_area == clean_pattern or clean_area.startswith(f"{clean_pattern}/")
+
+
+def _path_status(root: Path, area: str) -> str:
+    """Return a conservative local presence signal for one planned area."""
+    clean_area = area.strip().strip("`").strip()
+    if not clean_area or clean_area == "not documented":
+        return "unknown"
+    if any(marker in clean_area for marker in ("*", "?", "[")):
+        return "unknown"
+    return "present" if (root / clean_area).exists() else "missing"
+
+
+def _path_policy_status(area: str, policy: dict[str, Any]) -> str:
+    """Return advisory policy status without enforcing policy decisions."""
+    prohibited = policy["prohibited_paths"]
+    allowed = policy["allowed_paths"]
+    if any(_matches_policy_pattern(area, pattern) for pattern in prohibited):
+        return "prohibited"
+    if any(_matches_policy_pattern(area, pattern) for pattern in allowed):
+        return "allowed"
+    return "unknown"
+
+
+def _path_checks(
+    areas: list[str],
+    policy: dict[str, Any],
+    root: Path,
+) -> list[dict[str, str]]:
+    """Build deterministic advisory checks for planned file areas."""
+    checks: list[dict[str, str]] = []
+    for area in areas:
+        checks.append(
+            {
+                "area": area,
+                "path_status": _path_status(root, area),
+                "policy_status": _path_policy_status(area, policy),
+            }
+        )
+    return checks
+
+
+def build_validation_plan_data(
+    proposal_data: dict[str, Any],
+    *,
+    root: Path = Path("."),
+) -> dict[str, Any]:
     """Build structured validation-plan data without running commands."""
     selected = proposal_data["selected_task"]
+    expected_file_areas = list(proposal_data["planned_file_areas"])
     data: dict[str, Any] = {
         "title": "Autonomous Forge validation plan",
         "mode": "read-only",
@@ -34,18 +93,23 @@ def build_validation_plan_data(proposal_data: dict[str, Any]) -> dict[str, Any]:
         "selected_task": selected,
         "validation_execution": "not run",
         "validation_steps": _validation_steps(proposal_data),
-        "expected_file_areas": list(proposal_data["planned_file_areas"]),
+        "expected_file_areas": expected_file_areas,
+        "path_checks": _path_checks(expected_file_areas, proposal_data["policy"], root),
         "approval_required_items": list(proposal_data["approval_required_items"]),
         "blocked_items": list(proposal_data["blocked_items"]),
         "risk_notes": list(proposal_data["risk_notes"]),
         "commands_allowed": False,
         "reason": proposal_data["reason"],
-        "safety_boundary": "Validation plan output only; no commands are run and no files are changed.",
+        "safety_boundary": (
+            "Validation plan output only; no commands are run, no files are changed, "
+            "and path checks are advisory only."
+        ),
     }
 
     if selected is None:
         data["validation_steps"] = []
         data["expected_file_areas"] = []
+        data["path_checks"] = []
         return data
 
     return data
@@ -81,6 +145,14 @@ def format_validation_plan(data: dict[str, Any]) -> str:
             *[f"- {step}" for step in data["validation_steps"]],
             "Expected file areas:",
             *[f"- {area}" for area in data["expected_file_areas"]],
+            "Path checks:",
+            *[
+                (
+                    f"- {check['area']}: path={check['path_status']}; "
+                    f"policy={check['policy_status']}"
+                )
+                for check in data["path_checks"]
+            ],
             "Approval-required items:",
             *[f"- {item}" for item in data["approval_required_items"]],
             "Blocked items:",
@@ -110,7 +182,7 @@ def build_validation_plan(
         root=root,
     )
     proposal_data = build_change_proposal_data(plan_data)
-    validation_data = build_validation_plan_data(proposal_data)
+    validation_data = build_validation_plan_data(proposal_data, root=root)
     if output_format == "json":
         return json.dumps(validation_data, indent=2, sort_keys=True)
     if output_format != "text":
