@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-022 — 2026-07-08 — Smoke-test live planning inputs in CI
+
+Context: The test workflow already installs the package, compiles source, smoke-tests `forge --version`, and runs pytest, but it did not exercise the live repository roadmap, policy, state, or combined review-artifact command after installation.
+Decision: Add a read-only workflow step that runs `forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md` and `forge review-artifact --format json` against the real repository files before pytest.
+Alternatives considered: Rely only on unit tests, add a separate workflow, run validation commands, inspect diffs, or persist review artifacts in the repository.
+Consequences: CI can catch broken roadmap formatting, policy parsing, state wiring, or review-artifact command integration across the existing Python matrix without adding product write behavior.
+Human decision still required: No.
+
 ## DEC-021 — 2026-07-08 — Include validation previews in review artifacts
 
 Context: `forge review-artifact` already combines planning, proposal, validation intent, and explicit planned-path review, while `forge validation-preview` separately classifies validation command candidates before any execution support exists.
