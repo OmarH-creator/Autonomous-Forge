@@ -124,6 +124,22 @@ def test_write_run_history_record_writes_json_under_history_dir(tmp_path):
     assert data["preflight_summary"]["overall_status"] == "ready for opt-in persistence design"
 
 
+def test_write_run_history_record_resolves_relative_output_under_root(tmp_path):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "relative.json"
+
+    result = write_run_history_record(
+        VALID_PLAN,
+        VALID_POLICY,
+        root=tmp_path,
+        output_path=(".ai/run-history/relative.json"),
+        confirm_write=True,
+    )
+
+    assert result["path"] == str(output.resolve())
+    assert output.exists()
+
+
 def test_write_run_history_record_refuses_blocked_preflight(tmp_path):
     output = tmp_path / ".ai" / "run-history" / "record.json"
 
