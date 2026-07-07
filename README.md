@@ -12,9 +12,10 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, and run-history previews.
+- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, and preflight readiness checks.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
+- `forge preflight-readiness` for a conservative checklist before any future opt-in persistence design.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
@@ -38,6 +39,7 @@ forge validate-plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.m
 forge validation-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge review-artifact --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge run-history-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 ```
 
 Every command above is local-first and read-only. The commands print review information only; they do not change repository files, run validation commands, inspect diffs, make approval decisions, or enforce policy decisions.
@@ -66,7 +68,7 @@ forge review-artifact \
   --format json
 ```
 
-## Run-history preview
+## Run-history and preflight previews
 
 `forge run-history-preview` is the current bridge from review artifacts to durable project memory. It prints a deterministic record shape with selected task, review status, intent summaries, validation status, changed-file and commit placeholders, blockers, and safety notes while keeping persistence disabled.
 
@@ -79,7 +81,18 @@ forge run-history-preview \
   --format json
 ```
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, and `docs/COMMANDS.md` for focused contracts.
+`forge preflight-readiness` summarizes whether the current review artifact, patch intent, validation preview, inventory, and run-history preview signals are ready for a future opt-in persistence design.
+
+```bash
+forge preflight-readiness \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
+
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
@@ -110,9 +123,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge run-history-preview`, a read-only preview of the durable run-history record shape that future persistence can use after review-artifact and patch-intent data are stable.
-- **What changed:** Added `src/autonomous_forge/run_history_preview.py`, wired the `run-history-preview --format text|json` CLI command, added deterministic tests, and documented the command in README and `docs/RUN_HISTORY_PREVIEWS.md`.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for run-history preview data, text output, JSON output, no-task behavior, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
-- **Visual updates:** No new visual asset was needed; this change adds a structured memory preview rather than a new workflow diagram.
-- **Current limitations:** Run-history preview is advisory only and writes no history file. Review artifacts, patch intent, change intent, validation previews, validation plans, and changed-file reviews remain advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, make approval decisions, enforce policy decisions, or change files when invoked.
-- **Next autonomous objective:** Add a preflight readiness checklist that summarizes whether the current review, patch-intent, validation, inventory, and run-history-preview surfaces are ready for a future opt-in persistence step, still without command execution, diff inspection, patch generation, or repository writes.
+- **Latest run:** Added `forge preflight-readiness`, a read-only readiness checklist that gates the current review, patch-intent, validation-preview, inventory, and run-history-preview signals before any future opt-in persistence design.
+- **What changed:** Added `src/autonomous_forge/preflight_readiness.py`, wired the `preflight-readiness --format text|json` CLI command, added deterministic tests, and documented the command in README and `docs/PREFLIGHT_READINESS.md`.
+- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for ready checklist data, missing-inventory blockers, text output, JSON output, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
+- **Visual updates:** No new visual asset was needed; this change adds a checklist gate rather than a new workflow diagram.
+- **Current limitations:** Preflight readiness is advisory only and writes no history file. Review artifacts, patch intent, change intent, validation previews, validation plans, changed-file reviews, and run-history previews remain advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, make approval decisions, enforce policy decisions, or change files when invoked.
+- **Next autonomous objective:** Add an explicitly opt-in local run-history writer that can persist the reviewed run-history record only after the preflight checklist is clean, while keeping command execution, diff inspection, patch generation, and policy enforcement disabled.
