@@ -15,6 +15,7 @@ The first implementation reports whether these files or areas are present:
 - `.ai/AUTONOMOUS_CHANGELOG.md`
 - `.ai/DECISIONS.md`
 - `.forge/policy.md`
+- `.github/workflows/test.yml`
 - `README.md`
 - `CONTRIBUTING.md`
 - `LICENSE`
@@ -22,6 +23,8 @@ The first implementation reports whether these files or areas are present:
 - `src/`
 - `tests/`
 - `docs/`
+
+The workflow signal is intentionally limited to file presence. It does not validate workflow syntax, execute GitHub Actions, or inspect repository permissions.
 
 ## Output boundaries
 
@@ -37,4 +40,4 @@ The inventory stays conservative:
 
 ## Validation expectations
 
-Implementation coverage should include tests for present and missing file states, deterministic output ordering, and clear handling of repositories that have no `.ai` directory yet.
+Implementation coverage should include tests for present and missing file states, deterministic output ordering, workflow-file presence, and clear handling of repositories that have no `.ai` directory yet.
