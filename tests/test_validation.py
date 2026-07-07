@@ -85,6 +85,33 @@ def test_build_validation_plan_data_uses_proposal_data(tmp_path):
     assert validation["blocked_items"] == ["none"]
 
 
+def test_validation_path_checks_do_not_follow_symlink_outside_root(tmp_path):
+    state = tmp_path / "AUTONOMOUS_STATE.md"
+    state.write_text("# State\n", encoding="utf-8")
+    outside = tmp_path.parent / "outside-validation-secret.txt"
+    outside.write_text("do not disclose through path checks\n", encoding="utf-8")
+    (tmp_path / "src").symlink_to(outside)
+    plan = VALID_PLAN.replace(
+        "`src/autonomous_forge/validation.py`, `src/autonomous_forge/cli.py`, tests, `.env`, docs.",
+        "`src`, tests.",
+    )
+    plan_data = build_repository_plan_data(
+        plan,
+        VALID_POLICY,
+        state_path=state,
+        root=tmp_path,
+    )
+    proposal_data = build_change_proposal_data(plan_data)
+
+    validation = build_validation_plan_data(proposal_data, root=tmp_path)
+
+    assert validation["path_checks"][0] == {
+        "area": "src",
+        "path_status": "unknown",
+        "policy_status": "allowed",
+    }
+
+
 def test_build_validation_plan_formats_reviewable_output(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
