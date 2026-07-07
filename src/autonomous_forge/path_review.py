@@ -44,11 +44,19 @@ def _policy_status(path: str, policy_data: dict[str, list[str]]) -> str:
 
 
 def _path_status(root: Path, path: str) -> str:
-    """Return a local presence signal without reading file contents."""
+    """Return a local presence signal without following paths outside ``root``."""
     clean_path = _clean_path(path)
     if not clean_path or any(marker in clean_path for marker in ("*", "?", "[")):
         return "unknown"
-    return "present" if (root / clean_path).exists() else "missing"
+
+    try:
+        resolved_root = root.resolve()
+        candidate = (resolved_root / clean_path).resolve()
+        candidate.relative_to(resolved_root)
+    except (OSError, ValueError):
+        return "unknown"
+
+    return "present" if candidate.exists() else "missing"
 
 
 def build_path_review_data(
