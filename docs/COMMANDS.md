@@ -266,8 +266,9 @@ Inputs:
 - `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
 - `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
 - `--root`: repository root used for documented-file presence signals, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
 
-Expected successful output includes these stable lines:
+Expected successful text output includes these stable lines:
 
 ```text
 Autonomous Forge change proposal
@@ -303,6 +304,38 @@ Selected task: none
 Reason: no eligible TODO task found.
 Blocked items:
 - No eligible TODO task was selected by the plan.
+```
+
+Expected successful JSON output includes the same proposal information as structured data:
+
+```json
+{
+  "approval_required_items": ["Adding network access."],
+  "blocked_items": ["none"],
+  "mode": "read-only",
+  "planned_file_areas": ["src/autonomous_forge/proposal.py", "tests"],
+  "planned_operations": [
+    "Review and update src/autonomous_forge/proposal.py if needed for the selected task."
+  ],
+  "policy": {
+    "allowed_paths": ["src/**"],
+    "human_approval_required": ["Adding network access."],
+    "prohibited_paths": ["private-config/**"],
+    "validation_expectations": ["Run tests."]
+  },
+  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
+  "risk_notes": ["Keep output read-only."],
+  "safety_boundary": "Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.",
+  "selected_task": {
+    "id": "AUTO-021",
+    "priority": "P1",
+    "status": "TODO",
+    "title": "Add structured proposal output"
+  },
+  "source": "forge plan structured data",
+  "task_validation": "Run pytest.",
+  "title": "Autonomous Forge change proposal"
+}
 ```
 
 Exit codes:
