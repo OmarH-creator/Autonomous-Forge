@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-023
+
+- Task ID: AUTO-023
+- Summary: Added advisory path checks to `forge validate-plan`. Validation-plan data now reports each planned file area with local path presence (`present`, `missing`, or `unknown`) and advisory policy status (`allowed`, `prohibited`, or `unknown`) while preserving the no-execution safety boundary.
+- Branch/PR assessment: Inspected repository metadata, recent commits, and recent PRs before implementation. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for path-check data, human-readable output, JSON output, CLI text output, CLI JSON output, and the no-selected-task case. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Commit hash: dca210fbfe66de5d6d145f29eb39537be78c3aca, 710a8cde44f76105b63e61fc39e164e1de36e45d, eadf8e1d0e0f99e57d61818463e3fb9c1e3b19cf, and related state commits in the same run.
+- Follow-up notes: Add a read-only changed-files or diff-intent review surface only after advisory path checks remain stable. Do not add command execution, file writes, patch generation, approval decisions, or policy enforcement yet.
+
 ## 2026-07-07 — AUTO-022
 
 - Task ID: AUTO-022
