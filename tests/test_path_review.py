@@ -60,6 +60,21 @@ def test_build_path_review_rejects_paths_outside_the_review_root(tmp_path):
     assert review["requires_attention"] is True
 
 
+def test_build_path_review_rejects_symlink_that_resolves_outside_the_review_root(tmp_path):
+    root = tmp_path / "repository"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("must not be probed", encoding="utf-8")
+    (root / "linked-outside.txt").symlink_to(outside)
+
+    review = build_path_review_data(VALID_POLICY, ["linked-outside.txt"], root=root)
+
+    assert review["reviewed_paths"] == [
+        {"path": "linked-outside.txt", "path_status": "unknown", "policy_status": "unknown"}
+    ]
+    assert review["requires_attention"] is True
+
+
 def test_build_path_review_formats_text_output(tmp_path):
     (tmp_path / "tests").mkdir()
 
