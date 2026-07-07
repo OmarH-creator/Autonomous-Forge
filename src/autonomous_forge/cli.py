@@ -18,6 +18,7 @@ from autonomous_forge.policy import PolicyParseError, RepositoryPolicy, parse_re
 from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.run_summary import read_run_summary_preview
+from autonomous_forge.validation import read_validation_plan
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -141,6 +142,37 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="proposal format: text (default) or JSON",
+    )
+
+    validation_parser = subparsers.add_parser(
+        "validate-plan",
+        help="build a read-only validation plan from the selected proposal",
+    )
+    validation_parser.add_argument(
+        "--plan",
+        default=".ai/AUTONOMOUS_PLAN.md",
+        help="path to the autonomous roadmap file",
+    )
+    validation_parser.add_argument(
+        "--state",
+        default=".ai/AUTONOMOUS_STATE.md",
+        help="path to the autonomous state file",
+    )
+    validation_parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    validation_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for documented-file presence signals",
+    )
+    validation_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="validation plan format: text (default) or JSON",
     )
 
     policy_parser = subparsers.add_parser(
@@ -307,6 +339,27 @@ def _print_proposal(
     return 0
 
 
+def _print_validation_plan(
+    plan_path: Path,
+    state_path: Path,
+    policy_path: Path,
+    root: Path,
+    output_format: str,
+) -> int:
+    try:
+        print(read_validation_plan(plan_path, policy_path, state_path, root, output_format))
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_policy(policy_path: Path) -> int:
     try:
         policy = parse_repository_policy(policy_path.read_text(encoding="utf-8"))
@@ -381,6 +434,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "propose":
         return _print_proposal(
+            Path(args.plan),
+            Path(args.state),
+            Path(args.policy),
+            Path(args.root),
+            args.format,
+        )
+
+    if args.command == "validate-plan":
+        return _print_validation_plan(
             Path(args.plan),
             Path(args.state),
             Path(args.policy),
