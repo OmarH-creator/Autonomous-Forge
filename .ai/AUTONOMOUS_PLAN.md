@@ -10,13 +10,13 @@ The first product remains a local Python command-line tool. It reads repository 
 
 ## Current architecture
 
-The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, command output contracts under `docs/COMMANDS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, and `forge policy`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, and `forge policy`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
 
 ## Current implementation status
 
 Roadmap v1 is complete. Autonomous Forge has a minimal installable CLI scaffold, package metadata, README development instructions, deterministic roadmap task parsing, deterministic eligible-task selection, a dry-run repository report, policy format documentation, an example policy, contributor development guidance, and tests covering CLI help, plan parsing, selector behavior, and report output.
 
-Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. `forge report` surfaces policy-file readiness without claiming policy enforcement. `forge lint-plan` checks roadmap task block structure before higher-risk automation is considered. Current command output contracts are now documented for maintainers, contributors, and future automation.
+Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md` through `forge policy`. `forge report` surfaces policy-file readiness without claiming policy enforcement. `forge lint-plan` checks roadmap task block structure before higher-risk automation is considered. Current command output contracts are documented for maintainers, contributors, and future automation. The future local run-summary format is documented before any command is allowed to write execution history.
 
 ## User personas and likely workflows
 
@@ -27,9 +27,9 @@ Roadmap v2 has started with conservative read-only parsing of `.forge/policy.md`
 
 ## Strengths and risks
 
-Strengths: local-first design, small scope, clear durable memory, deterministic task selection, explicit policy boundaries, roadmap structure linting, documented command output contracts, and contributor setup guidance.
+Strengths: local-first design, small scope, clear durable memory, deterministic task selection, explicit policy boundaries, roadmap structure linting, documented command output contracts, documented run-summary format boundaries, and contributor setup guidance.
 
-Risks: policy parsing must remain intentionally conservative; reporting must not imply enforcement before enforcement exists; any future command execution must remain out of scope until explicitly planned and approved.
+Risks: policy parsing must remain intentionally conservative; reporting must not imply enforcement before enforcement exists; run-summary documentation must not imply automatic persistence before write behavior exists; any future command execution must remain out of scope until explicitly planned and approved.
 
 ## Technical debt
 
@@ -45,7 +45,7 @@ Future documentation should explain run-record commands only after they exist.
 
 ## Security and privacy considerations
 
-The MVP uses local files only and has no network feature. The policy format and contributor guide define allowed paths, prohibited paths, human-approval boundaries, safe file handling, and validation expectations before any higher-risk automation is added. Roadmap v2 keeps behavior read-only and avoids external command execution.
+The MVP uses local files only and has no network feature. The policy format and contributor guide define allowed paths, prohibited paths, human-approval boundaries, safe file handling, and validation expectations before any higher-risk automation is added. Roadmap v2 keeps behavior read-only and avoids external command execution. The run-summary format explicitly excludes secrets, environment dumps, full diffs by default, and automatic file writes until a future roadmap task allows them.
 
 ## Performance and maintainability concerns
 
@@ -189,14 +189,14 @@ Notes: Do not document future commands as complete.
 
 ### AUTO-011 — Record local run summaries without execution
 Priority: P3
-Status: TODO
+Status: DONE
 
 Goal: Design and document a read-only-safe local run summary format for future use.
 Why it matters: Durable execution history is part of the product vision, but write behavior needs careful boundaries.
-Scope: Propose the format and add docs/tests only if a read-only preview command is implemented.
-Expected files or areas: docs, possible report module tests.
+Scope: Propose the format and add docs only; do not add automatic history-file writes or external command execution.
+Expected files or areas: docs, README, roadmap state.
 Acceptance criteria: The format captures timestamp, selected task, validation plan, policy status, and changed-files summary placeholder without running external commands.
-Validation: Documentation review and unit tests if a formatter is added.
+Validation: Added `docs/RUN_SUMMARIES.md` and README link; static documentation review completed because runtime test execution was unavailable in this automation environment.
 Risks or assumptions: Avoid creating automatic history files until explicitly planned.
 Notes: Prefer preview output before write behavior.
 
