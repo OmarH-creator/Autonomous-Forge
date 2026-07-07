@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from autonomous_forge.inventory import build_repository_inventory
+from autonomous_forge.path_review import read_path_review
 from autonomous_forge.plan import (
     PlanParseError,
     PlanSelectionError,
@@ -173,6 +174,33 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="validation plan format: text (default) or JSON",
+    )
+
+    review_files_parser = subparsers.add_parser(
+        "review-files",
+        help="review explicit changed-file paths against repository policy",
+    )
+    review_files_parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="path to the repository policy file",
+    )
+    review_files_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used for path-presence signals",
+    )
+    review_files_parser.add_argument(
+        "--file",
+        action="append",
+        default=[],
+        help="changed file path to review; repeat for multiple paths",
+    )
+    review_files_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="changed-file review format: text (default) or JSON",
     )
 
     policy_parser = subparsers.add_parser(
@@ -360,6 +388,23 @@ def _print_validation_plan(
     return 0
 
 
+def _print_path_review(
+    policy_path: Path,
+    root: Path,
+    paths: list[str],
+    output_format: str,
+) -> int:
+    try:
+        print(read_path_review(policy_path, paths, root=root, output_format=output_format))
+    except FileNotFoundError:
+        print(f"Policy file not found: {policy_path}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_policy(policy_path: Path) -> int:
     try:
         policy = parse_repository_policy(policy_path.read_text(encoding="utf-8"))
@@ -447,6 +492,14 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.state),
             Path(args.policy),
             Path(args.root),
+            args.format,
+        )
+
+    if args.command == "review-files":
+        return _print_path_review(
+            Path(args.policy),
+            Path(args.root),
+            args.file,
             args.format,
         )
 
