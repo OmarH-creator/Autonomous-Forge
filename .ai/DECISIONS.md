@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-023 — 2026-07-08 — Add change intent before patch behavior
+
+Context: `forge review-artifact` already combines selected task context, implementation-plan signals, proposal intent, validation intent, validation command-candidate metadata, and explicit planned-path review. The next safe step toward patch review is to connect each planned file area to its proposed operation and advisory policy/path status without inspecting diffs or reading file contents.
+Decision: Add a reusable change-intent data layer and include it in review artifacts. Each planned change reports file area, proposed operation, path status, policy status, and conservative review status.
+Alternatives considered: Generate patches, inspect git diffs, read changed-file contents, run validation commands, write review artifacts to disk, approve policy exceptions, enforce policy decisions, or keep planned file areas as unstructured proposal text.
+Consequences: Maintainers get a clearer bridge from proposal planning to future patch review while the product still avoids file-content reads, diff inspection, patch generation, command execution, repository writes, approval decisions, network access, environment reads, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-022 — 2026-07-08 — Smoke-test live planning inputs in CI
 
 Context: The test workflow already installs the package, compiles source, smoke-tests `forge --version`, and runs pytest, but it did not exercise the live repository roadmap, policy, state, or combined review-artifact command after installation.
