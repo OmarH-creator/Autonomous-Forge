@@ -31,7 +31,7 @@ For every provided path, the command reports:
 - `path_status`: `present`, `missing`, or `unknown` based on local path presence only.
 - `policy_status`: `allowed`, `prohibited`, or `unknown` based on documented policy path patterns only.
 
-The summary reports total reviewed paths and counts by policy status.
+The command accepts repository-relative paths only. Absolute paths, parent-directory traversal, and backslash-separated paths are reported as `unknown` and are never checked for filesystem presence. The summary reports total reviewed paths and counts by policy status.
 
 ## Safety limits
 
