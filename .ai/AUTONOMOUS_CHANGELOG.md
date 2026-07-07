@@ -1,5 +1,13 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-003
+
+- Task ID: AUTO-003
+- Summary: Added deterministic eligible-task selection and exposed the selected TODO task through `forge tasks --next`.
+- Validation completed: Static review completed; runtime test execution was not available in this automation environment.
+- Commit hash: pending final commit lookup
+- Follow-up notes: Run `PYTHONPATH=src python -m pytest` in a checkout-capable environment and proceed to AUTO-004.
+
 ## 2026-07-07 — AUTO-002
 
 - Task ID: AUTO-002
