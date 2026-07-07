@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-07 — Maintenance
+
+- Task ID: Maintenance — contain validation-plan path checks within the resolved repository root
+- Summary: Hardened `forge validate-plan` advisory path-presence checks so candidate paths are normalized, resolved against `--root`, and reported as `unknown` when they cannot be proven to remain inside the resolved repository root. This aligns validation-plan path checks with the safer containment behavior already used by explicit changed-file review.
+- Branch/PR assessment: Inspected recent commits, recent PRs, README, roadmap, state, changelog, decisions, validation code, path-review code, and validation tests before implementation. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added a deterministic regression test for an in-root symbolic link that resolves to an external file and verified expected validation-plan data reports `path_status` as `unknown` while keeping advisory policy status separate. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Commit hash: 83494af12b2847ec231f5231ca2f4c6597b71ea9, 710886b9a9ed419d667f1a05ca047c288c1aa5c8, 2eed69918eb91506e706097d6e3acafa88b91b26, and related state commits in the same run.
+- Follow-up notes: Add guarded validation-run preview metadata only after advisory review surfaces remain stable. Do not add command execution, file writes, patch generation, approval decisions, secret scanning, or policy enforcement yet.
+
 ## 2026-07-07 — AUTO-025
 
 - Task ID: AUTO-025
