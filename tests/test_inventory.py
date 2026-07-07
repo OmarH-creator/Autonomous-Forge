@@ -19,6 +19,16 @@ def test_collect_inventory_signals_reports_present_and_missing_paths(tmp_path):
     ]
 
 
+def test_build_repository_inventory_reports_workflow_presence(tmp_path):
+    workflow = tmp_path / ".github" / "workflows" / "test.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text("name: Test\n", encoding="utf-8")
+
+    output = build_repository_inventory(tmp_path)
+
+    assert ".github/workflows/test.yml: present" in output
+
+
 def test_build_repository_inventory_is_read_only_and_deterministic(tmp_path):
     (tmp_path / "README.md").write_text("# Example\n", encoding="utf-8")
 
@@ -28,6 +38,7 @@ def test_build_repository_inventory_is_read_only_and_deterministic(tmp_path):
     assert "Mode: read-only" in output
     assert "README.md: present" in output
     assert ".ai/AUTONOMOUS_PLAN.md: missing" in output
+    assert ".github/workflows/test.yml: missing" in output
     assert "Health score: not calculated" in output
     assert "scan secrets" in output
 
@@ -43,4 +54,5 @@ def test_inventory_command_prints_read_only_summary(tmp_path, capsys):
     assert "Mode: read-only" in output
     assert ".ai/AUTONOMOUS_PLAN.md: present" in output
     assert ".ai/AUTONOMOUS_STATE.md: missing" in output
+    assert ".github/workflows/test.yml: missing" in output
     assert "Health score: not calculated" in output
