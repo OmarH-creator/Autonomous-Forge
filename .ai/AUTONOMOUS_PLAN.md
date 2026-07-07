@@ -2,27 +2,27 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one small task, check the result, and record what happened.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, and record what happened.
 
 ## Product scope and non-goals
 
-The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, and keeps durable project memory. It is not a hosted platform, dashboard, autonomous executor, deployment system, or permission-management tool.
+The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, and keeps durable project memory. It is not a hosted platform, dashboard, deployment system, permission-management tool, or uncontrolled autonomous executor.
 
 ## Current architecture
 
-The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, change-proposal documentation under `docs/CHANGE_PROPOSALS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, `forge inventory`, `forge plan`, and `forge propose`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, run-summary documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, change-proposal documentation under `docs/CHANGE_PROPOSALS.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, `forge inventory`, `forge plan`, `forge propose`, and `forge validate-plan`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
 
 ## Current implementation status
 
-Roadmap v1 is complete. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview linked from the README. Roadmap v3 has advanced the policy-aware planning milestone with `forge plan` text output, structured JSON output, and a read-only `forge propose` command. These commands are read-only and do not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, change files outside their own committed implementation, generate patches, or execute plans.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, and read-only validation plans. These commands do not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, generate patches, execute plans, or change repository files when invoked.
 
 ## Technical debt
 
-The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, provide documented command output contracts, preview local run-summary fields, print repository health file-presence signals, build policy-aware implementation plans in text or JSON, and produce human-readable change proposals. It does not yet persist run summaries in a machine-readable local format, emit structured proposal JSON, validate proposed changes, inspect diffs, or execute approved plans. The main-branch CI result for the latest direct commits has not yet been observed from this execution environment.
+The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, and now build reviewable validation plans. It does not yet persist run summaries in a machine-readable local format, inspect diffs, summarize changed files, run validation commands, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
-## Roadmap v1
+## Roadmap v1 — Completed foundation
 
 ### AUTO-001 — Scaffold local CLI and package metadata
 Priority: P1
@@ -33,7 +33,7 @@ Why it matters: A stable command surface is needed before planner behavior can b
 Scope: Add package metadata, source layout, CLI help, and a smoke test.
 Expected files or areas: `pyproject.toml`, `src/`, `tests/`, README.
 Acceptance criteria: `forge --help` succeeds and describes the dry-run focus.
-Validation: Static review completed; test command documented but not executed in this tool runtime.
+Validation: Static review completed; test command documented but not executed in the initial tool runtime.
 Risks or assumptions: Python is selected for low overhead.
 Notes: Keep runtime dependencies at zero.
 
@@ -46,7 +46,7 @@ Why it matters: Task visibility is required for deterministic selection.
 Scope: Read Markdown locally and return task identifiers, titles, priorities, and statuses.
 Expected files or areas: `src/autonomous_forge/plan.py`, `src/autonomous_forge/cli.py`, tests, README.
 Acceptance criteria: Valid blocks parse, malformed blocks report clear errors, and no files change.
-Validation: Added unit tests for valid, malformed, and empty plans; static review completed because runtime test execution was unavailable in this automation environment.
+Validation: Added unit tests for valid, malformed, and empty plans.
 Risks or assumptions: Parsing is limited to this documented format.
 Notes: Use deterministic parsing.
 
@@ -76,6 +76,8 @@ Validation: Added unit and CLI tests for report output, task-state counts, next-
 Risks or assumptions: Keep this milestone read-only.
 Notes: First user-facing workflow.
 
+## Roadmap v2 — Completed safety and reporting surface
+
 ### AUTO-005 — Document repository policy format
 Priority: P2
 Status: DONE
@@ -102,19 +104,17 @@ Validation: Manual documentation review completed.
 Risks or assumptions: Keep it aligned with implemented tooling.
 Notes: Depends on AUTO-001.
 
-## Roadmap v2
-
 ### AUTO-007 — Parse repository policy sections
 Priority: P1
 Status: DONE
 
 Goal: Read `.forge/policy.md` into a small structured policy summary.
 Why it matters: The tool should understand its documented safety boundary before later commands rely on it.
-Scope: Parse the documented section headings for allowed paths, prohibited paths, approval-required areas, and validation expectations.
+Scope: Parse allowed paths, prohibited paths, approval-required areas, and validation expectations.
 Expected files or areas: `src/autonomous_forge/policy.py`, `src/autonomous_forge/cli.py`, tests, README.
-Acceptance criteria: Valid example policy parses, missing policy reports a clear read-only error, malformed required sections produce actionable diagnostics, and no repository files are changed.
+Acceptance criteria: Valid policy parses, missing policy reports a clear error, malformed required sections produce actionable diagnostics, and no repository files are changed.
 Validation: Added policy parser and CLI tests.
-Risks or assumptions: The parser should stay conservative and support only the documented Markdown format.
+Risks or assumptions: The parser supports only the documented Markdown format.
 Notes: Do not enforce changes yet; report only.
 
 ### AUTO-008 — Surface policy readiness in dry-run reports
@@ -127,7 +127,7 @@ Scope: Extend report output to include policy present/missing/malformed status w
 Expected files or areas: `src/autonomous_forge/report.py`, `src/autonomous_forge/policy.py`, `src/autonomous_forge/cli.py`, tests, README.
 Acceptance criteria: Reports show policy status, keep existing plan/task output stable, and return clear errors for malformed policies.
 Validation: Added report CLI support and tests for present, missing, and malformed policy readiness.
-Risks or assumptions: Do not overstate policy enforcement; this is readiness reporting only.
+Risks or assumptions: Do not overstate policy enforcement.
 Notes: Depends on AUTO-007.
 
 ### AUTO-009 — Add roadmap structure linting
@@ -175,7 +175,7 @@ Status: DONE
 
 Goal: Add a read-only command that prints the documented run-summary format.
 Why it matters: Maintainers can inspect the future record shape with real plan and policy context while preserving the current read-only safety boundary.
-Scope: Build a run-summary preview from the current plan and policy status, including placeholders for validation result, changed files, and commit.
+Scope: Build a run-summary preview from the current plan and policy status.
 Expected files or areas: `src/autonomous_forge/run_summary.py`, `src/autonomous_forge/cli.py`, tests, README, `docs/COMMANDS.md`, `docs/RUN_SUMMARIES.md`.
 Acceptance criteria: `forge run-summary` prints all required fields, supports deterministic timestamp output for tests, does not write files, and documents its safety limits.
 Validation: Added run-summary preview module, CLI command, CLI coverage, README usage notes, and command-contract documentation.
@@ -188,11 +188,11 @@ Status: DONE
 
 Goal: Define the first safe scope for a future read-only repository health inventory.
 Why it matters: Inventory behavior should have clear boundaries before it reports repository readiness.
-Scope: Add documentation for the signals, output boundaries, and validation expectations of a future inventory command without implementing the command.
+Scope: Add documentation for signals, output boundaries, and validation expectations of a future inventory command.
 Expected files or areas: `docs/HEALTH_INVENTORY.md`, README, roadmap state.
-Acceptance criteria: Documentation lists initial file-presence signals, states that the inventory is not enforcement or credential scanning, and keeps behavior read-only and local-only.
-Validation: Static documentation review completed against AUTO-013 acceptance criteria.
-Risks or assumptions: Do not imply a health score, audit, policy enforcement, or credential scanning before implementation exists.
+Acceptance criteria: Documentation lists initial file-presence signals, states that inventory is not enforcement or credential scanning, and keeps behavior read-only and local-only.
+Validation: Static documentation review completed.
+Risks or assumptions: Do not imply a health score, audit, policy enforcement, or credential scanning.
 Notes: Future implementation may add `forge inventory` only after this scope remains acceptable.
 
 ### AUTO-014 — Implement read-only repository health inventory
@@ -221,7 +221,7 @@ Validation: PR #4 GitHub Actions passed before merge; direct integration preserv
 Risks or assumptions: JSON preview must not imply execution history was persisted.
 Notes: Integrated directly on `main` before Roadmap v3 planning work.
 
-## Roadmap v3
+## Roadmap v3 — Policy-aware planning toward safe maintenance workflow
 
 ### AUTO-018 — Add policy-aware implementation plans
 Priority: P1
@@ -245,9 +245,9 @@ Why it matters: A future change-proposal workflow should consume stable planning
 Scope: Introduce a shared structured plan-data builder, keep text as the default, add `forge plan --format json`, and document the JSON contract.
 Expected files or areas: `src/autonomous_forge/planner.py`, `src/autonomous_forge/cli.py`, `tests/test_planner.py`, README, `docs/COMMANDS.md`, `.ai/` state records.
 Acceptance criteria: Text output remains stable, JSON output contains selected task details, policy boundaries, documentation signals, state-file status, reason, and safety boundary; deterministic tests cover builder and CLI JSON output; no files are changed by the command.
-Validation: Added deterministic tests for structured data, JSON formatting, and CLI JSON output. Static review completed through the GitHub repository API because local checkout execution was unavailable in this environment.
+Validation: Added deterministic tests for structured data, JSON formatting, and CLI JSON output.
 Risks or assumptions: JSON output is a plan artifact on stdout only; it must not imply approval, write persistence, patch generation, validation execution, or policy enforcement.
-Notes: This materially advances the same planning milestone toward reviewable change proposals.
+Notes: This materially advanced the same planning milestone toward reviewable change proposals.
 
 ### AUTO-020 — Generate reviewable change proposals
 Priority: P1
@@ -258,29 +258,55 @@ Why it matters: The next safe step toward an end-to-end maintenance workflow is 
 Scope: Use structured plan data to print intended file areas, planned operations at a high level, validation commands from policy/task context, risk notes, and blocked/approval-required items.
 Expected files or areas: `src/autonomous_forge/proposal.py`, `src/autonomous_forge/cli.py`, tests, README, `docs/COMMANDS.md`, `docs/CHANGE_PROPOSALS.md`, `.ai/` state records.
 Acceptance criteria: The command remains read-only, does not generate patches or edit files, uses policy and roadmap data, reports approval-required items, emits deterministic text output, and has CLI tests.
-Validation: Added deterministic proposal-data, formatter, CLI, and no-selected-task tests. Static review completed through the GitHub repository API because local checkout execution was unavailable in this environment.
+Validation: Added deterministic proposal-data, formatter, CLI, and no-selected-task tests.
 Risks or assumptions: Proposal output must not imply patch generation, validation execution, approval, write persistence, or policy enforcement.
 Notes: Depends on AUTO-019 structured plan data.
 
 ### AUTO-021 — Add structured proposal output
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Add machine-readable JSON output to `forge propose` while preserving the default human-readable proposal.
 Why it matters: Validation orchestration and future review tooling should consume proposal data without scraping text.
 Scope: Reuse one proposal-data builder for text and JSON output, expose `forge propose --format json`, and document the JSON fields.
 Expected files or areas: `src/autonomous_forge/proposal.py`, `src/autonomous_forge/cli.py`, `tests/test_proposal.py`, README, `docs/COMMANDS.md`, `.ai/` state records.
 Acceptance criteria: Text output remains stable, JSON output includes selected task, planned areas, planned operations, validation steps, approval-required items, risk notes, blockers, and safety boundary; deterministic tests cover builder and CLI JSON output; no files are changed by the command.
-Validation: Run `python -m pytest` in a checkout-capable environment; if unavailable, perform static review and rely on deterministic tests committed to the repository.
+Validation: Added deterministic tests for JSON proposal builder output and CLI `forge propose --format json`, while preserving text-output and no-selected-task coverage. Static review completed through the GitHub repository API because local checkout execution was unavailable in this environment.
 Risks or assumptions: JSON output is a proposal artifact on stdout only; it must not imply approval, write persistence, patch generation, validation execution, or policy enforcement.
-Notes: This should precede validation orchestration or any write behavior.
+Notes: This precedes validation orchestration or any write behavior.
+
+### AUTO-022 — Add read-only validation planning
+Priority: P1
+Status: DONE
+
+Goal: Add `forge validate-plan` as a read-only command that turns structured proposal data into reviewable validation intent.
+Why it matters: A safe end-to-end maintenance workflow needs validation orchestration to be reviewable before any commands can be run.
+Scope: Reuse proposal data to print validation steps, expected file areas, approval-required items, blockers, risk notes, command-execution status, and a no-execution safety boundary in text or JSON.
+Expected files or areas: `src/autonomous_forge/validation.py`, `src/autonomous_forge/cli.py`, `tests/test_validation.py`, README, `.ai/` state records.
+Acceptance criteria: `forge validate-plan` is deterministic, supports text and JSON output, returns clear errors for malformed inputs through existing parser exceptions, does not run commands, and has CLI tests.
+Validation: Added deterministic tests for validation-plan data, text output, JSON output, CLI text output, CLI JSON output, and no-selected-task behavior. Static review completed through the GitHub repository API because local checkout execution was unavailable in this environment.
+Risks or assumptions: Validation planning must not imply validation execution, command approval, write persistence, patch generation, diff inspection, or policy enforcement.
+Notes: This materially advances the same safe maintenance workflow without adding execution behavior.
+
+### AUTO-023 — Add safe local diff/check summary for planned file areas
+Priority: P1
+Status: TODO
+
+Goal: Add a read-only command or output extension that summarizes whether planned file areas exist and are inside policy-allowed paths before any patch generation or validation execution exists.
+Why it matters: Maintainers need a safer bridge between proposal planning and future change-set review.
+Scope: Inspect only local path presence and policy-pattern text already available to the tool; report unknown patterns conservatively; avoid reading secrets, environment variables, git history, or external systems.
+Expected files or areas: `src/autonomous_forge/validation.py` or a focused new module, `src/autonomous_forge/cli.py`, tests, README, `docs/COMMANDS.md`, `.ai/` state records.
+Acceptance criteria: Output is deterministic, read-only, local-only, includes allowed/prohibited/unknown path checks for planned areas, and has text/JSON tests.
+Validation: Run `python -m pytest` in a checkout-capable environment; if unavailable, perform static review and rely on deterministic tests committed to the repository.
+Risks or assumptions: Path checks are advisory only and must not claim full policy enforcement, diff inspection, secret scanning, or approval.
+Notes: Do not add command execution or file writes in this task.
 
 ## Future Ideas
 
 - Hash-linked local run reports.
 - Optional issue import.
 - Policy-aware changed-file summaries.
-- Explicit validation orchestration after proposals are reviewable.
+- Explicit validation orchestration after validation plans are reviewable.
 
 ## Do Not Change Without Explicit Human Approval
 
