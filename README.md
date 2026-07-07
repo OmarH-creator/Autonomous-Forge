@@ -13,7 +13,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
 - Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, and combined review artifacts.
-- `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, validation intent, validation command-candidate preview, and explicit planned-path review.
+- `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
 
@@ -46,6 +46,7 @@ Every command above is local-first and read-only. The commands print review info
 - selected task identity and reason from the roadmap;
 - policy-aware implementation-plan context;
 - proposal intent and planned file areas;
+- structured change intent that marks planned areas as reviewable, blocked, or needing classification;
 - validation intent and command-execution status;
 - validation command-candidate preview metadata;
 - explicit planned-path review against documented policy patterns.
@@ -88,13 +89,13 @@ python -m pytest
 
 ## Safe contribution expectations
 
-Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, private credential handling, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
+Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
 
 ## Current Autonomous Status
 
-- **Latest run:** Hardened CI so the installed `forge` command now validates the live repository roadmap/policy/state inputs and emits a JSON review artifact before the test suite runs.
-- **What changed:** Updated `.github/workflows/test.yml` to run `forge lint-plan` and `forge review-artifact --format json` against the real repository files after package installation, then updated README and project-memory records.
-- **Validation:** Static review completed through the GitHub repository API. The workflow itself should validate the new smoke checks on the next GitHub Actions run; direct local checkout/test execution remains unavailable in this environment.
-- **Visual updates:** No new visual asset was needed; this change improves CI coverage rather than product workflow visuals.
-- **Current limitations:** Review artifacts, validation previews, validation plans, and changed-file reviews remain advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
-- **Next autonomous objective:** Add a structured change-intent surface that connects planned file areas to future patch review without reading file contents, generating patches, or executing commands.
+- **Latest run:** Added structured change intent into `forge review-artifact` so the combined handoff now connects each planned file area to its proposed operation, local path status, advisory policy status, and review status.
+- **What changed:** Added `src/autonomous_forge/change_intent.py`, integrated it into `src/autonomous_forge/review_artifact.py`, expanded review-artifact tests, and updated review-artifact documentation and project-memory records.
+- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for change-intent data, text output, JSON output, no-task behavior, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment, and no workflow run was visible yet for the final commit.
+- **Visual updates:** No new visual asset was needed; this change improves structured review data rather than workflow visualization.
+- **Current limitations:** Review artifacts, change intent, validation previews, validation plans, and changed-file reviews remain advisory only. They do not inspect git diffs, read changed-file contents, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
+- **Next autonomous objective:** Add a read-only diff-intent or patch-plan preview only after the change-intent surface is stable, still without reading file contents, generating patches, executing commands, or writing repository files.
