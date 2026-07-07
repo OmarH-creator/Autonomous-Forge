@@ -21,6 +21,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - A read-only `forge run-summary` command for previewing the documented local run-summary format.
 - Documented command output contracts in `docs/COMMANDS.md`.
 - A documented local run-summary format in `docs/RUN_SUMMARIES.md` for future preview/write behavior.
+- A documented repository health inventory scope in `docs/HEALTH_INVENTORY.md` for future read-only inventory work.
 - Contributor development guidance in `CONTRIBUTING.md`.
 - Smoke tests for CLI help, task parsing, eligible task selection, roadmap linting, report behavior, policy parsing, and run-summary preview output.
 
@@ -39,7 +40,8 @@ The MVP roadmap focuses on practical, reviewable automation:
 9. Document command output contracts so contributors and future automation understand current CLI behavior.
 10. Define a local run-summary format before any command is allowed to write execution history.
 11. Preview the documented run-summary format without writing files.
-12. Keep contributor setup and safety guidance clear as the CLI evolves.
+12. Define repository health inventory scope before adding an inventory command.
+13. Keep contributor setup and safety guidance clear as the CLI evolves.
 
 ## Repository policy boundaries
 
@@ -116,6 +118,10 @@ See `docs/COMMANDS.md` for the current command purposes, expected output pattern
 ## Local run summaries
 
 See `docs/RUN_SUMMARIES.md` for the local run-summary format. Autonomous Forge can preview this format, but it does not automatically write execution history files yet.
+
+## Repository health inventory
+
+See `docs/HEALTH_INVENTORY.md` for the proposed scope and safety boundaries of a future read-only repository inventory command.
 
 ## Run tests
 
