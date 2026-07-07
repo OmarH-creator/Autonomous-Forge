@@ -33,5 +33,14 @@ jobs:
         run: python -m compileall -q src
       - name: Smoke-test installed CLI
         run: forge --version
+      - name: Validate repository planning inputs
+        run: |
+          forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
+          forge review-artifact \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --format json > /tmp/autonomous-forge-review-artifact.json
       - name: Run test suite
         run: python -m pytest -q
