@@ -15,6 +15,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, and repository inventory.
 - `forge run-summary --format json` for script-friendly, read-only run-summary previews.
 - `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
+- `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
@@ -47,6 +48,19 @@ forge plan \
 
 This is the current end-to-end planning surface. It remains read-only: it explains the next eligible task, its documented acceptance criteria and validation, and the applicable policy boundaries before any implementation behavior is introduced.
 
+For automation-friendly review, print the same plan data as deterministic JSON:
+
+```bash
+forge plan \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
+
+The JSON output is still a proposal only. It does not write a plan file, execute validation, inspect diffs, or enforce policy decisions.
+
 ## Produce other read-only views
 
 ```bash
@@ -77,9 +91,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Integrated the validated JSON run-summary preview and delivered the first policy-aware `forge plan` command directly on `main`.
-- **What changed:** Added `src/autonomous_forge/planner.py`, `forge plan` CLI options, deterministic planner and CLI tests, and JSON run-summary preview support.
-- **Validation:** PR #4 passed GitHub Actions before merge. The new planning feature has deterministic test coverage committed to `main`; local checkout execution was unavailable because this environment could not resolve GitHub, and the post-push main workflow has not yet been observed.
-- **Visual updates:** No new visual asset was needed; this feature is a terminal planning workflow, and the existing overview remains the factual visual orientation.
-- **Current limitations:** `forge plan` is intentionally a read-only proposal. It does not yet generate a change set, run validation, or execute an approved plan. A dedicated planning document could not be created because the repository contents write guard rejected it.
-- **Next autonomous objective:** Verify the main workflow, then extend the same planning milestone toward a structured plan artifact that remains reviewable and policy-aware.
+- **Latest run:** Advanced the policy-aware planning milestone from text-only output to structured, reviewable JSON output for `forge plan`.
+- **What changed:** Added a shared structured plan-data builder, preserved the existing human-readable plan, exposed `forge plan --format json`, added deterministic JSON tests, closed the obsolete draft PR #5, and refreshed the README status.
+- **Validation:** Added tests for structured plan data, JSON formatting, and CLI JSON output. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
+- **Visual updates:** No new visual asset was needed; this is a terminal/API-facing planning improvement, and the existing overview remains the factual visual orientation.
+- **Current limitations:** `forge plan` still proposes only. It does not write a plan artifact to disk, generate a patch, run validation, inspect diffs, execute an approved plan, or enforce policy decisions.
+- **Next autonomous objective:** Use the structured plan data as the basis for a reviewable change-proposal command that can describe intended file changes and validation before any write or execution behavior is considered.
