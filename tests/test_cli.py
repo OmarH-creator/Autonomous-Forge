@@ -14,6 +14,19 @@ VALID_POLICY = """## Allowed paths
 - Run tests.
 """
 
+VALID_PLAN = """### AUTO-010 — Ready task
+Priority: P2
+Status: TODO
+Goal: Do one thing.
+Why it matters: It proves CLI behavior.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: The command succeeds.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
+"""
+
 
 def test_help_describes_dry_run_focus(capsys):
     assert main([]) == 0
@@ -59,6 +72,42 @@ Status: TODO
     output = capsys.readouterr().out
     assert "AUTO-011 [P1/TODO] Higher priority" in output
     assert "AUTO-010" not in output
+
+
+def test_lint_plan_command_reports_ok(tmp_path, capsys):
+    plan = tmp_path / "AUTONOMOUS_PLAN.md"
+    plan.write_text(VALID_PLAN, encoding="utf-8")
+
+    assert main(["lint-plan", "--plan", str(plan)]) == 0
+
+    output = capsys.readouterr().out
+    assert "Plan lint: ok" in output
+
+
+def test_lint_plan_command_reports_diagnostics(tmp_path, capsys):
+    plan = tmp_path / "AUTONOMOUS_PLAN.md"
+    plan.write_text(
+        """### AUTO-010 — Broken task
+Priority: PX
+Status: STARTED
+Goal: Report diagnostics.
+Why it matters: It prevents ambiguous plans.
+Scope: Keep it small.
+Expected files or areas: tests.
+Acceptance criteria: The command fails clearly.
+Validation: Run tests.
+Risks or assumptions: None.
+Notes: Keep deterministic.
+""",
+        encoding="utf-8",
+    )
+
+    assert main(["lint-plan", "--plan", str(plan)]) == 2
+
+    output = capsys.readouterr().out
+    assert "Plan lint: failed" in output
+    assert "unsupported priority: PX" in output
+    assert "unsupported status: STARTED" in output
 
 
 def test_report_command_prints_read_only_summary(tmp_path, capsys):
