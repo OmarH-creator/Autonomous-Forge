@@ -1,14 +1,14 @@
 # Autonomous State
 
 - Current roadmap version: v2
-- Current task ID: AUTO-016 — Resolve stale duplicate pull-request work
-- Current task status: DONE
-- Current branch: main
-- Last run timestamp: 2026-07-07T19:07:00+04:00
-- Last successful implementation commit hash: 1b370b8039a1bb235a550083dc150a12c48f51d8
-- Latest run summary: Reviewed all open pull requests after successful CI. Closed stale duplicate PR #2 because its installed-package CI hardening is already present on main. PR #3 remains open because it has merge conflicts after main advanced; its JSON run-summary preview CI passed and requires a clean conflict-resolving rebase before integration.
-- Files changed in the latest run: GitHub pull request #2 state; `.ai/AUTONOMOUS_STATE.md`.
-- Validation commands and results: GitHub Actions run 28873809513 for PR #2 and run 28874927536 for PR #3 both completed successfully. Main workflow configuration was reviewed and still pins actions, uses `contents: read`, runs Python 3.10–3.12, installs the package, smoke-tests `forge --version`, compiles source, and runs pytest. Local checkout execution remains unavailable because this environment cannot resolve github.com.
-- Current blockers: PR #3 is based on an older main commit and has merge conflicts in shared documentation/project-memory files; no conflict resolution was applied directly without reviewing a rebased diff.
-- Known risks and assumptions: PR #3 has validated feature behavior on its head commit, but compatibility with current main has not yet been independently validated after conflict resolution.
-- Recommended next task: Rebase or reconstruct PR #3 cleanly onto current main, preserve only its JSON run-summary feature and aligned docs/tests, then run CI before merge.
+- Current task ID: AUTO-017 — Reconstruct JSON run-summary preview on current main
+- Current task status: IN REVIEW
+- Current branch: auto/auto-017-json-run-summary-rebase
+- Last run timestamp: 2026-07-07T19:20:00+04:00
+- Last successful implementation commit hash: ac7fc142e272623422ab2b59c31ee60646972022
+- Latest run summary: Reconstructed the conflicted JSON run-summary work on a fresh branch from current main. The branch adds a shared preview-data builder, `forge run-summary --format json`, deterministic CLI JSON coverage, and dedicated format documentation.
+- Files changed in the latest run: `src/autonomous_forge/run_summary.py`, `src/autonomous_forge/cli.py`, `tests/test_cli.py`, `docs/JSON_RUN_SUMMARY.md`, `.ai/AUTONOMOUS_STATE.md`.
+- Validation commands and results: The original feature implementation passed GitHub Actions run 28874927536 before it diverged. This reconstructed branch has not yet received a fresh CI result. Static review confirms the JSON mode reuses the text-preview semantic fields and remains read-only.
+- Current blockers: README and historical project-memory updates remain pending because the repository contents write guard rejected the full README replacement in this environment; the branch-level feature and dedicated documentation are complete enough for CI review.
+- Known risks and assumptions: The new feature must pass CI against current main before merge. JSON is intentionally limited to run-summary preview data and does not add persistence, enforcement, repository writes, network behavior, command execution, diff inspection, commits, or environment reads.
+- Recommended next task: Observe replacement PR CI; if green, update the README and remaining project-memory records through a clean merge follow-up, then close obsolete PR #3.
