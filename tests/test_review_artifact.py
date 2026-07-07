@@ -6,17 +6,17 @@ from autonomous_forge.review_artifact import build_review_artifact, build_review
 
 VALID_PLAN = """# Roadmap
 
-### AUTO-025 — Add review artifact
+### AUTO-027 — Preview patch intent
 Priority: P1
 Status: TODO
 
-Goal: Combine review surfaces.
-Why it matters: Reviewers need one handoff before execution.
-Scope: Build one read-only artifact.
-Expected files or areas: `src/autonomous_forge/review_artifact.py`, `tests/test_review_artifact.py`
-Acceptance criteria: The artifact includes plan, proposal, validation, validation-preview, change-intent, and path review data.
+Goal: Preview patch intent before patches exist.
+Why it matters: Reviewers need patch rationale before any generated diff.
+Scope: Build one read-only patch-intent artifact.
+Expected files or areas: `src/autonomous_forge/patch_intent.py`, `tests/test_review_artifact.py`
+Acceptance criteria: The artifact includes plan, proposal, validation, validation-preview, change-intent, patch-intent, and path review data.
 Validation: Run python -m pytest.
-Risks or assumptions: Do not execute commands or inspect diffs.
+Risks or assumptions: Do not execute commands, inspect diffs, read file contents, or generate patches.
 """
 
 VALID_POLICY = """## Allowed paths
@@ -50,9 +50,9 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     )
 
     assert artifact["mode"] == "read-only"
-    assert artifact["selected_task"]["id"] == "AUTO-025"
+    assert artifact["selected_task"]["id"] == "AUTO-027"
     assert artifact["proposal"]["planned_file_areas"] == [
-        "src/autonomous_forge/review_artifact.py",
+        "src/autonomous_forge/patch_intent.py",
         "tests/test_review_artifact.py",
     ]
     assert artifact["validation"]["validation_execution"] == "not run"
@@ -75,8 +75,8 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     }
     assert artifact["change_intent"]["planned_changes"] == [
         {
-            "file_area": "src/autonomous_forge/review_artifact.py",
-            "operation": "Review and update src/autonomous_forge/review_artifact.py if needed for the selected task.",
+            "file_area": "src/autonomous_forge/patch_intent.py",
+            "operation": "Review and update src/autonomous_forge/patch_intent.py if needed for the selected task.",
             "path_status": "missing",
             "policy_status": "allowed",
             "intent_status": "reviewable",
@@ -89,6 +89,18 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
             "intent_status": "reviewable",
         },
     ]
+    assert artifact["patch_intent"]["summary"] == {
+        "total": 2,
+        "ready_for_patch_review": 2,
+        "blocked": 0,
+    }
+    first_patch = artifact["patch_intent"]["planned_patches"][0]
+    assert first_patch["file_area"] == "src/autonomous_forge/patch_intent.py"
+    assert first_patch["intent_status"] == "reviewable"
+    assert first_patch["ready_for_patch_review"] is True
+    assert first_patch["blockers"] == ["none"]
+    assert first_patch["validation_expectations"] == ["Run python -m pytest."]
+    assert "selected roadmap task" in first_patch["patch_rationale"]
     assert artifact["explicit_path_review"]["summary"] == {
         "total": 2,
         "allowed": 2,
@@ -104,11 +116,15 @@ def test_build_review_artifact_formats_text_output(tmp_path):
 
     assert "Autonomous Forge review artifact" in output
     assert "Review status: ready for human review" in output
-    assert "Selected task: AUTO-025 [P1/TODO] Add review artifact" in output
+    assert "Selected task: AUTO-027 [P1/TODO] Preview patch intent" in output
     assert "Planned file areas:" in output
     assert "Change intent:" in output
     assert "intent=reviewable" in output
     assert "Change intent summary:" in output
+    assert "Patch intent:" in output
+    assert "ready=true; blockers=none" in output
+    assert "Patch intent summary:" in output
+    assert "ready for patch review: 2" in output
     assert "Validation execution: not run" in output
     assert "Validation command candidates:" in output
     assert "eligibility=eligible preview" in output
@@ -128,10 +144,12 @@ def test_build_review_artifact_supports_json_output(tmp_path):
 
     data = json.loads(output)
     assert data["title"] == "Autonomous Forge review artifact"
-    assert data["selected_task"]["id"] == "AUTO-025"
+    assert data["selected_task"]["id"] == "AUTO-027"
     assert data["explicit_path_review"]["summary"]["allowed"] == 2
     assert data["change_intent"]["summary"]["reviewable"] == 2
     assert data["change_intent"]["planned_changes"][0]["intent_status"] == "reviewable"
+    assert data["patch_intent"]["summary"]["ready_for_patch_review"] == 2
+    assert data["patch_intent"]["planned_patches"][0]["ready_for_patch_review"] is True
     assert data["requires_attention"] is False
     assert data["validation"]["commands_allowed"] is False
     assert data["validation_preview"]["command_candidates"][0]["command"] == "python -m pytest"
@@ -151,6 +169,11 @@ def test_build_review_artifact_blocks_when_no_task_selected(tmp_path):
         "reviewable": 0,
         "blocked": 0,
         "needs_classification": 0,
+    }
+    assert artifact["patch_intent"]["summary"] == {
+        "total": 0,
+        "ready_for_patch_review": 0,
+        "blocked": 0,
     }
     assert artifact["explicit_path_review"]["summary"] == {
         "total": 0,
@@ -181,7 +204,8 @@ def test_review_artifact_command_prints_json(tmp_path, capsys):
 
     data = json.loads(capsys.readouterr().out)
     assert data["title"] == "Autonomous Forge review artifact"
-    assert data["selected_task"]["id"] == "AUTO-025"
+    assert data["selected_task"]["id"] == "AUTO-027"
     assert data["validation"]["validation_execution"] == "not run"
     assert data["validation_preview"]["command_candidates"][0]["eligibility"] == "eligible preview"
     assert data["change_intent"]["summary"]["reviewable"] == 2
+    assert data["patch_intent"]["summary"]["ready_for_patch_review"] == 2
