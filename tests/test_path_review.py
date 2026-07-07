@@ -41,6 +41,25 @@ def test_build_path_review_data_checks_paths_without_reading_contents(tmp_path):
     assert review["requires_attention"] is True
 
 
+def test_build_path_review_rejects_paths_outside_the_review_root(tmp_path):
+    root = tmp_path / "repository"
+    root.mkdir()
+    (tmp_path / "outside.txt").write_text("must not be probed", encoding="utf-8")
+
+    review = build_path_review_data(
+        VALID_POLICY,
+        ["../outside.txt", "/outside.txt", "src/../outside.txt"],
+        root=root,
+    )
+
+    assert review["reviewed_paths"] == [
+        {"path": "../outside.txt", "path_status": "unknown", "policy_status": "unknown"},
+        {"path": "/outside.txt", "path_status": "unknown", "policy_status": "unknown"},
+        {"path": "src/../outside.txt", "path_status": "unknown", "policy_status": "unknown"},
+    ]
+    assert review["requires_attention"] is True
+
+
 def test_build_path_review_formats_text_output(tmp_path):
     (tmp_path / "tests").mkdir()
 
