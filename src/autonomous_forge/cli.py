@@ -21,6 +21,7 @@ from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
 from autonomous_forge.run_history_preview import read_run_history_preview
+from autonomous_forge.run_history_reader import RunHistoryReadError, read_run_history_record
 from autonomous_forge.run_history_writer import RunHistoryWriteError, write_run_history_record
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
@@ -166,6 +167,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm-write",
         action="store_true",
         help="required acknowledgement that this command writes one local JSON file",
+    )
+
+    run_history_read_parser = subparsers.add_parser(
+        "run-history-read",
+        help="read one local run-history JSON record without changing files",
+    )
+    run_history_read_parser.add_argument(
+        "--record",
+        required=True,
+        help="record path under .ai/run-history/ to summarize",
+    )
+    run_history_read_parser.add_argument(
+        "--root",
+        default=".",
+        help="repository root used to constrain the record path",
+    )
+    run_history_read_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="run-history read format: text (default) or JSON",
     )
 
     review_files_parser = subparsers.add_parser(
@@ -435,6 +457,18 @@ def _write_run_history(
     return 0
 
 
+def _read_run_history(record_path: Path, root: Path, output_format: str) -> int:
+    try:
+        print(read_run_history_record(record_path, root=root, output_format=output_format))
+    except FileNotFoundError as exc:
+        print(f"Run-history record not found: {exc.filename}")
+        return 2
+    except RunHistoryReadError as exc:
+        print(f"Run-history read refused: {exc}")
+        return 2
+    return 0
+
+
 _POLICY_AWARE_READERS = {
     "plan": read_repository_plan,
     "propose": read_change_proposal,
@@ -485,6 +519,9 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.output),
             args.confirm_write,
         )
+
+    if args.command == "run-history-read":
+        return _read_run_history(Path(args.record), Path(args.root), args.format)
 
     if args.command == "review-files":
         return _print_path_review(
