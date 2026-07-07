@@ -14,8 +14,8 @@ Goal: Combine review surfaces.
 Why it matters: Reviewers need one handoff before execution.
 Scope: Build one read-only artifact.
 Expected files or areas: `src/autonomous_forge/review_artifact.py`, `tests/test_review_artifact.py`
-Acceptance criteria: The artifact includes plan, proposal, validation, and path review data.
-Validation: Run targeted tests.
+Acceptance criteria: The artifact includes plan, proposal, validation, validation-preview, and path review data.
+Validation: Run python -m pytest.
 Risks or assumptions: Do not execute commands or inspect diffs.
 """
 
@@ -57,6 +57,16 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     ]
     assert artifact["validation"]["validation_execution"] == "not run"
     assert artifact["validation"]["commands_allowed"] is False
+    assert artifact["validation_preview"]["validation_execution"] == "not run"
+    assert artifact["validation_preview"]["commands_allowed"] is False
+    assert artifact["validation_preview"]["command_candidates"] == [
+        {
+            "source_step": "Run python -m pytest.",
+            "command": "python -m pytest",
+            "eligibility": "eligible preview",
+            "reason": "matches a documented local Python validation command prefix",
+        }
+    ]
     assert artifact["explicit_path_review"]["summary"] == {
         "total": 2,
         "allowed": 2,
@@ -75,6 +85,8 @@ def test_build_review_artifact_formats_text_output(tmp_path):
     assert "Selected task: AUTO-025 [P1/TODO] Add review artifact" in output
     assert "Planned file areas:" in output
     assert "Validation execution: not run" in output
+    assert "Validation command candidates:" in output
+    assert "eligibility=eligible preview" in output
     assert "Explicit path review:" in output
     assert "Requires attention: false" in output
     assert "Commands allowed: false" in output
@@ -95,6 +107,7 @@ def test_build_review_artifact_supports_json_output(tmp_path):
     assert data["explicit_path_review"]["summary"]["allowed"] == 2
     assert data["requires_attention"] is False
     assert data["validation"]["commands_allowed"] is False
+    assert data["validation_preview"]["command_candidates"][0]["command"] == "python -m pytest"
 
 
 def test_build_review_artifact_blocks_when_no_task_selected(tmp_path):
@@ -105,6 +118,7 @@ def test_build_review_artifact_blocks_when_no_task_selected(tmp_path):
     assert artifact["selected_task"] is None
     assert artifact["proposal"]["blocked_items"] == ["No eligible TODO task was selected by the plan."]
     assert artifact["validation"]["validation_steps"] == []
+    assert artifact["validation_preview"]["command_candidates"] == []
     assert artifact["explicit_path_review"]["summary"] == {
         "total": 0,
         "allowed": 0,
@@ -136,3 +150,4 @@ def test_review_artifact_command_prints_json(tmp_path, capsys):
     assert data["title"] == "Autonomous Forge review artifact"
     assert data["selected_task"]["id"] == "AUTO-025"
     assert data["validation"]["validation_execution"] == "not run"
+    assert data["validation_preview"]["command_candidates"][0]["eligibility"] == "eligible preview"
