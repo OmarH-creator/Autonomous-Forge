@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-025
+
+- Task ID: AUTO-025
+- Summary: Added `forge review-artifact`, a read-only combined review handoff that gathers selected task context, implementation-plan signals, proposal intent, validation intent, and explicit planned-path review into one text or JSON artifact before any diff inspection, patch generation, validation execution, or repository-write behavior exists.
+- Branch/PR assessment: Inspected repository metadata, recent commits, recent PRs, open issues, README, roadmap/state/changelog/decisions, source, tests, and command documentation before implementation. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for review artifact data, human-readable output, JSON output, no-selected-task behavior, and CLI JSON output. Static review completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- Commit hash: 78c257273eb013993cfee91050cddcec72fa862c, 736b43d352647c005f7467897d8136f61aa2b5dd, 8f3324589708adf50c96ed72613ab8c7b68eb4f5, 7ea8dde08b460b3855137adef5be51fb5c79bd38, 9e28c30765ba739e5a88274afbe42cdd13a7e346, and related state commits in the same run.
+- Follow-up notes: Add guarded validation-run preview metadata only after review artifacts remain stable. Do not add command execution, file writes, patch generation, approval decisions, secret scanning, or policy enforcement yet.
+
 ## 2026-07-07 — AUTO-023
 
 - Task ID: AUTO-023
@@ -61,45 +70,3 @@
 - Validation completed: PR #4 passed GitHub Actions before merge and was integrated directly on `main`.
 - Commit hash: 11d1b9f08a27f6ffec63722186dd6fb3bb60d0e3
 - Follow-up notes: Use structured output only where it supports the end-to-end maintenance workflow.
-
-## 2026-07-07 — Documentation overview link
-
-- Task ID: Documentation overview link
-- Summary: Linked the existing `docs/OVERVIEW.md` visual workflow from `README.md`, resolving the prior discoverability blocker without changing CLI behavior or safety boundaries.
-- Validation completed: Reviewed the README target, overview Mermaid diagram, and read-only claims through the GitHub repository API. A checkout and `PYTHONPATH=src python -m pytest` could not run because this environment could not resolve github.com.
-- Commit hash: a236ceed18f7ffd75f8b29ec4ef23c8a7868e5fa (README link); state and changelog records follow in subsequent documentation commits.
-- Follow-up notes: Inspect the first available CI result before adding behavior. Avoid expanding beyond local, read-only inspection without a revised roadmap and policy review.
-
-## 2026-07-07 — AUTO-014
-
-- Task ID: AUTO-014
-- Summary: Added a read-only `forge inventory` command that reports deterministic present/missing file-presence signals for the documented repository health inventory scope.
-- Validation completed: Static implementation review completed against AUTO-014 acceptance criteria; runtime test execution was unavailable in this automation environment.
-- Commit hash: pending final commit lookup
-- Follow-up notes: Reassess Roadmap v2 before adding any broader inspection or persistence behavior.
-
-## 2026-07-07 — AUTO-013
-
-- Task ID: AUTO-013
-- Summary: Added `docs/HEALTH_INVENTORY.md` defining the safe first scope for a future read-only repository health inventory, including file-presence signals, output boundaries, and validation expectations.
-- Validation completed: Static documentation review completed against AUTO-013 acceptance criteria; runtime test execution was unavailable in this automation environment.
-- Commit hash: pending final commit lookup
-- Follow-up notes: Implement a small read-only repository inventory command only if the documented scope remains acceptable.
-
-## 2026-07-07 — AUTO-012
-
-- Task ID: AUTO-012
-- Summary: Added a read-only `forge run-summary` command that previews the documented local run-summary fields using the current plan and policy status, including placeholders for validation result, changed files, and commit.
-- Validation completed: Static implementation review completed against AUTO-012 acceptance criteria; runtime test execution was unavailable in this automation environment.
-- Commit hash: pending final commit lookup
-- Follow-up notes: Reassess Roadmap v2 and add the next smallest read-only task before implementing further behavior.
-
-## 2026-07-07 — AUTO-011
-
-- Task ID: AUTO-011
-- Summary: Added `docs/RUN_SUMMARIES.md` documenting the future local run-summary format, required fields, example preview, and safety limits that prevent automatic history-file writes until explicitly planned.
-- Validation completed: Static documentation review completed because runtime test execution was unavailable in this automation environment.
-- Commit hash: pending final commit lookup
-- Follow-up notes: Reassess Roadmap v2 and add the next smallest read-only task before implementing further behavior.
-
-## 2026-07-07 — AUTO-010
