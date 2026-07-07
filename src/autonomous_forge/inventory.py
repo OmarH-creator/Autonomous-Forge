@@ -31,13 +31,21 @@ class InventorySignal:
     present: bool
 
 
+def _path_matches_expected_type(root: Path, path: str) -> bool:
+    """Return whether a required inventory path exists as the documented path type."""
+    candidate = root / path
+    if path.endswith("/"):
+        return candidate.is_dir()
+    return candidate.is_file()
+
+
 def collect_inventory_signals(
     root: Path = Path("."),
     required_paths: tuple[str, ...] = _INVENTORY_PATHS,
 ) -> list[InventorySignal]:
-    """Return deterministic file-presence signals without reading file contents."""
+    """Return deterministic typed file-presence signals without reading file contents."""
     return [
-        InventorySignal(path=path, present=(root / path).exists())
+        InventorySignal(path=path, present=_path_matches_expected_type(root, path))
         for path in required_paths
     ]
 
@@ -48,7 +56,7 @@ def build_repository_inventory(root: Path = Path(".")) -> str:
     lines = [
         "Repository health inventory",
         "Mode: read-only",
-        "Scope: file-presence signals only",
+        "Scope: typed file-presence signals only",
     ]
     lines.extend(
         f"{signal.path}: {'present' if signal.present else 'missing'}"
@@ -58,7 +66,7 @@ def build_repository_inventory(root: Path = Path(".")) -> str:
         [
             "Health score: not calculated",
             (
-                "Notes: Inventory does not enforce policy, scan secrets, read "
+                "Notes: Inventory does not enforce policy, perform credential scanning, read "
                 "environment variables, call networks, or run external commands."
             ),
         ]
