@@ -95,7 +95,7 @@ forge preflight-readiness \
 
 ## Opt-in local run-history write
 
-`forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
+`forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, refuses blocked preflight readiness, and refuses to silently replace an existing record unless `--allow-overwrite` is also passed.
 
 ```bash
 forge run-history-write \

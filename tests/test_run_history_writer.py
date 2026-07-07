@@ -153,6 +153,91 @@ def test_write_run_history_record_refuses_blocked_preflight(tmp_path):
         )
 
 
+def test_write_run_history_record_refuses_silent_overwrite(tmp_path):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "record.json"
+
+    write_run_history_record(
+        VALID_PLAN,
+        VALID_POLICY,
+        root=tmp_path,
+        output_path=output,
+        confirm_write=True,
+    )
+    output.write_text('{"human_edited": true}\n', encoding="utf-8")
+
+    with pytest.raises(RunHistoryWriteError, match="--allow-overwrite"):
+        write_run_history_record(
+            VALID_PLAN,
+            VALID_POLICY,
+            root=tmp_path,
+            output_path=output,
+            confirm_write=True,
+        )
+
+    assert '"human_edited"' in output.read_text(encoding="utf-8")
+
+
+def test_write_run_history_record_overwrites_when_allowed(tmp_path):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "record.json"
+
+    write_run_history_record(
+        VALID_PLAN,
+        VALID_POLICY,
+        root=tmp_path,
+        output_path=output,
+        confirm_write=True,
+    )
+    output.write_text('{"human_edited": true}\n', encoding="utf-8")
+
+    result = write_run_history_record(
+        VALID_PLAN,
+        VALID_POLICY,
+        root=tmp_path,
+        output_path=output,
+        confirm_write=True,
+        allow_overwrite=True,
+    )
+
+    assert result["path"] == str(output.resolve())
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["schema_version"] == "run-history/v1"
+    assert data["record"]["task"]["id"] == "AUTO-030"
+
+
+def test_run_history_write_command_refuses_silent_overwrite(tmp_path, capsys):
+    _write_required_inventory(tmp_path)
+    plan = tmp_path / "plan.md"
+    policy = tmp_path / "policy.md"
+    state = tmp_path / "state.md"
+    output = tmp_path / ".ai" / "run-history" / "record.json"
+    plan.write_text(VALID_PLAN, encoding="utf-8")
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    state.write_text("state", encoding="utf-8")
+
+    args = [
+        "run-history-write",
+        "--plan", str(plan),
+        "--policy", str(policy),
+        "--state", str(state),
+        "--root", str(tmp_path),
+        "--output", str(output),
+        "--confirm-write",
+    ]
+    assert main(args) == 0
+    output.write_text('{"human_edited": true}\n', encoding="utf-8")
+
+    assert main(args) == 2
+    printed = capsys.readouterr().out
+    assert "already exists" in printed
+    assert '"human_edited"' in output.read_text(encoding="utf-8")
+
+    assert main(args + ["--allow-overwrite"]) == 0
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["record"]["task"]["id"] == "AUTO-030"
+
+
 def test_run_history_write_command_writes_record(tmp_path, capsys):
     _write_required_inventory(tmp_path)
     plan = tmp_path / "plan.md"
