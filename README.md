@@ -12,13 +12,14 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, changed-file reviews, and combined review artifacts.
+- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, and combined review artifacts.
 - `forge run-summary --format json` for script-friendly, read-only run-summary previews.
 - `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
 - `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
 - `forge propose` for a read-only change proposal that turns the selected plan task into planned file areas, high-level operations, validation steps, risks, blockers, and approval-required items.
 - `forge propose --format json` for structured proposal data that future validation orchestration can consume without scraping human-readable text.
 - `forge validate-plan` for a read-only validation plan that turns proposal data into reviewable validation steps, expected file areas, advisory path checks, blockers, risks, and a clear no-execution boundary.
+- `forge validation-preview` for read-only command-candidate metadata that classifies documented validation steps before any validation runner exists.
 - `forge review-files` for explicit changed-file path review against documented allowed/prohibited policy patterns before any diff inspection, patch generation, or command execution exists.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, validation intent, and explicit planned-path review.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
@@ -114,6 +115,29 @@ forge validate-plan \
   --format json
 ```
 
+## Preview validation command candidates
+
+```bash
+forge validation-preview \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root .
+```
+
+`forge validation-preview` consumes validation-plan data and classifies documented validation steps into conservative command-candidate metadata. It marks local Python validation commands as `eligible preview`, blocks shell-control or redirection patterns, and reports unfamiliar command-like steps as `unknown`. It remains read-only and does not execute validation, read environment variables, inspect diffs, approve exceptions, or change files. See `docs/VALIDATION_PREVIEWS.md` for the focused contract.
+
+For automation-friendly review, print the same preview as deterministic JSON:
+
+```bash
+forge validation-preview \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
+
 ## Review explicit changed-file paths
 
 ```bash
@@ -187,9 +211,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Hardened `forge validate-plan` advisory path checks so they cannot disclose the presence of files reached through paths that resolve outside the repository root.
-- **What changed:** Validation-plan path normalization now rejects absolute paths, backslash paths, parent-directory traversal, undocumented placeholders, and wildcard-like planned areas before local presence checks. Presence checks now resolve `--root` and each candidate path and report `unknown` when the candidate cannot be proven to stay inside the resolved repository root.
-- **Validation:** Added a deterministic regression test that creates an in-root symbolic link pointing to an external file and verifies validation-plan output reports the path as `unknown` while preserving advisory policy status. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
-- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change is a safety hardening of terminal/JSON path-check output.
-- **Current limitations:** Validation plans, review artifacts, and changed-file reviews are advisory only. They do not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
-- **Next autonomous objective:** Add guarded validation-run preview metadata so the tool can explain exactly which documented validation commands would be eligible before any execution behavior is considered.
+- **Latest run:** Added `forge validation-preview`, a read-only validation-run preview command that classifies documented validation steps before any command execution behavior exists.
+- **What changed:** Added `src/autonomous_forge/validation_preview.py`, wired the CLI, added deterministic tests, and documented the validation-preview contract. The preview reports command candidates, conservative eligibility, classification reasons, blockers, risks, and a no-execution boundary.
+- **Validation:** Added deterministic unit and CLI tests covering text output, JSON output, no-task behavior, eligible local pytest commands, unknown command-like steps, and blocked shell-control patterns. Static review was completed through the GitHub repository API; local checkout execution and main-branch workflow observation were unavailable in this environment.
+- **Visual updates:** No new visual asset was needed; the existing overview remains the factual workflow visual, and this change is a terminal/JSON review surface.
+- **Current limitations:** Validation previews, validation plans, review artifacts, and changed-file reviews are advisory only. They do not inspect git diffs, read file contents, scan secrets, read environment variables, run validation commands, generate patches, approve policy exceptions, enforce policy decisions, or change files when invoked.
+- **Next autonomous objective:** Add a structured changed-file intent artifact that can connect planned file areas to future patch review without reading file contents or generating patches.
