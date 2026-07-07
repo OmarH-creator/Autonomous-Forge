@@ -10,15 +10,15 @@ The first product remains a local Python command-line tool. It reads repository 
 
 ## Current architecture
 
-The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, and `forge inventory`. Current behavior is read-only, local-first, and uses zero runtime dependencies.
+The repository contains a minimal Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, local run-summary format documentation under `docs/RUN_SUMMARIES.md`, repository health inventory documentation under `docs/HEALTH_INVENTORY.md`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes `forge`, `forge tasks`, `forge tasks --next`, `forge lint-plan`, `forge report`, `forge policy`, `forge run-summary`, and `forge inventory`. `forge run-summary` supports text and JSON previews. Current behavior is read-only, local-first, and uses zero runtime dependencies.
 
 ## Current implementation status
 
-Roadmap v1 is complete. Roadmap v2 has added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview linked from the README. The inventory command is read-only and does not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, or change files.
+Roadmap v1 is complete. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 adds machine-readable JSON output for the existing run-summary preview. The inventory command remains read-only and does not score, audit, enforce policy, inspect credentials, read environment settings, call networks, run external commands, or change files.
 
 ## Technical debt
 
-The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, provide documented command output contracts, preview local run-summary fields, and print repository health file-presence signals. It does not yet persist run summaries in a machine-readable local format. The available CI workflow has not yet been independently observed passing from this execution environment, so the next engineering run should verify a workflow result before extending behavior.
+The CLI can list parsed tasks, select the next eligible TODO task, produce a dry-run repository report, parse the documented repository policy format, surface policy readiness in reports, lint roadmap task blocks, provide documented command output contracts, preview local run-summary fields as text or JSON, and print repository health file-presence signals. It does not yet persist run summaries in a machine-readable local format or expose structured report/inventory output. The available CI workflow has not yet been independently observed passing from this execution environment, so the next engineering run should verify the pull-request workflow result before extending behavior.
 
 ## Prioritized roadmap
 
@@ -208,11 +208,27 @@ Validation: Static implementation review completed against AUTO-014 acceptance c
 Risks or assumptions: Do not imply a health score, audit, policy enforcement, credential scanning, environment inspection, network access, or external command execution.
 Notes: Read-only command only.
 
+## Roadmap v3
+
+### AUTO-015 — Add machine-readable run-summary preview
+Priority: P1
+Status: DONE
+
+Goal: Make the existing read-only run-summary preview consumable by local scripts without parsing display text.
+Why it matters: A stable structured preview is a useful safety-preserving bridge between interactive inspection and any later, explicitly reviewed persistence design.
+Scope: Add `forge run-summary --format json`, share the semantic fields with the existing text preview, document the JSON schema, and add deterministic CLI coverage.
+Expected files or areas: `src/autonomous_forge/run_summary.py`, `src/autonomous_forge/cli.py`, `tests/test_cli.py`, README, `docs/COMMANDS.md`, `docs/RUN_SUMMARIES.md`, `.ai/` records.
+Acceptance criteria: JSON output is valid UTF-8 JSON, contains the documented preview values with stable keys, preserves the default text output, supports deterministic timestamps, does not write files, and does not run validation or inspect repository diffs.
+Validation: Added deterministic CLI coverage for the JSON payload. Pull-request CI observation is pending because this execution environment cannot run a checkout locally.
+Risks or assumptions: The JSON keys are an output contract; future changes must preserve compatibility or explicitly version the format.
+Notes: This does not add run-summary persistence, policy enforcement, external commands, network behavior, or any mutation.
+
 ## Future Ideas
 
 - Hash-linked local run reports.
 - Optional issue import.
 - Policy-aware changed-file summaries.
+- A policy-aware, explicitly opt-in local run-summary writer after a separate design and approval task.
 
 ## Do Not Change Without Explicit Human Approval
 
