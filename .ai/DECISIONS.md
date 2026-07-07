@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-018 — 2026-07-07 — Combine review surfaces before execution
+
+Context: The CLI now has separate read-only surfaces for implementation planning, change proposals, validation planning, and explicit changed-file path review. Future guarded validation or execution behavior needs one reviewable handoff before any command execution, patch generation, diff inspection, or repository writes are considered.
+Decision: Add `forge review-artifact` as a read-only text/JSON command that combines selected task context, plan signals, proposal intent, validation intent, and advisory planned-path review into one output artifact.
+Alternatives considered: Run validation commands, inspect git diffs, read file contents, generate patches, write artifact files, enforce policy decisions, or require downstream tools to stitch together multiple command outputs.
+Consequences: Maintainers get a single safer pre-execution handoff while the product still avoids file-content reads, diff inspection, command execution, repository writes, approval decisions, network access, environment reads, secret scanning, and policy enforcement.
+Human decision still required: No.
+
 ## DEC-017 — 2026-07-07 — Review explicit changed-file paths before execution
 
 Context: `forge validate-plan` now exposes advisory path checks for planned file areas, but future review tooling also needs a way to inspect explicit changed-file path lists before any validation execution, patch generation, or policy enforcement exists.
@@ -62,28 +70,4 @@ Context: The project documents an installable `forge` console script, but the wo
 Decision: Install the local package in the existing Python matrix, run `forge --version`, and execute the test suite without a source-path override.
 Alternatives considered: Keep source-tree-only testing, add a separate workflow, or change product behavior before proving packaging works.
 Consequences: CI now detects broken package metadata and console-script wiring while retaining pinned actions, `contents: read`, the existing timeout, and no runtime dependencies.
-Human decision still required: No.
-
-## DEC-009 — 2026-07-07 — Keep inventory limited to file-presence signals
-
-Context: AUTO-013 documented a safe repository health inventory scope, and the next smallest coherent task was to expose that scope through the CLI.
-Decision: Add `forge inventory` as a read-only file-presence summary over the documented paths only.
-Alternatives considered: Add scoring, inspect file contents, inspect environment settings, enforce policy boundaries, or run validation commands.
-Consequences: Maintainers get a quick local readiness view while the tool avoids broader audit, enforcement, scanning, or execution claims.
-Human decision still required: No.
-
-## DEC-008 — 2026-07-07 — Scope health inventory before implementation
-
-Context: Roadmap v2 completed run-summary preview work, and the state file recommended adding the next smallest read-only task before implementing further behavior.
-Decision: Document the first repository health inventory scope in `docs/HEALTH_INVENTORY.md` before adding any `forge inventory` command.
-Alternatives considered: Implement the inventory command immediately, add scoring or audit language, or skip inventory work and move directly to run-summary persistence.
-Consequences: Future inventory work has clear local-only, read-only boundaries and avoids implying enforcement, credential scanning, health scoring, or external command execution before those behaviors are explicitly approved.
-Human decision still required: No.
-
-## DEC-007 — 2026-07-07 — Preview run summaries before persistence
-
-Context: AUTO-011 documented the local run-summary format, and the project still prohibits automatic execution-history writes.
-Decision: Add `forge run-summary` as a read-only preview command that prints the documented fields without writing files, running validation, inspecting diffs, or creating commits.
-Alternatives considered: Add automatic history persistence immediately, leave the format documentation-only, or fold preview output into `forge report`.
-Consequences: Maintainers can inspect the future record shape with real plan and policy context while preserving the current read-only safety boundary.
 Human decision still required: No.
