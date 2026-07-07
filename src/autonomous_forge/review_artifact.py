@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from autonomous_forge.change_intent import build_change_intent_data
+from autonomous_forge.patch_intent import build_patch_intent_data
 from autonomous_forge.path_review import build_path_review_data
 from autonomous_forge.planner import build_repository_plan_data
 from autonomous_forge.proposal import build_change_proposal_data
@@ -39,16 +40,18 @@ def build_review_artifact_data(
     explicit_paths = list(proposal_data["planned_file_areas"])
     path_review_data = build_path_review_data(policy_text, explicit_paths, root=root)
     change_intent_data = build_change_intent_data(proposal_data, path_review_data)
+    patch_intent_data = build_patch_intent_data(change_intent_data, validation_data)
     requires_attention = (
         path_review_data["requires_attention"]
         or change_intent_data["requires_attention"]
+        or patch_intent_data["requires_attention"]
         or _has_blockers(proposal_data["blocked_items"])
     )
 
     return {
         "title": "Autonomous Forge review artifact",
         "mode": "read-only",
-        "source": "plan + proposal + validation plan + validation preview + change intent + explicit path review",
+        "source": "plan + proposal + validation plan + validation preview + change intent + patch intent + explicit path review",
         "selected_task": plan_data["selected_task"],
         "reason": plan_data["reason"],
         "plan": {
@@ -80,6 +83,12 @@ def build_review_artifact_data(
             "planned_changes": change_intent_data["planned_changes"],
             "summary": change_intent_data["summary"],
             "requires_attention": change_intent_data["requires_attention"],
+        },
+        "patch_intent": {
+            "source": patch_intent_data["source"],
+            "planned_patches": patch_intent_data["planned_patches"],
+            "summary": patch_intent_data["summary"],
+            "requires_attention": patch_intent_data["requires_attention"],
         },
         "explicit_path_review": {
             "source": path_review_data["source"],
@@ -147,6 +156,18 @@ def format_review_artifact(data: dict[str, Any]) -> str:
             f"- reviewable: {data['change_intent']['summary']['reviewable']}",
             f"- blocked: {data['change_intent']['summary']['blocked']}",
             f"- needs classification: {data['change_intent']['summary']['needs_classification']}",
+            "Patch intent:",
+            *[
+                (
+                    f"- {patch['file_area']}: ready={str(patch['ready_for_patch_review']).lower()}; "
+                    f"blockers={', '.join(patch['blockers'])}"
+                )
+                for patch in data["patch_intent"]["planned_patches"]
+            ],
+            "Patch intent summary:",
+            f"- total: {data['patch_intent']['summary']['total']}",
+            f"- ready for patch review: {data['patch_intent']['summary']['ready_for_patch_review']}",
+            f"- blocked: {data['patch_intent']['summary']['blocked']}",
             "Validation steps:",
             *[f"- {step}" for step in data["validation"]["validation_steps"]],
             f"Validation execution: {data['validation']['validation_execution']}",
