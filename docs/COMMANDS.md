@@ -256,6 +256,62 @@ Exit codes:
 
 Safety limits: plan output is a proposal only. It does not write a plan artifact, modify files, inspect diffs, run validation, execute implementation steps, call networks, read environment variables, approve changes, or enforce policy decisions.
 
+## `forge propose`
+
+Purpose: print a read-only change proposal for the next eligible roadmap task using the structured planning data.
+
+Inputs:
+
+- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used for documented-file presence signals, defaulting to `.`.
+
+Expected successful output includes these stable lines:
+
+```text
+Autonomous Forge change proposal
+Mode: read-only
+Source: forge plan structured data
+Selected task: AUTO-### [P#/TODO] <title>
+Reason: highest-priority eligible TODO task; ties preserve roadmap source order.
+Goal: <roadmap goal>
+Planned file areas:
+- <area from roadmap expected files>
+Planned operations:
+- Review and update <area> if needed for the selected task.
+Validation steps:
+- <policy validation expectation>
+Task validation: <roadmap validation>
+Policy allowed paths:
+- <path>
+Policy prohibited paths:
+- <path>
+Approval-required items:
+- <approval item>
+Risk notes:
+- <roadmap risk>
+Blocked items:
+- none
+Safety boundary: Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.
+```
+
+If no eligible TODO task exists, successful output includes:
+
+```text
+Selected task: none
+Reason: no eligible TODO task found.
+Blocked items:
+- No eligible TODO task was selected by the plan.
+```
+
+Exit codes:
+
+- `0` when the proposal is built, including the no-task case.
+- `2` when a required input file is missing, the roadmap is malformed, task selection fails, or the policy file is malformed.
+
+Safety limits: proposal output is a review surface only. It does not write proposal artifacts, generate patches, inspect diffs, run validation, execute implementation steps, approve exceptions, enforce policy decisions, call networks, read environment variables, scan credentials, or change repository files.
+
 ## `forge policy`
 
 Purpose: parse the repository policy sections and print a conservative readiness summary.
