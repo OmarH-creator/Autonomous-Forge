@@ -10,10 +10,12 @@ from autonomous_forge.policy import parse_repository_policy
 
 
 def _clean_path(value: str) -> str:
-    """Normalize one user-supplied path for conservative review output."""
+    """Normalize one user-supplied repository-relative path for review output."""
     cleaned = value.strip().strip("`").rstrip("/")
     if cleaned.startswith("./"):
-        return cleaned[2:]
+        cleaned = cleaned[2:]
+    if not cleaned or cleaned.startswith("/") or "\\" in cleaned or ".." in cleaned.split("/"):
+        return ""
     return cleaned
 
 
