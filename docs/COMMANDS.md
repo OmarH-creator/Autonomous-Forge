@@ -1,6 +1,6 @@
 # Command Output Contracts
 
-Autonomous Forge commands are currently read-only. They inspect local files, print human-readable summaries, and do not modify repository files.
+Autonomous Forge commands are currently read-only. They inspect local files, print human-readable summaries or structured previews, and do not modify repository files.
 
 These contracts describe implemented behavior only. They are intentionally plain so contributors and future automation can rely on stable command purposes without assuming enforcement or execution features that do not exist yet.
 
@@ -10,7 +10,8 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Commands return exit code `0` when the requested read-only inspection succeeds.
 - Commands return exit code `2` for missing required input files or malformed roadmap/policy input.
 - Commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions.
-- Output is human-readable and may be extended conservatively, but existing status phrases should remain stable when practical.
+- Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
+- JSON output is intended for review and automation handoff; it must remain deterministic and must not imply execution or approval.
 
 ## `forge`
 
@@ -166,6 +167,95 @@ Exit codes:
 
 Safety limits: reports policy readiness only; it does not enforce policy decisions, run validation, or change files.
 
+## `forge plan`
+
+Purpose: print a policy-aware implementation plan for the next eligible roadmap task without changing repository files.
+
+Inputs:
+
+- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used for documented-file presence signals, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge implementation plan
+Mode: read-only
+State file: present|missing|not requested
+Documentation signals:
+- README.md: present|missing
+- CONTRIBUTING.md: present|missing
+- docs/POLICY.md: present|missing
+- docs/COMMANDS.md: present|missing
+Policy allowed paths:
+- <path>
+Policy prohibited paths:
+- <path>
+Human approval required:
+- <approval item>
+Selected task: AUTO-### [P#/TODO] <title>
+Reason: highest-priority eligible TODO task; ties preserve roadmap source order.
+Goal: <roadmap goal>
+Why it matters: <roadmap rationale>
+Scope: <roadmap scope>
+Expected files or areas: <roadmap files>
+Acceptance criteria: <roadmap criteria>
+Validation: <roadmap validation>
+Risks or assumptions: <roadmap risks>
+Safety boundary: Plan output only; no files are changed, commands are run, or policy decisions are enforced.
+```
+
+If no eligible TODO task exists, successful output includes:
+
+```text
+Selected task: none
+Reason: no eligible TODO task found.
+```
+
+Expected successful JSON output includes the same planning information as structured data:
+
+```json
+{
+  "documentation_signals": [
+    {"path": "README.md", "status": "present"}
+  ],
+  "mode": "read-only",
+  "policy": {
+    "allowed_paths": ["src/**"],
+    "human_approval_required": ["Adding network access."],
+    "prohibited_paths": ["private-config/**"],
+    "validation_expectations": ["Run tests."]
+  },
+  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
+  "safety_boundary": "Plan output only; no files are changed, commands are run, or policy decisions are enforced.",
+  "selected_task": {
+    "acceptance_criteria": "A plan is printed.",
+    "expected_files_or_areas": "`src/autonomous_forge/planner.py`, tests.",
+    "goal": "Build the next capability.",
+    "id": "AUTO-021",
+    "priority": "P1",
+    "risks_or_assumptions": "Policy remains readable.",
+    "scope": "Stay read-only.",
+    "status": "TODO",
+    "title": "Highest priority task",
+    "validation": "Run pytest.",
+    "why_it_matters": "It moves the product forward."
+  },
+  "state_file": "present",
+  "title": "Autonomous Forge implementation plan"
+}
+```
+
+Exit codes:
+
+- `0` when the plan is built, including the no-task case.
+- `2` when a required input file is missing, the roadmap is malformed, task selection fails, or the policy file is malformed.
+
+Safety limits: plan output is a proposal only. It does not write a plan artifact, modify files, inspect diffs, run validation, execute implementation steps, call networks, read environment variables, approve changes, or enforce policy decisions.
+
 ## `forge policy`
 
 Purpose: parse the repository policy sections and print a conservative readiness summary.
@@ -201,6 +291,7 @@ Inputs:
 - `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
 - `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
 - `--timestamp`: optional ISO-8601 timestamp for deterministic preview output.
+- `--format`: `text` or `json`, defaulting to `text`.
 
 Expected successful output:
 
