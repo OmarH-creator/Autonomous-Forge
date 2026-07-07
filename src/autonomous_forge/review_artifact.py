@@ -12,6 +12,11 @@ from autonomous_forge.proposal import build_change_proposal_data
 from autonomous_forge.validation import build_validation_plan_data
 
 
+def _has_blockers(blocked_items: list[str]) -> bool:
+    """Return whether proposal blockers require review attention."""
+    return any(item != "none" for item in blocked_items)
+
+
 def build_review_artifact_data(
     plan_text: str,
     policy_text: str,
@@ -30,6 +35,7 @@ def build_review_artifact_data(
     validation_data = build_validation_plan_data(proposal_data, root=root)
     explicit_paths = list(proposal_data["planned_file_areas"])
     path_review_data = build_path_review_data(policy_text, explicit_paths, root=root)
+    requires_attention = path_review_data["requires_attention"] or _has_blockers(proposal_data["blocked_items"])
 
     return {
         "title": "Autonomous Forge review artifact",
@@ -62,9 +68,8 @@ def build_review_artifact_data(
             "requires_attention": path_review_data["requires_attention"],
             "reason": path_review_data["reason"],
         },
-        "review_status": (
-            "needs attention" if path_review_data["requires_attention"] else "ready for human review"
-        ),
+        "requires_attention": requires_attention,
+        "review_status": "needs attention" if requires_attention else "ready for human review",
         "safety_boundary": (
             "Review artifact output only; no files are changed, no diffs are inspected, "
             "no file contents are read, no commands are run, no approvals are granted, "
@@ -122,7 +127,7 @@ def format_review_artifact(data: dict[str, Any]) -> str:
             f"- allowed: {data['explicit_path_review']['summary']['allowed']}",
             f"- prohibited: {data['explicit_path_review']['summary']['prohibited']}",
             f"- unknown: {data['explicit_path_review']['summary']['unknown']}",
-            f"Requires attention: {str(data['explicit_path_review']['requires_attention']).lower()}",
+            f"Requires attention: {str(data['requires_attention']).lower()}",
             "Approval-required items:",
             *[f"- {item}" for item in data["proposal"]["approval_required_items"]],
             "Blocked items:",
