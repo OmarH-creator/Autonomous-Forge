@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-07 — AUTO-020
+
+- Task ID: AUTO-020
+- Summary: Added `forge propose`, a read-only change-proposal command that consumes structured plan data and reports planned file areas, high-level operations, validation steps, approval-required policy items, risk notes, blockers, and a clear safety boundary before any write or execution behavior exists.
+- Branch/PR assessment: Inspected recent PRs. PR #5 is closed obsolete after direct `main` integration of planning work; PR #4 is merged; PR #3 and PR #2 remain closed and not needed. No open PR required integration, and the run stayed on `main`.
+- Validation completed: Added deterministic tests for proposal data, formatted proposal output, CLI output, and the no-selected-task case. Static review completed through the GitHub repository API; local checkout execution was unavailable in this environment, and the main-branch workflow for the new direct commits has not yet been observed.
+- Commit hash: 1029d15523d9395209eca7de8bb52ea7f5be0486, a38f3978da03481b006ad7019b6ebf74b9ac279d, f763f5a1f46964505395aa7ffe25f50e817e2c87, 3013862352188c9d5efbe5f701168930930ae11f, ce36564ce473885340479b33a8b3644b6780ade5, d47e06cec122425857975e52c2e0408f1458f29d, and roadmap/state follow-up commits in the same run.
+- Follow-up notes: Add structured JSON output for `forge propose` before validation orchestration or any write behavior is considered.
+
 ## 2026-07-07 — AUTO-019
 
 - Task ID: AUTO-019
@@ -69,7 +78,7 @@
 ## 2026-07-07 — AUTO-010
 
 - Task ID: AUTO-010
-- Summary: Added `docs/COMMANDS.md` documenting implemented CLI command purposes, inputs, expected human-readable output patterns, exit-code expectations, and safety limitations; linked the command contracts from README.
+- Summary: Added `docs/COMMANDS.md` documenting implemented CLI command purposes, inputs, expected human-readable output patterns, exit-code expectations, and safety limitations; linked it from README.
 - Validation completed: Static documentation review completed because runtime test execution was unavailable in this automation environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Proceed to AUTO-011 next so local run-summary format work can be designed without adding execution behavior.
@@ -118,7 +127,7 @@
 
 - Task ID: AUTO-005
 - Summary: Documented the repository policy format and added a conservative example policy for future automation boundaries.
-- Validation completed: Documentation and example consistency reviewed; runtime test execution was unavailable in this automation environment.
+- Validation completed: Documentation and example consistency reviewed; runtime test execution was unavailable in this tool environment.
 - Commit hash: pending final commit lookup
 - Follow-up notes: Run `PYTHONPATH=src python -m pytest` in a checkout-capable environment and proceed to AUTO-006.
 
