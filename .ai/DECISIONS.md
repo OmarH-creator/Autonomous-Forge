@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-010 — 2026-07-07 — Add structured preview output before persistence
+
+Context: `forge run-summary` already offered a safe human-readable preview, but local scripts would need to parse display text to consume it. The product still prohibits execution-history writes, external commands, and network behavior.
+Decision: Add `forge run-summary --format json` using the same semantic preview fields as the default text output.
+Alternatives considered: Add a run-summary writer, add ad-hoc text parsing guidance, make JSON the default, or add structured output for every command before validating one focused contract.
+Consequences: Local tooling can consume preview data reliably while the default interactive text contract remains intact. JSON output remains preview-only and contains no inferred validation, diff, or commit data.
+Human decision still required: No.
+
 ## DEC-009 — 2026-07-07 — Keep inventory limited to file-presence signals
 
 Context: AUTO-013 documented a safe repository health inventory scope, and the next smallest coherent task was to expose that scope through the CLI.
