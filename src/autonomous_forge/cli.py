@@ -16,6 +16,7 @@ from autonomous_forge.plan import (
 )
 from autonomous_forge.planner import read_repository_plan
 from autonomous_forge.policy import PolicyParseError, RepositoryPolicy, parse_repository_policy
+from autonomous_forge.preflight_readiness import read_preflight_readiness
 from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
@@ -115,41 +116,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to the repository policy file",
     )
 
-    plan_parser = subparsers.add_parser(
-        "plan",
-        help="build a policy-aware implementation plan without changing files",
-    )
-    _add_plan_state_policy_root_format(
-        plan_parser,
-        format_help="plan format: text (default) or JSON",
-    )
-
-    propose_parser = subparsers.add_parser(
-        "propose",
-        help="build a read-only change proposal from the selected plan task",
-    )
-    _add_plan_state_policy_root_format(
-        propose_parser,
-        format_help="proposal format: text (default) or JSON",
-    )
-
-    validation_parser = subparsers.add_parser(
-        "validate-plan",
-        help="build a read-only validation plan from the selected proposal",
-    )
-    _add_plan_state_policy_root_format(
-        validation_parser,
-        format_help="validation plan format: text (default) or JSON",
-    )
-
-    validation_preview_parser = subparsers.add_parser(
-        "validation-preview",
-        help="preview validation command eligibility without running commands",
-    )
-    _add_plan_state_policy_root_format(
-        validation_preview_parser,
-        format_help="validation preview format: text (default) or JSON",
-    )
+    for command, help_text, format_help in (
+        ("plan", "build a policy-aware implementation plan without changing files", "plan format: text (default) or JSON"),
+        ("propose", "build a read-only change proposal from the selected plan task", "proposal format: text (default) or JSON"),
+        ("validate-plan", "build a read-only validation plan from the selected proposal", "validation plan format: text (default) or JSON"),
+        ("validation-preview", "preview validation command eligibility without running commands", "validation preview format: text (default) or JSON"),
+        ("review-artifact", "combine plan, proposal, validation, and path review without changing files", "review artifact format: text (default) or JSON"),
+        ("run-history-preview", "preview a durable run-history record without writing files", "run-history preview format: text (default) or JSON"),
+        ("preflight-readiness", "check readiness for a future opt-in persistence step", "preflight readiness format: text (default) or JSON"),
+    ):
+        command_parser = subparsers.add_parser(command, help=help_text)
+        _add_plan_state_policy_root_format(command_parser, format_help=format_help)
 
     review_files_parser = subparsers.add_parser(
         "review-files",
@@ -176,24 +153,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="changed-file review format: text (default) or JSON",
-    )
-
-    review_artifact_parser = subparsers.add_parser(
-        "review-artifact",
-        help="combine plan, proposal, validation, and path review without changing files",
-    )
-    _add_plan_state_policy_root_format(
-        review_artifact_parser,
-        format_help="review artifact format: text (default) or JSON",
-    )
-
-    run_history_preview_parser = subparsers.add_parser(
-        "run-history-preview",
-        help="preview a durable run-history record without writing files",
-    )
-    _add_plan_state_policy_root_format(
-        run_history_preview_parser,
-        format_help="run-history preview format: text (default) or JSON",
     )
 
     policy_parser = subparsers.add_parser(
@@ -318,7 +277,8 @@ def _print_report(plan_path: Path, state_path: Path, policy_path: Path) -> int:
     return 0
 
 
-def _print_plan(
+def _print_policy_aware(
+    reader,
     plan_path: Path,
     state_path: Path,
     policy_path: Path,
@@ -326,70 +286,7 @@ def _print_plan(
     output_format: str,
 ) -> int:
     try:
-        print(read_repository_plan(plan_path, policy_path, state_path, root, output_format))
-    except FileNotFoundError as exc:
-        print(f"Required file not found: {exc.filename}")
-        return 2
-    except (PlanParseError, PlanSelectionError) as exc:
-        print(f"Plan error: {exc}")
-        return 2
-    except PolicyParseError as exc:
-        print(f"Policy error: {exc}")
-        return 2
-    return 0
-
-
-def _print_proposal(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
-    try:
-        print(read_change_proposal(plan_path, policy_path, state_path, root, output_format))
-    except FileNotFoundError as exc:
-        print(f"Required file not found: {exc.filename}")
-        return 2
-    except (PlanParseError, PlanSelectionError) as exc:
-        print(f"Plan error: {exc}")
-        return 2
-    except PolicyParseError as exc:
-        print(f"Policy error: {exc}")
-        return 2
-    return 0
-
-
-def _print_validation_plan(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
-    try:
-        print(read_validation_plan(plan_path, policy_path, state_path, root, output_format))
-    except FileNotFoundError as exc:
-        print(f"Required file not found: {exc.filename}")
-        return 2
-    except (PlanParseError, PlanSelectionError) as exc:
-        print(f"Plan error: {exc}")
-        return 2
-    except PolicyParseError as exc:
-        print(f"Policy error: {exc}")
-        return 2
-    return 0
-
-
-def _print_validation_preview(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
-    try:
-        print(read_validation_preview(plan_path, policy_path, state_path, root, output_format))
+        print(reader(plan_path, policy_path, state_path, root, output_format))
     except FileNotFoundError as exc:
         print(f"Required file not found: {exc.filename}")
         return 2
@@ -412,48 +309,6 @@ def _print_path_review(
         print(read_path_review(policy_path, paths, root=root, output_format=output_format))
     except FileNotFoundError:
         print(f"Policy file not found: {policy_path}")
-        return 2
-    except PolicyParseError as exc:
-        print(f"Policy error: {exc}")
-        return 2
-    return 0
-
-
-def _print_review_artifact(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
-    try:
-        print(read_review_artifact(plan_path, policy_path, state_path, root, output_format))
-    except FileNotFoundError as exc:
-        print(f"Required file not found: {exc.filename}")
-        return 2
-    except (PlanParseError, PlanSelectionError) as exc:
-        print(f"Plan error: {exc}")
-        return 2
-    except PolicyParseError as exc:
-        print(f"Policy error: {exc}")
-        return 2
-    return 0
-
-
-def _print_run_history_preview(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
-    try:
-        print(read_run_history_preview(plan_path, policy_path, state_path, root, output_format))
-    except FileNotFoundError as exc:
-        print(f"Required file not found: {exc.filename}")
-        return 2
-    except (PlanParseError, PlanSelectionError) as exc:
-        print(f"Plan error: {exc}")
         return 2
     except PolicyParseError as exc:
         print(f"Policy error: {exc}")
@@ -504,6 +359,17 @@ def _print_inventory(root_path: Path) -> int:
     return 0
 
 
+_POLICY_AWARE_READERS = {
+    "plan": read_repository_plan,
+    "propose": read_change_proposal,
+    "validate-plan": read_validation_plan,
+    "validation-preview": read_validation_preview,
+    "review-artifact": read_review_artifact,
+    "run-history-preview": read_run_history_preview,
+    "preflight-readiness": read_preflight_readiness,
+}
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the Forge CLI."""
     parser = build_parser()
@@ -524,35 +390,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         return _print_report(Path(args.plan), Path(args.state), Path(args.policy))
 
-    if args.command == "plan":
-        return _print_plan(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
-            args.format,
-        )
-
-    if args.command == "propose":
-        return _print_proposal(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
-            args.format,
-        )
-
-    if args.command == "validate-plan":
-        return _print_validation_plan(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
-            args.format,
-        )
-
-    if args.command == "validation-preview":
-        return _print_validation_preview(
+    if args.command in _POLICY_AWARE_READERS:
+        return _print_policy_aware(
+            _POLICY_AWARE_READERS[args.command],
             Path(args.plan),
             Path(args.state),
             Path(args.policy),
@@ -565,24 +405,6 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.policy),
             Path(args.root),
             args.file,
-            args.format,
-        )
-
-    if args.command == "review-artifact":
-        return _print_review_artifact(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
-            args.format,
-        )
-
-    if args.command == "run-history-preview":
-        return _print_run_history_preview(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
             args.format,
         )
 
