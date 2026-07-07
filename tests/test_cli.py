@@ -1,3 +1,5 @@
+import json
+
 from autonomous_forge.cli import main
 
 
@@ -270,3 +272,37 @@ def test_run_summary_command_prints_read_only_preview(tmp_path, capsys):
     assert "Policy status: present and readable" in output
     assert "Validation result: not run" in output
     assert "Commit: none" in output
+
+
+def test_run_summary_command_prints_machine_readable_json_preview(tmp_path, capsys):
+    plan = tmp_path / "AUTONOMOUS_PLAN.md"
+    policy = tmp_path / "policy.md"
+    plan.write_text(VALID_PLAN, encoding="utf-8")
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+
+    assert main(
+        [
+            "run-summary",
+            "--plan",
+            str(plan),
+            "--policy",
+            str(policy),
+            "--timestamp",
+            "2026-07-07T15:00:00+04:00",
+            "--format",
+            "json",
+        ]
+    ) == 0
+
+    summary = json.loads(capsys.readouterr().out)
+    assert summary == {
+        "run_timestamp": "2026-07-07T15:00:00+04:00",
+        "selected_task": "AUTO-010 — Ready task",
+        "task_status_before_run": "TODO",
+        "policy_status": "present and readable",
+        "validation_plan": "PYTHONPATH=src python -m pytest",
+        "validation_result": "not run",
+        "changed_files_summary": "none",
+        "commit": "none",
+        "notes": "Read-only preview only; no run-summary file was written.",
+    }
