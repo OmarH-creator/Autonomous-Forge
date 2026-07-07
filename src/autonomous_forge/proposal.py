@@ -20,7 +20,7 @@ def _split_expected_areas(expected_files: str) -> tuple[str, ...]:
 
     areas: list[str] = []
     for raw_part in normalized.splitlines():
-        part = raw_part.strip().strip("`.;")
+        part = raw_part.strip().strip("`").rstrip(";.").strip()
         if not part or part.lower() == "not documented":
             continue
         areas.append(part)
@@ -134,7 +134,7 @@ def build_change_proposal(
     root: Path = Path("."),
     output_format: str = "text",
 ) -> str:
-    """Build a local, reviewable change proposal without changing files."""
+    """Build a local, reviewable change proposal without changing repository files."""
     plan_data = build_repository_plan_data(
         plan_text,
         policy_text,
