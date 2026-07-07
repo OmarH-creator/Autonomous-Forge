@@ -14,7 +14,8 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - A `forge` console script entry point.
 - A roadmap task parser and read-only `forge tasks` command.
 - Deterministic TODO task selection with `forge tasks --next`.
-- Smoke tests for CLI help, task parsing, and eligible task selection behavior.
+- A read-only `forge report` command for dry-run repository summaries.
+- Smoke tests for CLI help, task parsing, eligible task selection, and report behavior.
 
 ## Planned direction
 
@@ -48,6 +49,14 @@ forge tasks --plan .ai/AUTONOMOUS_PLAN.md --next
 ```
 
 The selector only considers `TODO` tasks. It chooses the highest priority in `P0`, `P1`, `P2`, `P3` order and preserves roadmap source order when priorities tie.
+
+## Produce a dry-run repository report
+
+```bash
+forge report --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md
+```
+
+The report is read-only. It summarizes roadmap task counts, the next eligible task, state-file availability, and the suggested validation command without changing repository files.
 
 ## Run tests
 
