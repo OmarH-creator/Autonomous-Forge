@@ -12,10 +12,11 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, and repository inventory.
+- Read-only task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, and change proposals.
 - `forge run-summary --format json` for script-friendly, read-only run-summary previews.
 - `forge plan` for a policy-aware implementation plan that selects the next task and presents its scope, expected files, validation, risks, policy constraints, state-file status, and documentation signals.
 - `forge plan --format json` for structured, reviewable plan data that future change-proposal and validation workflows can consume without scraping text.
+- `forge propose` for a read-only change proposal that turns the selected plan task into planned file areas, high-level operations, validation steps, risks, blockers, and approval-required items.
 - Smoke and deterministic coverage for the CLI’s current read-only workflows.
 
 ## Install for local development
@@ -61,6 +62,18 @@ forge plan \
 
 The JSON output is still a proposal only. It does not write a plan file, execute validation, inspect diffs, or enforce policy decisions.
 
+## Build a read-only change proposal
+
+```bash
+forge propose \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root .
+```
+
+`forge propose` consumes the same structured planning data and prints the intended file areas, high-level operations, validation steps, approval-required items, risk notes, and blockers for the selected task. It does not edit files, create patches, run tests, approve policy exceptions, or execute the plan.
+
 ## Produce other read-only views
 
 ```bash
@@ -91,9 +104,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Advanced the policy-aware planning milestone from text-only output to structured, reviewable JSON output for `forge plan`.
-- **What changed:** Added a shared structured plan-data builder, preserved the existing human-readable plan, exposed `forge plan --format json`, added deterministic JSON tests, closed the obsolete draft PR #5, and refreshed the README status.
-- **Validation:** Added tests for structured plan data, JSON formatting, and CLI JSON output. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
-- **Visual updates:** No new visual asset was needed; this is a terminal/API-facing planning improvement, and the existing overview remains the factual visual orientation.
-- **Current limitations:** `forge plan` still proposes only. It does not write a plan artifact to disk, generate a patch, run validation, inspect diffs, execute an approved plan, or enforce policy decisions.
-- **Next autonomous objective:** Use the structured plan data as the basis for a reviewable change-proposal command that can describe intended file changes and validation before any write or execution behavior is considered.
+- **Latest run:** Advanced the policy-aware planning milestone from structured plans to a read-only `forge propose` change-proposal command.
+- **What changed:** Added a proposal builder, exposed `forge propose`, added deterministic proposal and CLI tests, documented proposal usage, and refreshed project-memory records.
+- **Validation:** Added tests for structured proposal data, human-readable proposal output, CLI execution, and the no-selected-task case. Static review was completed through the GitHub repository API; local checkout execution remains unavailable in this environment, and the main-branch workflow for the new commits has not yet been observed.
+- **Visual updates:** No new visual asset was needed; this is a terminal planning/proposal capability, and the existing overview remains the factual workflow visual.
+- **Current limitations:** `forge propose` still proposes only. It does not write proposal artifacts, generate patches, inspect diffs, run validation, execute plans, approve policy exceptions, or enforce policy decisions.
+- **Next autonomous objective:** Extend proposals toward structured output or validation orchestration only after the text proposal remains stable and validated.
