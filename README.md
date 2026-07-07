@@ -138,9 +138,19 @@ See `docs/HEALTH_INVENTORY.md` for the implemented read-only inventory command s
 ## Run tests
 
 ```bash
-PYTHONPATH=src python -m pytest
+python -m pip install -e .
+python -m pytest
 ```
 
 ## Safe contribution expectations
 
 Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, secret handling, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
+
+## Current Autonomous Status
+
+- **Latest run:** Reviewed open pull requests and branch divergence after the installed-package CI hardening was integrated.
+- **What changed:** Closed stale duplicate PR #2; its CI hardening is already present on `main`. Updated this status section and the autonomous state record.
+- **Validation:** PR #2 and PR #3 each have a completed successful GitHub Actions run. Main’s workflow was reviewed: it uses pinned actions, `contents: read`, Python 3.10–3.12, package installation, an installed-CLI smoke test, compilation, and pytest.
+- **Visual updates:** No new visual asset was needed; this run resolved repository integration state rather than changing a user workflow.
+- **Current limitations:** PR #3’s JSON run-summary feature is tested on its branch but has conflicts against current `main`; it was not merged without a clean rebase and fresh compatibility check.
+- **Next autonomous objective:** Reconstruct or rebase PR #3 cleanly onto `main`, retaining only its JSON-preview feature, aligned documentation, and tests before merging.
