@@ -24,14 +24,26 @@ def _validation_steps(proposal_data: dict[str, Any]) -> list[str]:
     return steps
 
 
+def _clean_area(value: str) -> str:
+    """Normalize one planned repository-relative path for advisory checks."""
+    cleaned = value.strip().strip("`").rstrip("/")
+    if cleaned.startswith("./"):
+        cleaned = cleaned[2:]
+    if not cleaned or cleaned == "not documented":
+        return ""
+    if cleaned.startswith("/") or "\\" in cleaned or ".." in cleaned.split("/"):
+        return ""
+    return cleaned
+
+
 def _matches_policy_pattern(area: str, pattern: str) -> bool:
     """Return whether a planned area matches one simple documented policy pattern."""
-    clean_area = area.strip().strip("`").rstrip("/")
-    clean_pattern = pattern.strip().strip("`").rstrip("/")
+    clean_area = _clean_area(area)
+    clean_pattern = _clean_area(pattern)
 
     if not clean_area or not clean_pattern:
         return False
-    if clean_area == "not documented":
+    if any(marker in clean_area for marker in ("*", "?", "[")):
         return False
     if clean_pattern.endswith("/**"):
         prefix = clean_pattern[:-3].rstrip("/")
@@ -40,13 +52,19 @@ def _matches_policy_pattern(area: str, pattern: str) -> bool:
 
 
 def _path_status(root: Path, area: str) -> str:
-    """Return a conservative local presence signal for one planned area."""
-    clean_area = area.strip().strip("`").strip()
-    if not clean_area or clean_area == "not documented":
+    """Return a local presence signal without following paths outside ``root``."""
+    clean_area = _clean_area(area)
+    if not clean_area or any(marker in clean_area for marker in ("*", "?", "[")):
         return "unknown"
-    if any(marker in clean_area for marker in ("*", "?", "[")):
+
+    try:
+        resolved_root = root.resolve()
+        candidate = (resolved_root / clean_area).resolve()
+        candidate.relative_to(resolved_root)
+    except (OSError, ValueError):
         return "unknown"
-    return "present" if (root / clean_area).exists() else "missing"
+
+    return "present" if candidate.exists() else "missing"
 
 
 def _path_policy_status(area: str, policy: dict[str, Any]) -> str:
