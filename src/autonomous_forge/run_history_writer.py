@@ -17,7 +17,8 @@ class RunHistoryWriteError(ValueError):
 def _resolve_inside(root: Path, path: Path) -> tuple[Path, Path]:
     """Return resolved root/path and reject paths outside root."""
     resolved_root = root.resolve()
-    resolved_path = path.resolve()
+    candidate = path if path.is_absolute() else resolved_root / path
+    resolved_path = candidate.resolve()
     try:
         resolved_path.relative_to(resolved_root)
     except ValueError as exc:
