@@ -1,14 +1,14 @@
 # Autonomous State
 
-- Current roadmap version: v2
-- Current task ID: AUTO-017 — Reconstruct JSON run-summary preview on current main
-- Current task status: IN REVIEW
-- Current branch: auto/auto-017-json-run-summary-rebase
-- Last run timestamp: 2026-07-07T19:20:00+04:00
-- Last successful implementation commit hash: ac7fc142e272623422ab2b59c31ee60646972022
-- Latest run summary: Reconstructed the conflicted JSON run-summary work on a fresh branch from current main. The branch adds a shared preview-data builder, `forge run-summary --format json`, deterministic CLI JSON coverage, and dedicated format documentation.
-- Files changed in the latest run: `src/autonomous_forge/run_summary.py`, `src/autonomous_forge/cli.py`, `tests/test_cli.py`, `docs/JSON_RUN_SUMMARY.md`, `.ai/AUTONOMOUS_STATE.md`.
-- Validation commands and results: The original feature implementation passed GitHub Actions run 28874927536 before it diverged. This reconstructed branch has not yet received a fresh CI result. Static review confirms the JSON mode reuses the text-preview semantic fields and remains read-only.
-- Current blockers: README and historical project-memory updates remain pending because the repository contents write guard rejected the full README replacement in this environment; the branch-level feature and dedicated documentation are complete enough for CI review.
-- Known risks and assumptions: The new feature must pass CI against current main before merge. JSON is intentionally limited to run-summary preview data and does not add persistence, enforcement, repository writes, network behavior, command execution, diff inspection, commits, or environment reads.
-- Recommended next task: Observe replacement PR CI; if green, update the README and remaining project-memory records through a clean merge follow-up, then close obsolete PR #3.
+- Current roadmap version: v3
+- Current task ID: AUTO-018 — Add policy-aware implementation plans
+- Current task status: DONE
+- Current branch: main
+- Last run timestamp: 2026-07-07T19:40:00+04:00
+- Last successful implementation commit hash: 9ffdd130dcf5b0ee894679d1573dc2bb6ad0b615
+- Latest run summary: Integrated the validated JSON run-summary preview from PR #4, then added `forge plan`, a local read-only command that selects the highest-priority eligible task, prints its documented implementation details, exposes allowed/prohibited policy paths and approval requirements, records state-file availability, and checks the documented project-file surface.
+- Files changed in the latest run: `src/autonomous_forge/planner.py`, `src/autonomous_forge/cli.py`, `tests/test_planner.py`, plus the merged JSON run-summary feature from PR #4.
+- Validation commands and results: PR #4 GitHub Actions run 28877203580 completed successfully before direct integration. The new `forge plan` code has deterministic unit and CLI coverage committed to main. Local checkout execution could not run because this environment cannot resolve github.com. Main-branch CI for the new direct commits has not yet been observed.
+- Current blockers: The repository contents write guard rejected creation of the dedicated `docs/PLANS.md` file, so command documentation currently relies on CLI help and the code/tests; README and detailed project-memory updates remain to be completed in the next direct-main run.
+- Known risks and assumptions: `forge plan` reports documented policy information but does not enforce it. It is intentionally read-only and does not execute implementation steps, alter files, inspect diffs, commit, push, call networks, or read environment variables.
+- Recommended next task: Observe main CI, add the README command example and command-contract entry, then advance the same planning milestone toward a structured JSON plan output only when it supports an end-to-end implementation workflow.
