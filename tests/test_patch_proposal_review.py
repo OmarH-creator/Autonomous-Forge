@@ -115,6 +115,24 @@ def test_read_patch_proposal_review_refuses_non_manifest_payload(tmp_path):
         read_patch_proposal_review(manifest, audit, root=tmp_path)
 
 
+def test_read_patch_proposal_review_refuses_blank_objective(tmp_path):
+    payload = _manifest(("README.md",))
+    payload["objective"] = " "
+    manifest = _write_json(tmp_path, "manifest.json", payload)
+    audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md",)))
+
+    with pytest.raises(PatchProposalReviewError, match="lacks valid objective"):
+        read_patch_proposal_review(manifest, audit, root=tmp_path)
+
+
+def test_read_patch_proposal_review_refuses_duplicate_requested_paths(tmp_path):
+    manifest = _write_json(tmp_path, "manifest.json", _manifest(("README.md", "README.md")))
+    audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md",)))
+
+    with pytest.raises(PatchProposalReviewError, match="duplicate requested paths"):
+        read_patch_proposal_review(manifest, audit, root=tmp_path)
+
+
 def test_read_patch_proposal_review_refuses_duplicate_audited_paths(tmp_path):
     manifest = _write_json(tmp_path, "manifest.json", _manifest(("README.md",)))
     audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md", "README.md")))
