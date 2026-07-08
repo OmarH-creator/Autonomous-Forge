@@ -21,6 +21,20 @@ forge run-history-list \
   --format json
 ```
 
+## Validation-result guard
+
+`forge run-history-list` now also reports a conservative validation-result summary across the limited listed records. The guard is advisory and only reflects saved record content; it does not run validation, verify commits, poll workflow status, or infer that a repository is healthy.
+
+The guard uses these statuses:
+
+- `clear` when all readable records in the limited view have supplied `passed` validation results;
+- `blocked` when at least one readable record has a supplied `failed` validation result;
+- `needs-validation` when at least one readable record is `not_run` or has an unknown validation result;
+- `needs-review` when a readable record is `skipped` or one or more direct JSON records were refused;
+- `no-records` or `no-readable-records` when the history directory/view has no readable records.
+
+Each readable listed record also includes its saved `validation_execution`, saved `validation_result`, and per-record `validation_guard`.
+
 ## Selecting the latest readable record
 
 The latest selector performs the same narrow direct-file scan but returns one selected record. Its ordering is explicit: records are considered by ascending filename, and the latest record is the last readable direct non-symlink `.json` file by filename. Malformed or unsupported records are reported as refused and are not selected as latest.
@@ -36,6 +50,8 @@ forge run-history-latest \
   --root . \
   --format json
 ```
+
+The latest record summary includes the same per-record validation execution/result/guard fields so reviewers can see whether the selected record has an attached supplied validation result.
 
 ## Safety checks
 
@@ -56,11 +72,14 @@ The list text and JSON summaries include:
 
 - history directory path and status;
 - records found, records listed, valid records, and refused records;
+- validation-result counts for `passed`, `failed`, `skipped`, `not_run`, and `unknown`;
+- an advisory aggregate validation guard;
 - each listed record path;
 - readable/refused status;
 - selected task identity when available;
 - review status;
 - preflight overall status;
+- saved validation execution, saved validation result, and per-record validation guard;
 - commit field;
 - refusal reason for malformed or unsupported records.
 
@@ -70,6 +89,7 @@ The latest text and JSON summaries include:
 - the deterministic filename ordering rule;
 - records found, readable records, and refused records;
 - the selected latest readable record, or `none`/`null`;
+- saved validation execution, saved validation result, and per-record validation guard for the selected record;
 - refused-record paths and reasons.
 
 ## Current limitations
