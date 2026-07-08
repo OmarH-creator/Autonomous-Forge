@@ -5,7 +5,7 @@
 - Current task status: DONE
 - Current branch: main
 - Last run timestamp: 2026-07-09T01:03:45+04:00
-- Last successful implementation commit hash: 0b67e69ab8a1e1e9dbdc423883620c4e47cf1b2e
+- Last successful implementation commit hash: ead10550b2c67885e79fc4b6399a99641df50c37
 - Latest run summary: Added `forge change-readiness` and compatibility `forge-change-readiness`, a local read-only summary that combines supplied `forge git-diff-review --format json` and `forge commit-status-review --format json` evidence. The command reports readiness, reviewed paths, status contexts, blockers, and safety checks; blocks unclear upstream evidence with `--require-ready`; and keeps `change_application_allowed` false.
 - Files changed in the latest run: `src/autonomous_forge/change_readiness.py`, `src/autonomous_forge/change_readiness_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_change_readiness.py`, `docs/CHANGE_READINESS.md`, `docs/COMMANDS.md`, `.github/workflows/test.yml`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, and `.ai/DECISIONS.md`.
 - Validation commands and results: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests were added for ready change-readiness evidence, blocked diff/status evidence, JSON/text output, fail-closed ready gating, and out-of-root input refusal. The workflow now includes installed primary and compatibility smoke coverage for clear supplied change-readiness evidence. Direct local checkout/test execution remains unavailable from this environment; final GitHub workflow status may lag the direct main commits.
