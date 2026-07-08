@@ -1,14 +1,14 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-056 — Add fail-closed executor-observation audit gate
+- Current task ID: AUTO-057 — Prioritize latest run-history records in limited audits
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-07-08T14:34:30+04:00
+- Last run timestamp: 2026-07-08T15:00:45+04:00
 - Last successful implementation commit hash: pending final commit/status check
-- Latest run summary: Added `forge executor-observation-audit --require-clear`, allowing the aggregate saved executor-observation audit to act as a fail-closed gate before future patch-adjacent workflow relies on persisted executor evidence.
-- Files changed in the latest run: `src/autonomous_forge/cli_entry.py`, `tests/test_executor_observation_audit_cli.py`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, and `.ai/DECISIONS.md`.
-- Validation commands and results: Static review completed through the GitHub repository API. Deterministic CLI tests were added for `--require-clear` passing on clear observations and returning a failing exit code for missing observations while preserving JSON output. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
+- Latest run summary: Hardened limited run-history and executor-observation audit views so `--max-records` selects the newest filename-sorted direct `.ai/run-history/*.json` records instead of silently preferring the oldest records.
+- Files changed in the latest run: `src/autonomous_forge/run_history_index.py`, `tests/test_run_history_index.py`, `tests/test_executor_observation_audit.py`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, `README.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, and `.ai/DECISIONS.md`.
+- Validation commands and results: Static review completed through the GitHub repository API. Deterministic regression tests were added for latest-limited run-history index behavior and latest-limited executor-observation audit behavior. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
 - Current blockers: Runtime local checkout and test execution remain unavailable from this environment. Main-branch CI visibility may lag direct commits. The product still lacks diff inspection, changed-content audit, patch generation, commit verification, and workflow-status checks.
-- Known risks and assumptions: The `--require-clear` mode changes only the process exit code. It still summarizes saved local JSON record fields only and does not run validation, poll workflow status, verify commits, inspect diffs, read patch contents, infer success beyond saved fields, generate patches, enforce policy, mutate history, commit, push, or grant approval.
+- Known risks and assumptions: Filename order is the existing deterministic run-history ordering. The limited index still scans only direct non-symlink `.json` files under `.ai/run-history/`, does not recurse, does not run validation, does not poll workflow status, does not verify commits, does not inspect diffs, does not generate patches, does not enforce policy, and does not mutate files.
 - Recommended next task: Add a read-only changed-content or diff-intent audit before any patch generation, diff inspection, or implementation-execution behavior.
