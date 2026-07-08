@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review supplied or live workflow validation status, run tightly scoped local validation, preview guarded patch text, explicitly apply one confirmed replacement, record post-apply validation evidence, and record what happened.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review supplied or live workflow validation status, run tightly scoped local validation, preview guarded patch text, explicitly apply one confirmed replacement, record post-apply validation evidence, summarize commit readiness, and record what happened.
 
 ## Product scope and non-goals
 
-The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, runs only explicitly confirmed allowlisted local validation commands, audits explicit content metadata without printing content, compares supplied audit evidence, reviews supplied unified git diff metadata, reviews supplied commit/workflow status JSON evidence or explicitly collected GitHub workflow-run metadata, summarizes combined change readiness, generates bounded patch previews from explicit replacement content, can explicitly apply one reviewed replacement file after generated preview and change-readiness evidence match the current target, summarizes supplied post-apply validation metadata, and keeps durable project memory.
+The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, runs only explicitly confirmed allowlisted local validation commands, audits explicit content metadata without printing content, compares supplied audit evidence, reviews supplied unified git diff metadata, reviews supplied commit/workflow status JSON evidence or explicitly collected GitHub workflow-run metadata, summarizes combined change readiness, generates bounded patch previews from explicit replacement content, can explicitly apply one reviewed replacement file after generated preview and change-readiness evidence match the current target, summarizes supplied post-apply validation metadata, summarizes commit-readiness evidence, and keeps durable project memory.
 
 It is not a hosted platform, dashboard, deployment system, permission-management tool, automatic patch applier, commit bot, or uncontrolled autonomous executor.
 
@@ -18,15 +18,15 @@ The installed `forge` console script routes through `src/autonomous_forge/cli_en
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory signals, and a visual project overview. Roadmap v3 has advanced the safe maintenance workflow through planning/proposal artifacts, validation previews, executor gates/contracts/runs, explicit result persistence, content/diff/status/change-readiness review, live workflow-status collection through `gh`, guarded patch previews, one explicitly confirmed patch-apply command, and a post-apply validation handoff.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory signals, and a visual project overview. Roadmap v3 has advanced the safe maintenance workflow through planning/proposal artifacts, validation previews, executor gates/contracts/runs, explicit result persistence, content/diff/status/change-readiness review, live workflow-status collection through `gh`, guarded patch previews, one explicitly confirmed patch-apply command, post-apply validation handoff, and commit-readiness summary.
 
-Product commands still do not execute arbitrary implementation plans, cryptographically verify commits, automatically run validation after patch application, decide commit readiness, or commit changes.
+Product commands still do not execute arbitrary implementation plans, cryptographically verify commits, automatically run validation after patch application, create commit metadata proposals, create commits, or push changes.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, audit content metadata, inspect supplied unified git diff metadata, review supplied status evidence or collect GitHub workflow-run metadata through `gh`, combine diff/status evidence into readiness, generate bounded patch previews, apply one explicitly confirmed replacement file after preview/readiness evidence matches current inputs, and summarize explicit post-apply validation metadata.
+The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, audit content metadata, inspect supplied unified git diff metadata, review supplied status evidence or collect GitHub workflow-run metadata through `gh`, combine diff/status evidence into readiness, generate bounded patch previews, apply one explicitly confirmed replacement file after preview/readiness evidence matches current inputs, summarize explicit post-apply validation metadata, and summarize final commit-readiness evidence.
 
-It does not yet append to a hash-linked long-lived history index, automatically run validation after patch apply, verify commits beyond status evidence, summarize final commit readiness, or execute approved implementation plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+It does not yet append to a hash-linked long-lived history index, automatically run validation after patch apply, verify commits beyond status evidence, propose commit metadata, create commits, or execute approved implementation plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
@@ -151,7 +151,20 @@ Expected files or areas: `src/autonomous_forge/commit_status_review.py`, `src/au
 Acceptance criteria: The command still supports repository-local `--status` JSON, rejects unsafe roots and invalid SHAs, collects at most 20 workflow runs through `gh` only when explicitly requested, reports clear/blocked status through the existing `--require-clear` gate, and never reruns workflows, inspects logs, applies patches, writes files, commits, or pushes.
 Validation: Static source/test/docs review completed through the GitHub repository API. Deterministic tests cover git/gh command invocation, workflow-run normalization, bad SHA refusal, primary CLI JSON output, and fail-closed clear gating. Direct local checkout/test execution remained unavailable in this environment.
 Risks or assumptions: Live mode depends on local `git`, GitHub CLI, repository authentication, and GitHub workflow data availability. It can prove only reported workflow status, not code correctness or commit authenticity.
-Notes: Next safe step is commit-readiness summary that combines post-apply validation, final git-diff review, and live or supplied status evidence without committing.
+Notes: Completed before commit-readiness summary.
+
+### AUTO-092 — Commit-readiness summary
+Priority: P1
+Status: DONE
+
+Goal: Add a read-only summary that combines post-apply validation, final git-diff review, and commit-status review evidence before any commit workflow is considered.
+Why it matters: After a guarded patch apply, validation handoff, and workflow/status review, maintainers need one deterministic gate showing whether the change is ready for human commit consideration without granting commit authority.
+Scope: Add `forge commit-readiness` and `forge-commit-readiness`, deterministic core/CLI tests, focused documentation, README usage, CI help-smoke coverage, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/commit_readiness.py`, `src/autonomous_forge/commit_readiness_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_commit_readiness.py`, `docs/COMMIT_READINESS.md`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Commit-readiness consumes post-apply-validation JSON, final git-diff-review JSON, and commit-status-review JSON; requires validated post-apply evidence, a clear final diff containing the validated target path, clear status evidence, and safe path labels; supports `--require-ready`; keeps `commit_allowed` and `commit_workflow_allowed` false; and never runs commands, collects live status, reads file contents, applies patches, creates commits, pushes, or changes files.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover ready evidence, unvalidated post-apply evidence, final diff target mismatch, unclear status evidence, unsafe paths, primary CLI JSON output, and fail-closed `--require-ready` behavior. Direct local checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command trusts supplied upstream evidence and does not prove validation was truly executed, workflow status is fresh unless collected immediately beforehand, or commits are cryptographically authentic.
+Notes: Next safe step is a guarded commit-proposal preview that prepares commit metadata from ready evidence without committing.
 
 ## Future Ideas
 
@@ -160,7 +173,7 @@ Notes: Next safe step is commit-readiness summary that combines post-apply valid
 - Policy-aware changed-file summaries.
 - Explicit validation orchestration after validation plans are reviewable.
 - Read-only patch application provenance audits before any patch applier exists.
-- Commit-readiness summary after post-apply validation and live/supplied workflow status.
+- Guarded commit-proposal preview after commit-readiness evidence.
 
 ## Do Not Change Without Explicit Human Approval
 
