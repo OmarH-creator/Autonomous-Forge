@@ -32,6 +32,11 @@ from autonomous_forge.run_history_writer import RunHistoryWriteError, write_run_
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
 from autonomous_forge.validation_preview import read_validation_preview
+from autonomous_forge.validation_result_preview import (
+    ALLOWED_VALIDATION_RESULTS,
+    ValidationResultPreviewError,
+    read_validation_result_preview,
+)
 
 
 def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
@@ -116,6 +121,16 @@ def build_parser() -> argparse.ArgumentParser:
     run_history_compare_parser.add_argument("--after", required=True, help="later record path under .ai/run-history/")
     run_history_compare_parser.add_argument("--root", default=".", help="repository root used to constrain record paths")
     run_history_compare_parser.add_argument("--format", choices=("text", "json"), default="text", help="run-history comparison format: text (default) or JSON")
+
+    validation_result_parser = subparsers.add_parser(
+        "validation-result-preview",
+        help="preview attaching a validation result to one saved run-history record without changing files",
+    )
+    validation_result_parser.add_argument("--record", required=True, help="record path under .ai/run-history/ to preview updating")
+    validation_result_parser.add_argument("--result", required=True, choices=ALLOWED_VALIDATION_RESULTS, help="validation result value to preview")
+    validation_result_parser.add_argument("--root", default=".", help="repository root used to constrain the record path")
+    validation_result_parser.add_argument("--note", default=None, help="optional validation note to include in the preview")
+    validation_result_parser.add_argument("--format", choices=("text", "json"), default="text", help="validation-result preview format: text (default) or JSON")
 
     review_files_parser = subparsers.add_parser("review-files", help="review explicit changed-file paths against repository policy")
     review_files_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
@@ -339,6 +354,18 @@ def _compare_run_history(before_record: Path, after_record: Path, root: Path, ou
     return 0
 
 
+def _preview_validation_result(record_path: Path, result: str, root: Path, note: str | None, output_format: str) -> int:
+    try:
+        print(read_validation_result_preview(record_path, result=result, root=root, note=note, output_format=output_format))
+    except FileNotFoundError as exc:
+        print(f"Validation-result preview record not found: {exc.filename}")
+        return 2
+    except ValidationResultPreviewError as exc:
+        print(f"Validation-result preview refused: {exc}")
+        return 2
+    return 0
+
+
 _POLICY_AWARE_READERS = {
     "plan": read_repository_plan,
     "propose": read_change_proposal,
@@ -386,6 +413,8 @@ def main(argv: list[str] | None = None) -> int:
         return _latest_run_history(Path(args.root), args.format)
     if args.command == "run-history-compare":
         return _compare_run_history(Path(args.before), Path(args.after), Path(args.root), args.format)
+    if args.command == "validation-result-preview":
+        return _preview_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.format)
     if args.command == "review-files":
         return _print_path_review(Path(args.policy), Path(args.root), args.file, args.format)
     if args.command == "policy":
