@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-054
+
+- Task ID: AUTO-054 — Require regular run-history record files
+- Summary: Hardened `forge run-history-read` and dependent saved-record readers by requiring resolved `.ai/run-history/*.json` record paths to be regular files. This supplements the existing root, history-directory, extension, symlink, missing-path, and directory guards with an explicit non-regular filesystem-entry refusal.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, open PR search, README, workflow smoke coverage, validation-result audit helper, run-history reader, and relevant tests. No open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression coverage that creates a FIFO when supported and asserts a `RunHistoryReadError` regular-file refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before patch, diff-inspection, or implementation-execution workflow work begins.
+
 ## 2026-07-08 — AUTO-053
 
 - Task ID: AUTO-053 — Expose validation-result audit through CLI
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for consistent attached results, inconsistent attached results, clean `not_run`, unknown result values, text/JSON output, unsafe path refusal, malformed JSON refusal, and unsupported schema refusal. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Expose the validation-result audit through `forge validation-result-audit --format text|json` and add installed-package smoke coverage before any patch or diff workflow begins.
-
-## 2026-07-08 — AUTO-051
-
-- Task ID: AUTO-051 — Smoke-test executor handoff persistence in CI
-- Summary: Extended the GitHub Actions installed-package smoke path so `forge executor-run --format json` writes repository-local executor output, then `forge executor-handoff-persist --confirm-write --format json` consumes that reviewed output and verifies the guarded persistence summary. This closes the gap where CI exercised executor-run but not the separate confirmed handoff persistence command, and it keeps the existing external-path refusal meaningful.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent open/closed PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-handoff persistence helper, CLI, and existing tests. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. The updated workflow JSON-validates executor output and persistence output, asserts completed observed execution, confirms the advisory handoff remains non-automatic, and verifies the persisted validation result summary. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: bb88c59b915fbdbcb38354ba78b9474ff8df0990
-- Follow-up notes: Expose the read-only executor-handoff persistence preview through a narrow CLI command or add a dedicated validation-result audit view before patch or diff workflow work begins.
 
 ## Historical note
 
