@@ -1,6 +1,6 @@
 # Validation orchestration previews
 
-`validation_orchestration` is a read-only readiness layer for deciding whether a saved validation context is safe to review before any validation executor exists.
+`forge validation-orchestration` is a read-only readiness layer for deciding whether a saved validation context is safe to review before any validation executor exists.
 
 It combines:
 
@@ -11,6 +11,27 @@ It combines:
 - explicit blockers and risk notes.
 
 The preview is intentionally conservative. It does not run validation commands, poll GitHub Actions, verify commits, inspect diffs, generate patches, grant approval, enforce policy, or mutate history records.
+
+## CLI usage
+
+```bash
+forge validation-orchestration \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root .
+```
+
+For deterministic JSON output:
+
+```bash
+forge validation-orchestration \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
 
 ## Python usage
 
@@ -51,4 +72,4 @@ The JSON output contains:
 - `risk_notes`
 - `safety_boundary`
 
-The command remains a preview surface only. A future CLI wrapper may expose this data through `forge`, but this layer deliberately avoids execution and workflow polling.
+The command remains a preview surface only. It deliberately avoids execution and workflow polling.
