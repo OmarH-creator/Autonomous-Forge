@@ -24,6 +24,7 @@ dependencies = []
 
 [project.scripts]
 forge = "autonomous_forge.cli_entry_patch:main"
+forge-patch-proposal-draft = "autonomous_forge.patch_proposal_draft_cli:main"
 forge-patch-proposal-review = "autonomous_forge.patch_proposal_review_cli:main"
 
 [tool.setuptools.packages.find]
