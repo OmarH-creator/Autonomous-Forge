@@ -27,13 +27,34 @@ forge validation-result-write \
   --confirm-write
 ```
 
-Successful output includes:
+Successful text output includes:
 
 ```text
 Validation-result attachment written: <path>
 Validation execution: external_result_attached
 Validation result: passed
 Validation note: pytest passed locally
+```
+
+Use `--format json` when automation needs a stable machine-readable summary of the write without scraping text output:
+
+```bash
+forge validation-result-write \
+  --root . \
+  --record .ai/run-history/latest.json \
+  --result failed \
+  --note "pytest failed locally" \
+  --confirm-write \
+  --format json
+```
+
+```json
+{
+  "path": ".ai/run-history/latest.json",
+  "validation_execution": "external_result_attached",
+  "validation_note": "pytest failed locally",
+  "validation_result": "failed"
+}
 ```
 
 If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record.
