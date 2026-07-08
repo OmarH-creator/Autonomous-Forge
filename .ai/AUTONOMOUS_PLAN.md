@@ -2,13 +2,13 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review supplied validation status, run tightly scoped local validation, preview guarded patch text, explicitly apply one confirmed replacement, and record what happened.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review supplied validation status, run tightly scoped local validation, preview guarded patch text, explicitly apply one confirmed replacement, record post-apply validation evidence, and record what happened.
 
 ## Product scope and non-goals
 
-The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, runs only explicitly confirmed allowlisted local validation commands, audits explicit content metadata without printing content, compares supplied audit evidence, reviews supplied unified git diff metadata and supplied commit/workflow status JSON evidence, summarizes combined change readiness, generates bounded patch previews from explicit replacement content, can explicitly apply one reviewed replacement file after generated preview and change-readiness evidence match the current target, and keeps durable project memory.
+The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, runs only explicitly confirmed allowlisted local validation commands, audits explicit content metadata without printing content, compares supplied audit evidence, reviews supplied unified git diff metadata and supplied commit/workflow status JSON evidence, summarizes combined change readiness, generates bounded patch previews from explicit replacement content, can explicitly apply one reviewed replacement file after generated preview and change-readiness evidence match the current target, summarizes supplied post-apply validation metadata, and keeps durable project memory.
 
-It is not a hosted platform, dashboard, deployment system, permission-management tool, automatic patch applier, live workflow poller, or uncontrolled autonomous executor.
+It is not a hosted platform, dashboard, deployment system, permission-management tool, automatic patch applier, live workflow poller, commit bot, or uncontrolled autonomous executor.
 
 ## Current architecture
 
@@ -18,21 +18,21 @@ The installed `forge` console script routes through `src/autonomous_forge/cli_en
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory signals, and a visual project overview. Roadmap v3 has advanced the safe maintenance workflow through planning/proposal artifacts, validation previews, executor gates/contracts/runs, explicit result persistence, content/diff/status/change-readiness review, guarded patch previews, and one explicitly confirmed patch-apply command.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory signals, and a visual project overview. Roadmap v3 has advanced the safe maintenance workflow through planning/proposal artifacts, validation previews, executor gates/contracts/runs, explicit result persistence, content/diff/status/change-readiness review, guarded patch previews, one explicitly confirmed patch-apply command, and a post-apply validation handoff.
 
-Product commands still do not execute arbitrary implementation plans, poll live workflow status, cryptographically verify commits, automatically validate after patch application, or commit changes.
+Product commands still do not execute arbitrary implementation plans, poll live workflow status, cryptographically verify commits, automatically run validation after patch application, decide commit readiness, or commit changes.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, audit content metadata, inspect supplied unified git diff metadata, review supplied status evidence, combine diff/status evidence into readiness, generate bounded patch previews, and apply one explicitly confirmed replacement file after preview/readiness evidence matches current inputs.
+The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, audit content metadata, inspect supplied unified git diff metadata, review supplied status evidence, combine diff/status evidence into readiness, generate bounded patch previews, apply one explicitly confirmed replacement file after preview/readiness evidence matches current inputs, and summarize explicit post-apply validation metadata.
 
-It does not yet append to a hash-linked long-lived history index, automatically run validation after patch apply, verify commits beyond supplied status evidence, poll live workflow status, or execute approved implementation plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+It does not yet append to a hash-linked long-lived history index, automatically run validation after patch apply, verify commits beyond supplied status evidence, poll live workflow status, summarize final commit readiness, or execute approved implementation plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
 ## Roadmap v1 — Completed foundation
 
-### AUTO-001 through AUTO-004 — Local CLI, roadmap parsing, task selection, and dry-run reports
+### AUTO-001 — Local CLI, roadmap parsing, task selection, and dry-run reports through AUTO-004
 Priority: P1-P2
 Status: DONE
 
@@ -47,7 +47,7 @@ Notes: Historical detailed task records remain available in repository history.
 
 ## Roadmap v2 — Completed safety and reporting surface
 
-### AUTO-005 through AUTO-017 — Policy, linting, inventory, and run-summary previews
+### AUTO-005 — Policy, linting, inventory, and run-summary previews through AUTO-017
 Priority: P1-P3
 Status: DONE
 
@@ -62,7 +62,7 @@ Notes: Historical detailed task records remain available in repository history.
 
 ## Roadmap v3 — Policy-aware planning toward safe maintenance workflow
 
-### AUTO-018 through AUTO-056 — Planning, review, history, validation executor, and observation gates
+### AUTO-018 — Planning, review, history, validation executor, and observation gates through AUTO-056
 Priority: P1
 Status: DONE
 
@@ -75,7 +75,7 @@ Validation: Deterministic tests and static review were completed through the Git
 Risks or assumptions: These surfaces are advisory except for explicit local validation execution and explicit local persistence.
 Notes: Historical detailed task records remain available in repository history.
 
-### AUTO-057 through AUTO-082 — Content audit and patch-proposal evidence readiness
+### AUTO-057 — Content audit and patch-proposal evidence readiness through AUTO-082
 Priority: P1
 Status: DONE
 
@@ -88,7 +88,7 @@ Validation: Static source/test/documentation review completed through the GitHub
 Risks or assumptions: Secret-marker checks are guard signals, not complete secret scanning. Ready review evidence does not approve patches, prove correctness, or replace human review.
 Notes: Completed before moving into supplied git-diff inspection.
 
-### AUTO-083 through AUTO-087 — Diff/status review and guarded patch preview
+### AUTO-083 — Diff/status review and guarded patch preview through AUTO-087
 Priority: P1
 Status: DONE
 
@@ -125,7 +125,20 @@ Expected files or areas: `src/autonomous_forge/patch_apply_cli.py`, `tests/test_
 Acceptance criteria: Without `--require-applied`, blocked reports return exit code 0 and leave the target unchanged. With `--require-applied`, unchanged reports return exit code 2. Confirmed valid apply still writes the reviewed target and exits successfully.
 Validation: Static source/test/docs review completed through the GitHub repository API. Deterministic tests cover blocked report success, fail-closed required application, and confirmed write behavior.
 Risks or assumptions: A zero exit code without `--require-applied` means the report was generated successfully, not that a file changed.
-Notes: Next safe step is an explicit post-apply validation handoff that records required validation after a confirmed patch apply.
+Notes: Completed before post-apply validation handoff.
+
+### AUTO-090 — Post-apply validation handoff
+Priority: P1
+Status: DONE
+
+Goal: Add a read-only handoff that records whether a confirmed patch application has supplied passing validation evidence for every validation step required by the patch-apply report.
+Why it matters: After the first write-capable local command, the workflow needs an explicit validation checkpoint before any future commit-readiness or commit workflow can be considered.
+Scope: Add `forge post-apply-validation` and `forge-post-apply-validation`, deterministic core/CLI tests, focused documentation, README usage, and project-memory updates. Also make historical grouped roadmap headings lint-compatible on `main`, directly integrating the useful portion of open PR #10 without merging the PR.
+Expected files or areas: `src/autonomous_forge/post_apply_validation.py`, `src/autonomous_forge/post_apply_validation_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_post_apply_validation.py`, `docs/POST_APPLY_VALIDATION.md`, README, and `.ai` records.
+Acceptance criteria: Post-apply validation consumes a patch-apply JSON report, requires applied/file-changed evidence, requires `patch_application_allowed` to be closed back to false, compares required validation steps with supplied executed steps, requires a passing supplied result for `--require-validated`, reports missing steps and blockers deterministically, and never runs commands, polls workflows, inspects diffs, verifies commits, writes files, commits, or pushes.
+Validation: Static source/test/docs review completed through the GitHub repository API. Deterministic tests cover validated full step coverage, missing required steps, failed result, unapplied patch reports, unsafe paths, CLI JSON output, and fail-closed `--require-validated` behavior. Direct local checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command trusts supplied validation metadata; it does not prove commands were truly executed or that external workflow checks passed.
+Notes: Next safe step is a commit-readiness summary that consumes post-apply validation, final diff review, and status evidence without committing.
 
 ## Future Ideas
 
@@ -135,10 +148,12 @@ Notes: Next safe step is an explicit post-apply validation handoff that records 
 - Explicit validation orchestration after validation plans are reviewable.
 - Read-only patch application provenance audits before any patch applier exists.
 - Guarded commit and workflow status inspection before patch application.
-- Post-apply validation handoff after confirmed patch application.
+- Commit-readiness summary after post-apply validation.
 
 ## Do Not Change Without Explicit Human Approval
 
 - Remote and branch settings.
 - Repository visibility and access controls.
 - Production infrastructure.
+- Features that change repository files outside documented safe paths.
+- Sensitive configuration handling, telemetry, analytics, billing, or deployment behavior.
