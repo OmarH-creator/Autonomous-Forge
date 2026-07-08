@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -29,6 +29,15 @@ def _resolve_description_input(root: Path, raw_path: Path) -> Path:
     return resolved
 
 
+def _validate_compared_path_label(label: str, source: Path) -> None:
+    """Refuse unsafe candidate path labels from otherwise valid review JSON."""
+    if label != label.strip() or not label or "\\" in label:
+        raise PatchIntentDescriptionError(f"description input has unsafe compared path label: {source}")
+    path = PurePosixPath(label)
+    if path.is_absolute() or label in {".", ".."} or any(part in {"", ".", ".."} for part in path.parts):
+        raise PatchIntentDescriptionError(f"description input has unsafe compared path label: {source}")
+
+
 def _read_patch_intent_review(path: Path) -> dict[str, Any]:
     """Read and minimally validate one patch-intent review JSON document."""
     try:
@@ -44,6 +53,8 @@ def _read_patch_intent_review(path: Path) -> dict[str, Any]:
     compared_paths = data.get("compared_paths")
     if not isinstance(compared_paths, list) or not all(isinstance(item, str) for item in compared_paths):
         raise PatchIntentDescriptionError(f"description input lacks valid compared_paths: {path}")
+    for item in compared_paths:
+        _validate_compared_path_label(item, path)
     review_blockers = data.get("review_blockers")
     if not isinstance(review_blockers, list) or not all(isinstance(item, str) for item in review_blockers):
         raise PatchIntentDescriptionError(f"description input lacks valid review_blockers: {path}")
