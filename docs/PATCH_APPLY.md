@@ -4,13 +4,19 @@
 
 The command is deliberately narrow:
 
-- it requires `--confirm-apply`;
+- it requires `--confirm-apply` before any file can be changed;
 - it consumes `forge patch-generation-preview --format json` output;
 - it consumes `forge change-readiness --format json` output;
 - the target path must match the generated preview and appear in change-readiness evidence;
 - the current target file plus replacement file must reproduce the supplied patch preview exactly;
 - the replacement file must be UTF-8, repository-local, non-symlinked, under 1 MB, and free of simple blocked secret-marker strings;
 - it writes only the requested target file and never commits, pushes, calls networks, reads environment variables, mutates saved history, or runs validation commands.
+
+## Exit-code behavior
+
+By default, the command returns a report even when the apply step is blocked by missing confirmation or stale evidence. This lets a maintainer inspect why a write would not occur without treating the report itself as a command failure.
+
+Use `--require-applied` when automation should fail closed unless `file_changed` is true.
 
 ## Example
 
