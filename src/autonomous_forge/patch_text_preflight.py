@@ -136,6 +136,23 @@ def build_patch_text_preflight_data(
     }
 
 
+def read_patch_text_preflight_data(
+    draft_path: Path,
+    *,
+    root: Path = Path("."),
+    declared_paths: list[str],
+    change_summaries: list[str],
+) -> dict[str, Any]:
+    """Read supplied draft evidence once and return validated preflight data."""
+    resolved = _resolve_draft_input(root, draft_path)
+    return build_patch_text_preflight_data(
+        _read_draft(resolved),
+        declared_paths=declared_paths,
+        change_summaries=change_summaries,
+        draft_source=str(draft_path),
+    )
+
+
 def format_patch_text_preflight(data: dict[str, Any]) -> str:
     """Format patch text preflight data as stable human-readable text."""
     lines = [
@@ -170,12 +187,11 @@ def read_patch_text_preflight(
     output_format: str = "text",
 ) -> str:
     """Read supplied draft evidence and explicit metadata and return a preflight result."""
-    resolved = _resolve_draft_input(root, draft_path)
-    data = build_patch_text_preflight_data(
-        _read_draft(resolved),
+    data = read_patch_text_preflight_data(
+        draft_path,
+        root=root,
         declared_paths=declared_paths,
         change_summaries=change_summaries,
-        draft_source=str(draft_path),
     )
     if output_format == "json":
         return json.dumps(data, indent=2, sort_keys=True)
