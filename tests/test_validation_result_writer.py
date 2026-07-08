@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from autonomous_forge.cli import main
 from autonomous_forge.validation_result_writer import (
     ValidationResultWriteError,
     build_validation_result_write_payload,
@@ -96,3 +97,39 @@ def test_write_validation_result_attachment_refuses_malformed_record(tmp_path):
 
     with pytest.raises(ValidationResultWriteError, match="record JSON is malformed"):
         write_validation_result_attachment(record, root=tmp_path, result="passed", confirm_write=True)
+
+
+def test_validation_result_write_command_persists_supplied_result(tmp_path, capsys):
+    record = _write_record(tmp_path)
+
+    assert main([
+        "validation-result-write",
+        "--root", str(tmp_path),
+        "--record", str(record),
+        "--result", "passed",
+        "--note", "pytest passed",
+        "--confirm-write",
+    ]) == 0
+
+    printed = capsys.readouterr().out
+    saved = json.loads(record.read_text(encoding="utf-8"))
+    assert "Validation-result attachment written:" in printed
+    assert "Validation execution: external_result_attached" in printed
+    assert "Validation result: passed" in printed
+    assert saved["record"]["validation_result"] == "passed"
+    assert saved["record"]["validation_note"] == "pytest passed"
+
+
+def test_validation_result_write_command_requires_confirmation(tmp_path, capsys):
+    record = _write_record(tmp_path)
+    before = record.read_text(encoding="utf-8")
+
+    assert main([
+        "validation-result-write",
+        "--root", str(tmp_path),
+        "--record", str(record),
+        "--result", "failed",
+    ]) == 2
+
+    assert record.read_text(encoding="utf-8") == before
+    assert "Validation-result write refused: --confirm-write is required" in capsys.readouterr().out
