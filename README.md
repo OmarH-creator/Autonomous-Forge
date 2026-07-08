@@ -8,7 +8,7 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-047 hardened `forge executor-run` launch-failure behavior. The executor now reports subprocess startup errors such as a missing executable as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output instead of allowing the CLI to crash. Regression coverage now verifies the missing-executable path, and executor documentation records the behavior. Product behavior remains conservative: the CLI still does not run arbitrary commands, poll workflows, verify commits, inspect diffs, generate patches, enforce policy, commit, push, or mutate saved history. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and committed deterministic regression coverage that will run in GitHub Actions. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a safe validation-result handoff from executor output to explicit persistence without automatic history mutation.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-047 hardened and reconciled `forge executor-run` after concurrent executor-result handoff work. The executor now reports subprocess startup errors such as a missing executable as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output instead of allowing the CLI to crash. The executor output also includes an advisory `persistence_handoff` with the exact explicit `forge validation-result-write --confirm-write` command, but it still does not mutate saved history automatically. Regression coverage now verifies missing-executable handling, blocked handoff behavior, successful and failed handoff data, and text output. Product behavior remains conservative: the CLI still does not run arbitrary commands, poll workflows, verify commits, inspect diffs, generate patches, enforce policy, commit, push, or mutate saved history automatically. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and committed deterministic regression coverage that will run in GitHub Actions. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add CI assertions around the new executor persistence-handoff JSON fields.
 
 The repository now contains:
 
@@ -19,7 +19,7 @@ The repository now contains:
 - `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
 - `forge command-execution-handoff` for a read-only pre-executor handoff that lists candidate validation commands, review blockers, confirmation requirements, and expected result-record fields without running commands.
 - `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` for the conservative pre-execution chain from eligibility checks to contract review to a no-subprocess dry-run of one exact command candidate.
-- `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, including bounded reporting for completed, timed-out, and launch-failed executions.
+- `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, including bounded reporting for completed, timed-out, and launch-failed executions plus an advisory explicit persistence handoff.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, executor-gate command, executor-contract command, executor-dry-run command, executor-run command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
 
@@ -77,6 +77,7 @@ The executor run reports:
 - observed execution status, return code, validation result, timeout, and result-record target;
 - bounded stdout/stderr summaries;
 - structured timeout and launch-failure results as failed validation observations;
+- an advisory `persistence_handoff.write_command` for explicit validation-result persistence;
 - the explicit no-auto-persistence safety boundary.
 
 ## Opt-in local run-history write, read, list, latest selection, comparison, and validation-result preview/write
