@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-060
+
+- Task ID: AUTO-060 — Cover installed content-audit entrypoint behavior
+- Summary: Added deterministic regression coverage for the installed CLI entrypoint path that exposes `forge content-audit`. The new tests exercise JSON success through `autonomous_forge.cli_entry.main` and missing-policy refusal so the package script route used by GitHub Actions remains protected.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, closed/merged PRs, README, roadmap/state/changelog/decisions, workflow smoke coverage, content-audit implementation, base CLI wiring, installed entrypoint wiring, and existing CLI/content-audit tests. Older PRs are closed, merged, or obsolete; no open PR required integration in this run.
+- Validation completed: Static review completed through the GitHub repository API. Regression tests were committed for installed-entrypoint content-audit JSON output and missing-policy refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 55e62c6be4d7bd357ecbb598ebd56145fa7aace7
+- Follow-up notes: Add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
+
 ## 2026-07-08 — AUTO-059
 
 - Task ID: AUTO-059 — Harden planned file-area parsing for hidden policy paths
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Direct local checkout/test execution remained unavailable in this environment. The committed workflow now validates JSON shape and content-audit semantics for installed CLI output.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
-
-## 2026-07-08 — AUTO-057
-
-- Task ID: AUTO-057 — Prioritize latest run-history records and smoke-test content audit
-- Summary: Hardened `forge run-history-list` and dependent aggregate executor-observation audits so `--max-records` selects the newest filename-sorted direct `.ai/run-history/*.json` records while still displaying the limited records in deterministic ascending filename order. This prevents small audit windows from silently excluding the latest saved validation evidence. After a concurrent content-audit feature landed, CI smoke coverage was extended to exercise installed `forge content-audit --format json` output against explicit repository paths.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open PRs, open issues, README, workflow smoke coverage, run-history index implementation, executor-observation audit implementation, content-audit CLI wiring, docs, and tests. No open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression tests for newest-limited run-history index behavior and newest-limited executor-observation audit behavior. Added GitHub Actions smoke coverage that JSON-validates installed `forge content-audit` output. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add semantic CI assertions for content-audit output counts and review statuses before using it as a patch-adjacent gate.
 
 ## Historical note
 
