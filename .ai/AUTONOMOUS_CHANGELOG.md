@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-037
+
+- Task ID: AUTO-037 — Add CI smoke coverage for validation-result write handoff
+- Summary: Extended the installed GitHub Actions smoke workflow to exercise the validation-result preview/write/read handoff against the temporary CI run-history record. The smoke step now runs `forge validation-result-preview`, `forge validation-result-write --confirm-write`, reads the record back, JSON-validates the outputs, and asserts the persisted validation execution/result/note fields.
+- Branch and PR assessment: Inspected repository metadata, latest commits, workflow smoke coverage, README, roadmap, state, changelog, decisions, CLI command surface, validation-result writer tests, and current docs. The run stayed on `main`; no open PR required integration through the available connector view.
+- Validation completed: Static review completed through the GitHub repository API. Installed-package CI smoke coverage was added for validation-result preview/write/read behavior; direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 2663a39fb3f41a6b9aac6683c7b6f83cbb762e9b
+- Follow-up notes: Add a read-only validation-result history/status summary before any broader validation orchestration, workflow polling, diff inspection, patch generation, or inferred validation success behavior.
+
 ## 2026-07-08 — AUTO-036C
 
 - Task ID: AUTO-036 — Add explicit validation-result attachment writer
@@ -44,15 +53,6 @@
 - Validation completed: Added deterministic tests for changed fields, unchanged records, text output, JSON output, unsafe path refusal, malformed-record refusal, CLI JSON output, and CLI refusal output. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment.
 - Commit hash: Recorded in Git history for this direct-main run.
 - Follow-up notes: Add a guarded validation-result attachment preview before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
-
-## 2026-07-08 — AUTO-033B
-
-- Task ID: AUTO-033B — Harden run-history direct-file boundary
-- Summary: Hardened `forge run-history-list` and `forge run-history-latest` so direct `.json` candidates must be real non-symlink files that resolve inside `.ai/run-history/`. This prevents symlinked JSON entries from escaping the documented history directory boundary.
-- Branch and PR assessment: Inspected repository metadata, recent commits, README, workflow, run-history index source, run-history tests, docs, state, changelog, and decisions. No open PR required integration. The run stayed on `main`.
-- Validation completed: Added deterministic regression coverage for symlinked JSON records and expanded GitHub Actions smoke coverage to run and JSON-validate `run-history-list` and `run-history-latest` after the CI history-write flow. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment.
-- Commit hash: Recorded in Git history for this direct-main run.
-- Follow-up notes: Add a read-only run-history comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
 
 ## Historical note
 
