@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-067 — 2026-07-08 — Require explicit patch proposal manifests before patch generation
+
+Context: `forge patch-intent-describe` can produce reviewed candidate-path evidence, but future patch generation should not proceed from vague intent or from paths that were never reviewed as candidates.
+Decision: Add `forge patch-proposal-manifest` as a read-only handoff over one supplied patch-intent description JSON payload plus explicit CLI fields for objective, requested paths, and validation steps. The command reports `ready` only when the description is described, proposal description is allowed, requested paths are safe and already listed as candidates, validation steps are supplied, and no blockers remain. `--require-ready` returns exit code `2` for blocked manifests.
+Alternatives considered: Generate patches directly from patch-intent descriptions, treat all candidate paths as requested paths automatically, silently ignore unreviewed requested paths, inspect git diffs at this stage, or postpone proposal manifests until a patch generator exists.
+Consequences: Future patch-adjacent workflows now have an explicit objective/path/validation manifest before patch generation. A ready manifest still does not approve implementation, inspect diffs, read file contents, run commands, enforce policy, generate patches, apply patches, commit, or push.
+Human decision still required: No.
+
 ## DEC-066 — 2026-07-08 — Refuse unsafe patch-intent description path labels
 
 Context: `forge patch-intent-describe` validates that supplied evidence is a read-only patch-intent review payload, but future patch-proposal handoffs should not echo unsafe candidate path labels from a hand-written or corrupted JSON file.
@@ -14,14 +22,6 @@ Context: `forge patch-intent-review --require-ready` can fail closed on blocked 
 Decision: Add `forge patch-intent-describe` as a read-only description artifact over one supplied patch-intent review JSON payload. It reports `described` only when the payload is read-only, readiness is `ready`, `patch_intent_allowed` is true, compared paths are present, and review blockers are empty. `--require-described` returns exit code `2` for blocked evidence.
 Alternatives considered: Generate patch proposals directly from ready patch-intent review evidence, inspect git diffs, merge the description into `patch-intent-review`, infer implementation approval from ready evidence, or postpone the handoff until patch generation exists.
 Consequences: Future patch proposal workflows get an explicit reviewable handoff that lists candidate paths, required next inputs, non-goals, and blockers while preserving the no-patch, no-diff, no-command, no-mutation safety boundary.
-Human decision still required: No.
-
-## DEC-064 — 2026-07-08 — Gate patch-intent work on clear diff-source evidence
-
-Context: `forge diff-source-handoff --require-clear` can fail closed on changed or non-clear content-audit comparison evidence, but future patch-intent work needs a separate review surface that consumes that evidence and clearly says whether patch-intent description may proceed.
-Decision: Add `forge patch-intent-review` as a read-only gate over one supplied diff-source handoff JSON payload. It reports `ready` only when the payload is read-only, attention-free, unchanged across all compared paths, clear after review, and has no changed fields. `--require-ready` returns exit code `2` for blocked evidence.
-Alternatives considered: Generate patch intent directly from diff-source evidence, inspect git diffs, make `diff-source-handoff` also own patch readiness, infer patch approval from clear evidence, or postpone the gate until patch generation exists.
-Consequences: Future patch-adjacent workflows get a conservative process gate before any patch-intent description. A ready result still does not approve patches, inspect diffs, run commands, or prove correctness.
 Human decision still required: No.
 
 ## Historical note
