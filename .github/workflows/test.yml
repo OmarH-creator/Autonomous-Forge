@@ -137,6 +137,10 @@ jobs:
             --root . \
             --record .ai/run-history/ci-smoke.json \
             --format json > /tmp/autonomous-forge-validation-result-audit.json
+          forge executor-observation-audit \
+            --root . \
+            --max-records 20 \
+            --format json > /tmp/autonomous-forge-executor-observation-audit.json
           forge run-history-read \
             --root . \
             --record .ai/run-history/ci-smoke.json \
@@ -149,6 +153,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-validation-result-preview.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-write.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-audit.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-executor-observation-audit.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-compare.json > /dev/null
           python - <<'PY'
@@ -164,6 +169,10 @@ jobs:
           assert audit['guard_status'] == 'consistent'
           assert audit['validation_result'] == 'passed'
           assert audit['validation_note'] == 'CI smoke supplied result'
+
+          observation_audit = json.loads(Path('/tmp/autonomous-forge-executor-observation-audit.json').read_text(encoding='utf-8'))
+          assert observation_audit['summary']['counts']['observed-clear'] >= 1
+          assert observation_audit['summary']['overall_status'] in {'clear', 'needs-validation'}
 
           comparison = json.loads(Path('/tmp/autonomous-forge-run-history-compare.json').read_text(encoding='utf-8'))
           changed_fields = {
