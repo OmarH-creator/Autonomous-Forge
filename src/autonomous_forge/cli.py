@@ -8,6 +8,7 @@ from pathlib import Path
 
 from autonomous_forge.command_execution_handoff import read_command_execution_handoff_preview
 from autonomous_forge.executor_contract import read_executor_contract
+from autonomous_forge.executor_dry_run import read_executor_dry_run
 from autonomous_forge.executor_gate import read_executor_precondition_gate
 from autonomous_forge.inventory import build_repository_inventory
 from autonomous_forge.path_review import read_path_review
@@ -48,19 +49,16 @@ from autonomous_forge.validation_result_writer import (
 )
 
 
-def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
-    parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
-    parser.add_argument("--state", default=".ai/AUTONOMOUS_STATE.md", help="path to the autonomous state file")
-    parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
-    parser.add_argument("--root", default=".", help="repository root used for review signals")
-    parser.add_argument("--format", choices=("text", "json"), default="text", help=format_help)
-
-
 def _add_plan_state_policy_root(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
     parser.add_argument("--state", default=".ai/AUTONOMOUS_STATE.md", help="path to the autonomous state file")
     parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
     parser.add_argument("--root", default=".", help="repository root used for review signals")
+
+
+def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
+    _add_plan_state_policy_root(parser)
+    parser.add_argument("--format", choices=("text", "json"), default="text", help=format_help)
 
 
 def _add_history_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
@@ -104,6 +102,18 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command_parser = subparsers.add_parser(command, help=help_text)
         _add_plan_state_policy_root_format(command_parser, format_help=format_help)
+
+    executor_dry_run_parser = subparsers.add_parser(
+        "executor-dry-run",
+        help="dry-run one exact validation executor command without running it",
+    )
+    _add_plan_state_policy_root_format(executor_dry_run_parser, format_help="executor dry-run format: text (default) or JSON")
+    executor_dry_run_parser.add_argument("--command", required=True, help="exact executor-contract candidate command to dry-run")
+    executor_dry_run_parser.add_argument(
+        "--confirm-executor-dry-run",
+        action="store_true",
+        help="required acknowledgement for the dry-run executor path; the command is still not executed",
+    )
 
     run_history_write_parser = subparsers.add_parser(
         "run-history-write",
@@ -214,16 +224,11 @@ def _print_tasks(plan_path: Path, *, next_only: bool = False) -> int:
         return 2
 
     if next_only:
-        if selected_task is None:
-            print("No eligible TODO task found.")
-        else:
-            print(_format_task(selected_task))
+        print("No eligible TODO task found." if selected_task is None else _format_task(selected_task))
         return 0
-
     if not tasks:
         print("No autonomous tasks found.")
         return 0
-
     for task in tasks:
         print(_format_task(task))
     return 0
@@ -235,11 +240,9 @@ def _print_lint_plan(plan_path: Path) -> int:
     except FileNotFoundError:
         print(f"Plan file not found: {plan_path}")
         return 2
-
     if not diagnostics:
         print("Plan lint: ok")
         return 0
-
     print("Plan lint: failed")
     for diagnostic in diagnostics:
         print(f"line {diagnostic.line_number}: {diagnostic.message}")
@@ -273,6 +276,31 @@ def _print_policy_aware(reader, plan_path: Path, state_path: Path, policy_path: 
     return 0
 
 
+def _print_executor_dry_run(args: argparse.Namespace) -> int:
+    try:
+        print(
+            read_executor_dry_run(
+                Path(args.plan),
+                Path(args.policy),
+                Path(args.state),
+                Path(args.root),
+                requested_command=args.command,
+                confirm_executor_dry_run=args.confirm_executor_dry_run,
+                output_format=args.format,
+            )
+        )
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    return 0
+
+
 def _print_path_review(policy_path: Path, root: Path, paths: list[str], output_format: str) -> int:
     try:
         print(read_path_review(policy_path, paths, root=root, output_format=output_format))
@@ -294,7 +322,6 @@ def _print_policy(policy_path: Path) -> int:
     except PolicyParseError as exc:
         print(f"Policy error: {exc}")
         return 2
-
     print(_format_policy(policy))
     return 0
 
@@ -308,11 +335,6 @@ def _print_run_summary(plan_path: Path, policy_path: Path, timestamp: str | None
     except (PlanParseError, PlanSelectionError) as exc:
         print(f"Plan error: {exc}")
         return 2
-    return 0
-
-
-def _print_inventory(root_path: Path) -> int:
-    print(build_repository_inventory(root_path))
     return 0
 
 
@@ -338,7 +360,6 @@ def _write_run_history(plan_path: Path, state_path: Path, policy_path: Path, roo
     except RunHistoryWriteError as exc:
         print(f"Run-history write refused: {exc}")
         return 2
-
     print(f"Run-history record written: {result['path']}")
     print(f"Schema version: {result['payload']['schema_version']}")
     print(f"Selected task: {result['payload']['record']['task']['id'] or 'none'}")
@@ -421,14 +442,10 @@ def _write_validation_result(
     except ValidationResultWriteError as exc:
         print(f"Validation-result write refused: {exc}")
         return 2
-
     if output_format == "json":
         summary = {key: write_result[key] for key in ("path", "validation_execution", "validation_result", "validation_note")}
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 0
-    if output_format != "text":
-        print(f"Validation-result write refused: unsupported output format: {output_format}")
-        return 2
     print(f"Validation-result attachment written: {write_result['path']}")
     print(f"Validation execution: {write_result['validation_execution']}")
     print(f"Validation result: {write_result['validation_result']}")
@@ -477,6 +494,8 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.root),
             args.format,
         )
+    if args.command == "executor-dry-run":
+        return _print_executor_dry_run(args)
     if args.command == "run-history-write":
         return _write_run_history(Path(args.plan), Path(args.state), Path(args.policy), Path(args.root), Path(args.output), args.confirm_write)
     if args.command == "run-history-read":
@@ -498,7 +517,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run-summary":
         return _print_run_summary(Path(args.plan), Path(args.policy), args.timestamp, args.format)
     if args.command == "inventory":
-        return _print_inventory(Path(args.root))
+        print(build_repository_inventory(Path(args.root)))
+        return 0
 
     parser.print_help()
     return 0
