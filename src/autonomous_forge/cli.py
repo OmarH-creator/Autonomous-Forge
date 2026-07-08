@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from autonomous_forge.inventory import build_repository_inventory
@@ -148,6 +149,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm-write",
         action="store_true",
         help="required acknowledgement that this command rewrites one local run-history JSON record",
+    )
+    validation_result_write_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="validation-result write summary format: text (default) or JSON",
     )
 
     review_files_parser = subparsers.add_parser("review-files", help="review explicit changed-file paths against repository policy")
@@ -384,7 +391,14 @@ def _preview_validation_result(record_path: Path, result: str, root: Path, note:
     return 0
 
 
-def _write_validation_result(record_path: Path, result: str, root: Path, note: str | None, confirm_write: bool) -> int:
+def _write_validation_result(
+    record_path: Path,
+    result: str,
+    root: Path,
+    note: str | None,
+    confirm_write: bool,
+    output_format: str,
+) -> int:
     try:
         write_result = write_validation_result_attachment(
             record_path,
@@ -400,6 +414,13 @@ def _write_validation_result(record_path: Path, result: str, root: Path, note: s
         print(f"Validation-result write refused: {exc}")
         return 2
 
+    if output_format == "json":
+        summary = {key: write_result[key] for key in ("path", "validation_execution", "validation_result", "validation_note")}
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 0
+    if output_format != "text":
+        print(f"Validation-result write refused: unsupported output format: {output_format}")
+        return 2
     print(f"Validation-result attachment written: {write_result['path']}")
     print(f"Validation execution: {write_result['validation_execution']}")
     print(f"Validation result: {write_result['validation_result']}")
@@ -457,7 +478,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "validation-result-preview":
         return _preview_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.format)
     if args.command == "validation-result-write":
-        return _write_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.confirm_write)
+        return _write_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.confirm_write, args.format)
     if args.command == "review-files":
         return _print_path_review(Path(args.policy), Path(args.root), args.file, args.format)
     if args.command == "policy":
