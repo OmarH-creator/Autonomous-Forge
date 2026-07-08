@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-033
+
+- Task ID: AUTO-033 — Add run-history latest selector
+- Summary: Added `forge run-history-latest`, a read-only command that selects the latest readable direct `.ai/run-history/*.json` record by ascending filename order, reports malformed or unsupported records as refused, and avoids writing indexes or inferring success.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README, roadmap, state, changelog, decisions, source, tests, docs, and current command surfaces. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for latest readable selection, malformed-record refusal, no-readable-record behavior, text output, JSON output, and CLI JSON output. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment. Final commit status was inspected after push.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Add a read-only run-history comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
+
 ## 2026-07-08 — AUTO-032B
 
 - Task ID: AUTO-032B — Add local run-history list preview
