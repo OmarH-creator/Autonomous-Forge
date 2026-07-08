@@ -13,6 +13,36 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge validation-result-audit`
+
+Purpose: audit one saved `.ai/run-history/*.json` validation observation without changing files.
+
+Inputs:
+
+- `--record`: required run-history record path under `.ai/run-history/`.
+- `--root`: repository root used to constrain the record path, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge validation-result audit
+Mode: read-only
+Validation execution: ...
+Validation result: passed|failed|skipped|not_run
+Guard status: consistent|needs-review
+Safety boundary: Validation-result audit output only; ...
+```
+
+Expected successful JSON output includes `mode`, `source_path`, `schema_version`, `task`, `validation_execution`, `validation_result`, `validation_note`, `guard_status`, `guard_notes`, `allowed_results`, `persistence`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the audit is produced.
+- `2` when the record is missing, malformed, outside `.ai/run-history/`, unsupported, or unsafe to inspect.
+
+Safety limits: validation-result-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+
 ## `forge executor-run`
 
 Purpose: run one exact local validation command after the executor contract and dry-run gate approve it.
