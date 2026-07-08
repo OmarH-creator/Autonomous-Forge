@@ -8,15 +8,16 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-042 hardened CI so the installed-package workflow now smoke-tests `forge validation-orchestration --format json` against the live repository planning inputs and JSON-validates the generated orchestration artifact. This closes the coverage gap left after AUTO-041 exposed the command through the CLI. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and CI workflow hardening committed to `main`. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: add a safe read-only command-execution handoff preview that consumes the orchestration readiness output without running commands.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-043 shipped `forge command-execution-handoff --format text|json`, a read-only handoff preview that consumes validation orchestration readiness and conservative validation command candidates before any executor exists. The new artifact lists eligible command strings, candidates needing review, blockers, required confirmations, and the expected validation-result record fields without running commands or mutating history. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review, deterministic tests committed to `main`, and CI smoke coverage added for JSON command output. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: add a guarded dry-run executor design or pre-execution approval gate only after this handoff has CI coverage and clear safety semantics.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
+- `forge command-execution-handoff` for a read-only pre-executor handoff that lists candidate validation commands, review blockers, confirmation requirements, and expected result-record fields without running commands.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
@@ -27,7 +28,7 @@ The repository now contains:
 - `forge validation-result-preview` for previewing a supplied validation result attachment to one saved history record without rewriting it.
 - `forge validation-result-write` for attaching one supplied validation result to one explicit saved history record after `--confirm-write`, with `--format json` for stable automation handoff output.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
-- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
+- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
 
 ## Install for local development
@@ -48,6 +49,7 @@ forge propose --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --po
 forge validate-plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validation-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validation-orchestration --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge command-execution-handoff --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge review-artifact --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge run-history-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
@@ -79,12 +81,23 @@ forge review-artifact \
   --format json
 ```
 
-## Run-history, preflight, and orchestration previews
+## Run-history, preflight, orchestration, and execution-handoff previews
 
 `forge validation-orchestration` is the current bridge from validation planning to a future controlled execution handoff. It combines validation plans, validation command-candidate counts, saved run-history validation guards, latest-record status, blockers, and risk notes while keeping command execution disabled.
 
 ```bash
 forge validation-orchestration \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
+
+`forge command-execution-handoff` is the next pre-executor review surface. It lists eligible validation command candidates, candidates requiring review, blockers, confirmation requirements, and expected result-record update fields while still refusing to run anything.
+
+```bash
+forge command-execution-handoff \
   --plan .ai/AUTONOMOUS_PLAN.md \
   --state .ai/AUTONOMOUS_STATE.md \
   --policy .forge/policy.md \
@@ -187,9 +200,9 @@ forge validation-result-write \
   --format json
 ```
 
-These history commands and APIs still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` mutates one explicitly requested saved record only when called with `--confirm-write`.
+These history and handoff commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` mutates one explicitly requested saved record only when called with `--confirm-write`.
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/VALIDATION_ORCHESTRATION.md`, and `docs/COMMANDS.md` for focused contracts.
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
