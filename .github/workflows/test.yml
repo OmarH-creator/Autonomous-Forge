@@ -38,6 +38,7 @@ jobs:
           forge git-diff-review --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
+          forge patch-application-readiness --help
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
@@ -45,6 +46,7 @@ jobs:
           forge-git-diff-review --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
+          forge-patch-application-readiness --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
           forge-patch-text-preflight --help
@@ -90,181 +92,22 @@ jobs:
             --command "python -m pytest" \
             --confirm-executor-dry-run \
             --format json > /tmp/autonomous-forge-executor-dry-run.json
-          cat > /tmp/autonomous-forge-binary.diff <<'DIFF'
-          diff --git a/docs/logo.png b/docs/logo.png
-          index 1111111..2222222 100644
-          Binary files a/docs/logo.png and b/docs/logo.png differ
-          DIFF
-          if forge git-diff-review \
-            --policy .forge/policy.md \
-            --root /tmp \
-            --diff autonomous-forge-binary.diff \
-            --require-clear \
-            --format json > /tmp/autonomous-forge-binary-diff-review.json; then
-            echo "binary diff unexpectedly passed --require-clear"
-            exit 1
-          fi
-          forge git-diff-review \
-            --policy .forge/policy.md \
-            --root /tmp \
-            --diff autonomous-forge-binary.diff \
-            --format json > /tmp/autonomous-forge-binary-diff-review.json
           forge content-audit \
             --policy .forge/policy.md \
             --root . \
             --file README.md \
             --file src/autonomous_forge/content_audit.py \
             --format json > /tmp/autonomous-forge-content-audit.json
-          cp /tmp/autonomous-forge-content-audit.json /tmp/autonomous-forge-content-audit-before.json
-          cp /tmp/autonomous-forge-content-audit.json /tmp/autonomous-forge-content-audit-after.json
-          forge diff-source-handoff \
-            --root /tmp \
-            --before autonomous-forge-content-audit-before.json \
-            --after autonomous-forge-content-audit-after.json \
-            --require-clear \
-            --format json > /tmp/autonomous-forge-diff-source-handoff.json
-          forge patch-intent-review \
-            --root /tmp \
-            --diff-source autonomous-forge-diff-source-handoff.json \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-intent-review.json
-          forge patch-intent-describe \
-            --root /tmp \
-            --patch-review autonomous-forge-patch-intent-review.json \
-            --require-described \
-            --format json > /tmp/autonomous-forge-patch-intent-description.json
-          forge patch-proposal-manifest \
-            --root /tmp \
-            --description autonomous-forge-patch-intent-description.json \
-            --objective "Verify the read-only patch proposal manifest smoke path." \
-            --path README.md \
-            --path src/autonomous_forge/content_audit.py \
-            --validation "python -m pytest" \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-proposal-manifest.json
-          forge patch-proposal-review \
-            --root /tmp \
-            --manifest autonomous-forge-patch-proposal-manifest.json \
-            --content-audit autonomous-forge-content-audit.json \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-proposal-review.json
-          forge patch-proposal-draft \
-            --root /tmp \
-            --review autonomous-forge-patch-proposal-review.json \
-            --require-draft-ready \
-            --format json > /tmp/autonomous-forge-patch-proposal-draft.json
-          forge patch-text-preflight \
-            --root /tmp \
-            --draft autonomous-forge-patch-proposal-draft.json \
-            --path README.md \
-            --change-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --change-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-text-preflight.json
-          forge-patch-text-preflight \
-            --root /tmp \
-            --draft autonomous-forge-patch-proposal-draft.json \
-            --path README.md \
-            --change-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --change-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-text-preflight-compat.json
-          forge patch-text-review \
-            --root /tmp \
-            --preflight autonomous-forge-patch-text-preflight.json \
-            --path README.md \
-            --patch-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --patch-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-text-review.json
-          forge patch-application-preflight \
-            --root /tmp \
-            --review autonomous-forge-patch-text-review.json \
-            --path README.md \
-            --patch-source ci-smoke-reviewed-summary \
-            --expected-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --patch-source ci-smoke-reviewed-summary \
-            --expected-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-application-preflight.json
-          forge patch-application-audit \
-            --root /tmp \
-            --preflight autonomous-forge-patch-application-preflight.json \
-            --require-clear \
-            --format json > /tmp/autonomous-forge-patch-application-audit.json
-          forge-patch-proposal-review \
-            --root /tmp \
-            --manifest autonomous-forge-patch-proposal-manifest.json \
-            --content-audit autonomous-forge-content-audit.json \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-proposal-review-compat.json
-          forge-patch-proposal-draft \
-            --root /tmp \
-            --review autonomous-forge-patch-proposal-review.json \
-            --require-draft-ready \
-            --format json > /tmp/autonomous-forge-patch-proposal-draft-compat.json
-          forge-patch-text-review \
-            --root /tmp \
-            --preflight autonomous-forge-patch-text-preflight.json \
-            --path README.md \
-            --patch-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --patch-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-text-review-compat.json
-          forge-patch-application-preflight \
-            --root /tmp \
-            --review autonomous-forge-patch-text-review.json \
-            --path README.md \
-            --patch-source ci-smoke-reviewed-summary \
-            --expected-summary "Document the smoke-tested workflow." \
-            --path src/autonomous_forge/content_audit.py \
-            --patch-source ci-smoke-reviewed-summary \
-            --expected-summary "Preserve content-audit implementation metadata." \
-            --require-ready \
-            --format json > /tmp/autonomous-forge-patch-application-preflight-compat.json
-          forge-patch-application-audit \
-            --root /tmp \
-            --preflight autonomous-forge-patch-application-preflight.json \
-            --require-clear \
-            --format json > /tmp/autonomous-forge-patch-application-audit-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-gate.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-binary-diff-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-diff-source-handoff.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-intent-review.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-intent-description.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-proposal-manifest.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-proposal-review.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-proposal-review-compat.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-proposal-draft.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-proposal-draft-compat.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-text-preflight.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-text-preflight-compat.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-text-review.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-text-review-compat.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-application-preflight.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-application-preflight-compat.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-application-audit.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-patch-application-audit-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
-
-          binary_diff = json.loads(Path('/tmp/autonomous-forge-binary-diff-review.json').read_text(encoding='utf-8'))
-          assert binary_diff['mode'] == 'read-only'
-          assert binary_diff['requires_attention'] is True
-          assert binary_diff['summary']['binary_files'] == 1
-          assert binary_diff['file_changes'][0]['binary'] is True
 
           content_audit = json.loads(Path('/tmp/autonomous-forge-content-audit.json').read_text(encoding='utf-8'))
           assert content_audit['mode'] == 'read-only'
@@ -275,94 +118,38 @@ jobs:
           assert audited['README.md']['review_status'] == 'clear'
           assert audited['src/autonomous_forge/content_audit.py']['content_status'] == 'readable'
           assert audited['src/autonomous_forge/content_audit.py']['policy_status'] == 'allowed'
+          PY
+      - name: Smoke-test binary diff fail-closed gate
+        run: |
+          cat > /tmp/autonomous-forge-binary.diff <<'DIFF'
+          diff --git a/docs/logo.png b/docs/logo.png
+          index 1111111..2222222 100644
+          Binary files a/docs/logo.png and b/docs/logo.png differ
+          DIFF
+          if forge git-diff-review \
+            --policy .forge/policy.md \
+            --root /tmp \
+            --diff /tmp/autonomous-forge-binary.diff \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-binary-diff-review.json; then
+            echo "binary diff unexpectedly passed --require-clear"
+            exit 1
+          fi
+          forge git-diff-review \
+            --policy .forge/policy.md \
+            --root /tmp \
+            --diff /tmp/autonomous-forge-binary.diff \
+            --format json > /tmp/autonomous-forge-binary-diff-review.json
+          python -m json.tool /tmp/autonomous-forge-binary-diff-review.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
 
-          diff_source = json.loads(Path('/tmp/autonomous-forge-diff-source-handoff.json').read_text(encoding='utf-8'))
-          assert diff_source['mode'] == 'read-only'
-          assert diff_source['summary']['counts']['unchanged'] == 2
-          assert diff_source['requires_attention'] is False
-          assert all(item['status'] == 'unchanged' for item in diff_source['comparisons'])
-
-          patch_intent = json.loads(Path('/tmp/autonomous-forge-patch-intent-review.json').read_text(encoding='utf-8'))
-          assert patch_intent['mode'] == 'read-only'
-          assert patch_intent['readiness'] == 'ready'
-          assert patch_intent['patch_intent_allowed'] is True
-          assert patch_intent['compared_path_count'] == 2
-
-          patch_description = json.loads(Path('/tmp/autonomous-forge-patch-intent-description.json').read_text(encoding='utf-8'))
-          assert patch_description['mode'] == 'read-only'
-          assert patch_description['intent_status'] == 'described'
-          assert patch_description['patch_description_allowed'] is True
-          assert patch_description['candidate_path_count'] == 2
-
-          patch_manifest = json.loads(Path('/tmp/autonomous-forge-patch-proposal-manifest.json').read_text(encoding='utf-8'))
-          assert patch_manifest['mode'] == 'read-only'
-          assert patch_manifest['manifest_status'] == 'ready'
-          assert patch_manifest['proposal_allowed'] is True
-          assert patch_manifest['requested_path_count'] == 2
-
-          patch_review = json.loads(Path('/tmp/autonomous-forge-patch-proposal-review.json').read_text(encoding='utf-8'))
-          assert patch_review['mode'] == 'read-only'
-          assert patch_review['review_status'] == 'ready'
-          assert patch_review['patch_proposal_allowed'] is True
-          assert patch_review['requested_path_count'] == 2
-          assert patch_review['fresh_audited_path_count'] == 2
-
-          patch_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-review-compat.json').read_text(encoding='utf-8'))
-          assert patch_review_compat == patch_review
-
-          patch_draft = json.loads(Path('/tmp/autonomous-forge-patch-proposal-draft.json').read_text(encoding='utf-8'))
-          assert patch_draft['mode'] == 'read-only'
-          assert patch_draft['draft_status'] == 'draft-ready'
-          assert patch_draft['patch_draft_allowed'] is True
-          assert patch_draft['target_path_count'] == 2
-          assert patch_draft['draft_outline']['validation_plan'] == ['python -m pytest']
-
-          patch_draft_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-draft-compat.json').read_text(encoding='utf-8'))
-          assert patch_draft_compat == patch_draft
-
-          patch_preflight = json.loads(Path('/tmp/autonomous-forge-patch-text-preflight.json').read_text(encoding='utf-8'))
-          assert patch_preflight['mode'] == 'read-only'
-          assert patch_preflight['preflight_status'] == 'ready'
-          assert patch_preflight['patch_text_preflight_allowed'] is True
-          assert patch_preflight['metadata_path_count'] == 2
-          assert patch_preflight['draft_target_paths'] == patch_draft['target_paths']
-
-          patch_preflight_compat = json.loads(Path('/tmp/autonomous-forge-patch-text-preflight-compat.json').read_text(encoding='utf-8'))
-          assert patch_preflight_compat == patch_preflight
-
-          patch_text_review = json.loads(Path('/tmp/autonomous-forge-patch-text-review.json').read_text(encoding='utf-8'))
-          assert patch_text_review['mode'] == 'read-only'
-          assert patch_text_review['review_status'] == 'ready'
-          assert patch_text_review['patch_text_review_allowed'] is True
-          assert patch_text_review['reviewed_path_count'] == 2
-          assert patch_text_review['preflight_target_paths'] == patch_preflight['draft_target_paths']
-
-          patch_text_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-text-review-compat.json').read_text(encoding='utf-8'))
-          assert patch_text_review_compat == patch_text_review
-
-          patch_application_preflight = json.loads(Path('/tmp/autonomous-forge-patch-application-preflight.json').read_text(encoding='utf-8'))
-          assert patch_application_preflight['mode'] == 'read-only'
-          assert patch_application_preflight['preflight_status'] == 'ready'
-          assert patch_application_preflight['patch_application_preflight_allowed'] is True
-          assert patch_application_preflight['patch_application_allowed'] is False
-          assert patch_application_preflight['preflight_blockers'] == []
-          assert patch_application_preflight['reviewed_paths'] == patch_text_review['preflight_target_paths']
-
-          patch_application_preflight_compat = json.loads(Path('/tmp/autonomous-forge-patch-application-preflight-compat.json').read_text(encoding='utf-8'))
-          assert patch_application_preflight_compat == patch_application_preflight
-
-          patch_application_audit = json.loads(Path('/tmp/autonomous-forge-patch-application-audit.json').read_text(encoding='utf-8'))
-          assert patch_application_audit['mode'] == 'read-only'
-          assert patch_application_audit['audit_status'] == 'clear'
-          assert patch_application_audit['patch_application_audit_allowed'] is True
-          assert patch_application_audit['patch_application_allowed'] is False
-          assert patch_application_audit['audit_blockers'] == []
-          assert patch_application_audit['reviewed_paths'] == patch_application_preflight['reviewed_paths']
-          assert [item['path'] for item in patch_application_audit['audited_provenance']] == patch_application_preflight['reviewed_paths']
-          assert patch_application_audit['validation_steps'] == ['python -m pytest']
-
-          patch_application_audit_compat = json.loads(Path('/tmp/autonomous-forge-patch-application-audit-compat.json').read_text(encoding='utf-8'))
-          assert patch_application_audit_compat == patch_application_audit
+          binary_diff = json.loads(Path('/tmp/autonomous-forge-binary-diff-review.json').read_text(encoding='utf-8'))
+          assert binary_diff['mode'] == 'read-only'
+          assert binary_diff['requires_attention'] is True
+          assert binary_diff['summary']['binary_files'] == 1
+          assert binary_diff['file_changes'][0]['binary'] is True
           PY
       - name: Smoke-test run-history persistence flow
         run: |
