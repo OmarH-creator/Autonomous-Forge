@@ -34,6 +34,24 @@ def _review(tmp_path, paths=("README.md",)):
     return build_patch_intent_review_data(diff_source)
 
 
+def _write_review_payload(tmp_path, compared_paths):
+    review_path = tmp_path / "patch-review.json"
+    review_path.write_text(
+        json.dumps(
+            {
+                "title": "Autonomous Forge patch-intent review",
+                "mode": "read-only",
+                "compared_paths": compared_paths,
+                "review_blockers": [],
+                "readiness": "ready",
+                "patch_intent_allowed": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return review_path
+
+
 def test_patch_intent_description_describes_ready_review_evidence(tmp_path):
     review = _review(tmp_path, ("README.md", "src/example.py"))
 
@@ -104,6 +122,14 @@ def test_read_patch_intent_description_refuses_unsafe_paths(tmp_path):
 
     with pytest.raises(PatchIntentDescriptionError, match="outside repository root"):
         read_patch_intent_description(outside, root=tmp_path)
+
+
+@pytest.mark.parametrize("unsafe_label", ["/tmp/README.md", "../README.md", "src/../README.md", " src/main.py", "src\\main.py", "."])
+def test_read_patch_intent_description_refuses_unsafe_compared_path_labels(tmp_path, unsafe_label):
+    review_path = _write_review_payload(tmp_path, [unsafe_label])
+
+    with pytest.raises(PatchIntentDescriptionError, match="unsafe compared path label"):
+        read_patch_intent_description(review_path, root=tmp_path)
 
 
 def test_read_patch_intent_description_refuses_symlink_input(tmp_path):
