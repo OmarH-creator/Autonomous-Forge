@@ -74,8 +74,10 @@ def _read_preflight(path: Path) -> dict[str, Any]:
             raise PatchTextReviewError(f"preflight patch_metadata entries need path and change_summary: {path}")
         _validate_path_label(metadata_path, kind="preflight patch metadata")
         metadata_paths.append(metadata_path)
-    if metadata_paths != target_paths:
-        raise PatchTextReviewError(f"preflight patch_metadata paths must match draft_target_paths order: {path}")
+    if len(metadata_paths) != len(set(metadata_paths)):
+        raise PatchTextReviewError(f"preflight patch_metadata contains duplicate paths: {path}")
+    if set(metadata_paths) != set(target_paths):
+        raise PatchTextReviewError(f"preflight patch_metadata paths must match draft_target_paths: {path}")
     if not isinstance(validation_steps, list) or not validation_steps or not all(
         isinstance(item, str) and item.strip() for item in validation_steps
     ):
