@@ -6,6 +6,7 @@ from autonomous_forge.patch_text_preflight import (
     PatchTextPreflightError,
     build_patch_text_preflight_data,
     read_patch_text_preflight,
+    read_patch_text_preflight_data,
 )
 
 
@@ -55,6 +56,22 @@ def test_patch_text_preflight_blocks_extra_metadata():
 
     assert data["preflight_status"] == "blocked"
     assert "explicit patch metadata is not in draft targets: docs/extra.md" in data["preflight_blockers"]
+
+
+def test_read_patch_text_preflight_data_reuses_validated_evidence(tmp_path):
+    draft_path = tmp_path / "draft.json"
+    draft_path.write_text(json.dumps(_draft()), encoding="utf-8")
+
+    data = read_patch_text_preflight_data(
+        draft_path,
+        root=tmp_path,
+        declared_paths=["README.md", "src/autonomous_forge/example.py"],
+        change_summaries=["Document the command.", "Add the implementation."],
+    )
+
+    assert data["preflight_status"] == "ready"
+    assert data["draft_source"] == str(draft_path)
+    assert data["draft_target_paths"] == ["README.md", "src/autonomous_forge/example.py"]
 
 
 def test_patch_text_preflight_refuses_unsafe_draft_path_label(tmp_path):
