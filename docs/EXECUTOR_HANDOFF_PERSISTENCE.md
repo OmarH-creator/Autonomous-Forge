@@ -25,6 +25,12 @@ forge executor-handoff-persist \
 
 The command is intentionally separate from `forge executor-run`. Maintainers must review the executor output first, then run `executor-handoff-persist` only when the observed result should be written into the saved run-history record named by the handoff.
 
+## Read-only preview helper
+
+`read_executor_handoff_persistence_preview()` summarizes the same handoff payload without writing anything. It reports the executor-output path, target record, validation execution value that would be persisted, validation result, note, confirmation requirement, derived write command, and safety boundary in text or JSON.
+
+This preview is useful between `executor-run --format json` and the confirmed persistence command when a caller wants a review artifact showing exactly what the persistence step would do before mutating the run-history record.
+
 ## Implemented behavior
 
 The helper and CLI accept one executor-run JSON file and check that:
@@ -38,7 +44,7 @@ The helper and CLI accept one executor-run JSON file and check that:
 - the executor output result matches the handoff result;
 - the executor output result-record path, when present, matches the handoff record.
 
-The preview builder returns the exact payload that would be written without mutating files. The writer and CLI require explicit confirmation and then delegate to the validation-result writer so existing path and record-shape checks remain the source of truth.
+The preview builder returns the exact payload that would be written without mutating files. The read-only preview helper returns a concise review summary derived from that payload. The writer and CLI require explicit confirmation and then delegate to the validation-result writer so existing path and record-shape checks remain the source of truth.
 
 ## Safety boundary
 
@@ -49,7 +55,17 @@ Executor handoff persistence does not run validation commands, rerun executor ou
 ```python
 from pathlib import Path
 
-from autonomous_forge.executor_handoff_persistence import write_executor_handoff_persistence
+from autonomous_forge.executor_handoff_persistence import (
+    read_executor_handoff_persistence_preview,
+    write_executor_handoff_persistence,
+)
+
+preview = read_executor_handoff_persistence_preview(
+    Path("executor-run-output.json"),
+    root=Path("."),
+    output_format="json",
+)
+print(preview)
 
 summary = write_executor_handoff_persistence(
     Path("executor-run-output.json"),
@@ -59,4 +75,4 @@ summary = write_executor_handoff_persistence(
 print(summary["validation_result"])
 ```
 
-Keep the executor run and persistence steps separate. Review the executor output first, then persist the handoff only when the observed result should become durable local history.
+Keep the executor run and persistence steps separate. Review the executor output first, optionally render the read-only preview, then persist the handoff only when the observed result should become durable local history.
