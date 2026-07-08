@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-050
+
+- Task ID: AUTO-050 — Add read-only executor-handoff persistence preview
+- Summary: Added `read_executor_handoff_persistence_preview()`, a read-only text/JSON summary for reviewed executor-run JSON that validates the advisory `persistence_handoff` and shows the target record, validation execution value, result, note, required confirmation, derived write command, and safety boundary before any history mutation.
+- Branch and PR assessment: Inspected recent commits, repository metadata, branch search, open/closed PRs, open issues, README, docs, roadmap, state, changelog, decisions, executor-handoff persistence helper, existing CLI, and tests. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for read-only JSON preview, text preview safety-boundary output, unknown-format refusal, and no mutation of the target run-history record. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Expose the preview helper through a narrow CLI command or add a dedicated read-only validation-result audit view before patch or diff workflow work begins.
+
 ## 2026-07-08 — AUTO-049
 
 - Task ID: AUTO-049 — Expose guarded executor-handoff persistence through CLI
