@@ -76,4 +76,4 @@ def test_primary_forge_patch_proposal_review_fails_blocked_evidence(tmp_path, ca
 
 def test_primary_forge_router_preserves_existing_commands(capsys):
     assert main(["--version"]) == 0
-    assert "Autonomous Forge" in capsys.readouterr().out
+    assert capsys.readouterr().out.strip().startswith("forge ")
