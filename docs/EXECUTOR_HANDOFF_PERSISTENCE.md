@@ -4,9 +4,30 @@ Executor handoff persistence is the guarded bridge between `forge executor-run -
 
 It consumes a reviewed executor-run JSON payload, validates the `persistence_handoff` object, and persists the observed result only through the same path guards used by `forge validation-result-write`.
 
+## CLI usage
+
+```bash
+forge executor-run \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --command "python -m pytest" \
+  --confirm-executor-dry-run \
+  --format json > executor-run-output.json
+
+forge executor-handoff-persist \
+  --root . \
+  --executor-output executor-run-output.json \
+  --confirm-write \
+  --format json
+```
+
+The command is intentionally separate from `forge executor-run`. Maintainers must review the executor output first, then run `executor-handoff-persist` only when the observed result should be written into the saved run-history record named by the handoff.
+
 ## Implemented behavior
 
-The helper accepts one executor-run JSON file and checks that:
+The helper and CLI accept one executor-run JSON file and check that:
 
 - the executor-output file is a real `.json` file inside the repository root, not a symlink, directory, missing file, or external path;
 - `persistence_handoff.available` is `true`;
@@ -17,7 +38,7 @@ The helper accepts one executor-run JSON file and checks that:
 - the executor output result matches the handoff result;
 - the executor output result-record path, when present, matches the handoff record.
 
-The preview builder returns the exact payload that would be written without mutating files. The writer requires explicit confirmation and then delegates to the validation-result writer so existing path and record-shape checks remain the source of truth.
+The preview builder returns the exact payload that would be written without mutating files. The writer and CLI require explicit confirmation and then delegate to the validation-result writer so existing path and record-shape checks remain the source of truth.
 
 ## Safety boundary
 
