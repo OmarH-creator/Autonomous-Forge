@@ -45,6 +45,13 @@ def _json_candidates(directory: Path) -> list[Path]:
     return sorted(candidates)
 
 
+def _latest_limited_candidates(candidates: list[Path], max_records: int) -> list[Path]:
+    """Return the newest filename-sorted candidates within the requested limit."""
+    if max_records >= len(candidates):
+        return candidates
+    return candidates[-max_records:]
+
+
 def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     """Return a record summary or a refusal reason for one JSON file."""
     try:
@@ -152,6 +159,7 @@ def _missing_directory_data(directory: Path, max_records: int) -> dict[str, Any]
         "history_dir": str(directory),
         "history_dir_status": "missing",
         "max_records": max_records,
+        "ordering": "filename ascending; when limited, the newest filenames are listed",
         "summary": {
             "records_found": 0,
             "records_listed": 0,
@@ -184,11 +192,12 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
         raise RunHistoryIndexError(".ai/run-history exists but is not a directory")
 
     candidates = _json_candidates(directory)
+    limited_candidates = _latest_limited_candidates(candidates, max_records)
     records = []
     valid = 0
     refused = 0
     validation_results = _empty_validation_result_summary()
-    for path in candidates[:max_records]:
+    for path in limited_candidates:
         summary, reason = _read_summary(path)
         if summary is None:
             refused += 1
@@ -207,6 +216,7 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
         "history_dir": str(directory),
         "history_dir_status": "present",
         "max_records": max_records,
+        "ordering": "filename ascending; when limited, the newest filenames are listed",
         "summary": {
             "records_found": len(candidates),
             "records_listed": len(records),
@@ -289,6 +299,7 @@ def format_run_history_index(data: dict[str, Any]) -> str:
         f"History directory: {data['history_dir']}",
         f"History directory status: {data['history_dir_status']}",
         f"Max records: {data['max_records']}",
+        f"Ordering: {data['ordering']}",
         "Summary:",
         f"- records found: {summary['records_found']}",
         f"- records listed: {summary['records_listed']}",
