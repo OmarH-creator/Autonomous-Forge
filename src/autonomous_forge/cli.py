@@ -20,6 +20,7 @@ from autonomous_forge.preflight_readiness import read_preflight_readiness
 from autonomous_forge.proposal import read_change_proposal
 from autonomous_forge.report import read_repository_report
 from autonomous_forge.review_artifact import read_review_artifact
+from autonomous_forge.run_history_compare import RunHistoryCompareError, read_run_history_comparison
 from autonomous_forge.run_history_index import (
     RunHistoryIndexError,
     read_run_history_index,
@@ -34,131 +35,45 @@ from autonomous_forge.validation_preview import read_validation_preview
 
 
 def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
-    parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for review signals",
-    )
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help=format_help,
-    )
+    parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
+    parser.add_argument("--state", default=".ai/AUTONOMOUS_STATE.md", help="path to the autonomous state file")
+    parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    parser.add_argument("--root", default=".", help="repository root used for review signals")
+    parser.add_argument("--format", choices=("text", "json"), default="text", help=format_help)
 
 
 def _add_plan_state_policy_root(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for review signals",
-    )
+    parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
+    parser.add_argument("--state", default=".ai/AUTONOMOUS_STATE.md", help="path to the autonomous state file")
+    parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    parser.add_argument("--root", default=".", help="repository root used for review signals")
 
 
 def _add_history_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
-    parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root containing .ai/run-history/",
-    )
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help=format_help,
-    )
+    parser.add_argument("--root", default=".", help="repository root containing .ai/run-history/")
+    parser.add_argument("--format", choices=("text", "json"), default="text", help=format_help)
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the Forge command parser."""
     parser = argparse.ArgumentParser(
         prog="forge",
-        description=(
-            "Run local-first, dry-run checks for safe autonomous "
-            "repository maintenance loops."
-        ),
+        description="Run local-first, dry-run checks for safe autonomous repository maintenance loops.",
     )
-    parser.add_argument(
-        "--version",
-        action="store_true",
-        help="show the installed Autonomous Forge version and exit",
-    )
+    parser.add_argument("--version", action="store_true", help="show the installed Autonomous Forge version and exit")
 
     subparsers = parser.add_subparsers(dest="command")
-    tasks_parser = subparsers.add_parser(
-        "tasks",
-        help="parse roadmap task headings without changing files",
-    )
-    tasks_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    tasks_parser.add_argument(
-        "--next",
-        action="store_true",
-        help="print only the next eligible TODO task",
-    )
+    tasks_parser = subparsers.add_parser("tasks", help="parse roadmap task headings without changing files")
+    tasks_parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
+    tasks_parser.add_argument("--next", action="store_true", help="print only the next eligible TODO task")
 
-    lint_parser = subparsers.add_parser(
-        "lint-plan",
-        help="check roadmap task block structure without changing files",
-    )
-    lint_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
+    lint_parser = subparsers.add_parser("lint-plan", help="check roadmap task block structure without changing files")
+    lint_parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
 
-    report_parser = subparsers.add_parser(
-        "report",
-        help="print a read-only dry-run repository report",
-    )
-    report_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    report_parser.add_argument(
-        "--state",
-        default=".ai/AUTONOMOUS_STATE.md",
-        help="path to the autonomous state file",
-    )
-    report_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
+    report_parser = subparsers.add_parser("report", help="print a read-only dry-run repository report")
+    report_parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
+    report_parser.add_argument("--state", default=".ai/AUTONOMOUS_STATE.md", help="path to the autonomous state file")
+    report_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
 
     for command, help_text, format_help in (
         ("plan", "build a policy-aware implementation plan without changing files", "plan format: text (default) or JSON"),
@@ -177,128 +92,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="explicitly write one local run-history JSON record after clean preflight",
     )
     _add_plan_state_policy_root(run_history_write_parser)
-    run_history_write_parser.add_argument(
-        "--output",
-        required=True,
-        help="output path under .ai/run-history/ for the JSON record",
-    )
+    run_history_write_parser.add_argument("--output", required=True, help="output path under .ai/run-history/ for the JSON record")
     run_history_write_parser.add_argument(
         "--confirm-write",
         action="store_true",
         help="required acknowledgement that this command writes one local JSON file",
     )
 
-    run_history_read_parser = subparsers.add_parser(
-        "run-history-read",
-        help="read one local run-history JSON record without changing files",
-    )
-    run_history_read_parser.add_argument(
-        "--record",
-        required=True,
-        help="record path under .ai/run-history/ to summarize",
-    )
-    run_history_read_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used to constrain the record path",
-    )
-    run_history_read_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="run-history read format: text (default) or JSON",
-    )
+    run_history_read_parser = subparsers.add_parser("run-history-read", help="read one local run-history JSON record without changing files")
+    run_history_read_parser.add_argument("--record", required=True, help="record path under .ai/run-history/ to summarize")
+    run_history_read_parser.add_argument("--root", default=".", help="repository root used to constrain the record path")
+    run_history_read_parser.add_argument("--format", choices=("text", "json"), default="text", help="run-history read format: text (default) or JSON")
 
-    run_history_list_parser = subparsers.add_parser(
-        "run-history-list",
-        help="list local run-history JSON records without changing files",
-    )
+    run_history_list_parser = subparsers.add_parser("run-history-list", help="list local run-history JSON records without changing files")
     _add_history_root_format(run_history_list_parser, format_help="run-history list format: text (default) or JSON")
-    run_history_list_parser.add_argument(
-        "--max-records",
-        type=int,
-        default=20,
-        help="maximum number of non-recursive JSON records to summarize",
-    )
+    run_history_list_parser.add_argument("--max-records", type=int, default=20, help="maximum number of non-recursive JSON records to summarize")
 
-    run_history_latest_parser = subparsers.add_parser(
-        "run-history-latest",
-        help="select the latest readable local run-history JSON record without changing files",
-    )
+    run_history_latest_parser = subparsers.add_parser("run-history-latest", help="select the latest readable local run-history JSON record without changing files")
     _add_history_root_format(run_history_latest_parser, format_help="run-history latest format: text (default) or JSON")
 
-    review_files_parser = subparsers.add_parser(
-        "review-files",
-        help="review explicit changed-file paths against repository policy",
-    )
-    review_files_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    review_files_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root used for path-presence signals",
-    )
-    review_files_parser.add_argument(
-        "--file",
-        action="append",
-        default=[],
-        help="changed file path to review; repeat for multiple paths",
-    )
-    review_files_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="changed-file review format: text (default) or JSON",
-    )
+    run_history_compare_parser = subparsers.add_parser("run-history-compare", help="compare two local run-history JSON records without changing files")
+    run_history_compare_parser.add_argument("--before", required=True, help="earlier record path under .ai/run-history/")
+    run_history_compare_parser.add_argument("--after", required=True, help="later record path under .ai/run-history/")
+    run_history_compare_parser.add_argument("--root", default=".", help="repository root used to constrain record paths")
+    run_history_compare_parser.add_argument("--format", choices=("text", "json"), default="text", help="run-history comparison format: text (default) or JSON")
 
-    policy_parser = subparsers.add_parser(
-        "policy",
-        help="parse repository policy sections without changing files",
-    )
-    policy_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
+    review_files_parser = subparsers.add_parser("review-files", help="review explicit changed-file paths against repository policy")
+    review_files_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    review_files_parser.add_argument("--root", default=".", help="repository root used for path-presence signals")
+    review_files_parser.add_argument("--file", action="append", default=[], help="changed file path to review; repeat for multiple paths")
+    review_files_parser.add_argument("--format", choices=("text", "json"), default="text", help="changed-file review format: text (default) or JSON")
 
-    run_summary_parser = subparsers.add_parser(
-        "run-summary",
-        help="preview a local run summary without writing files",
-    )
-    run_summary_parser.add_argument(
-        "--plan",
-        default=".ai/AUTONOMOUS_PLAN.md",
-        help="path to the autonomous roadmap file",
-    )
-    run_summary_parser.add_argument(
-        "--policy",
-        default=".forge/policy.md",
-        help="path to the repository policy file",
-    )
-    run_summary_parser.add_argument(
-        "--timestamp",
-        default=None,
-        help="optional ISO-8601 timestamp to make preview output deterministic",
-    )
-    run_summary_parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="preview format: text (default) or JSON",
-    )
+    policy_parser = subparsers.add_parser("policy", help="parse repository policy sections without changing files")
+    policy_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
 
-    inventory_parser = subparsers.add_parser(
-        "inventory",
-        help="print read-only repository health inventory signals",
-    )
-    inventory_parser.add_argument(
-        "--root",
-        default=".",
-        help="repository root to inspect for file-presence signals",
-    )
+    run_summary_parser = subparsers.add_parser("run-summary", help="preview a local run summary without writing files")
+    run_summary_parser.add_argument("--plan", default=".ai/AUTONOMOUS_PLAN.md", help="path to the autonomous roadmap file")
+    run_summary_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    run_summary_parser.add_argument("--timestamp", default=None, help="optional ISO-8601 timestamp to make preview output deterministic")
+    run_summary_parser.add_argument("--format", choices=("text", "json"), default="text", help="preview format: text (default) or JSON")
+
+    inventory_parser = subparsers.add_parser("inventory", help="print read-only repository health inventory signals")
+    inventory_parser.add_argument("--root", default=".", help="repository root to inspect for file-presence signals")
     return parser
 
 
@@ -343,7 +178,6 @@ def _print_tasks(plan_path: Path, *, next_only: bool = False) -> int:
 
     for task in tasks:
         print(_format_task(task))
-
     return 0
 
 
@@ -376,14 +210,7 @@ def _print_report(plan_path: Path, state_path: Path, policy_path: Path) -> int:
     return 0
 
 
-def _print_policy_aware(
-    reader,
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_format: str,
-) -> int:
+def _print_policy_aware(reader, plan_path: Path, state_path: Path, policy_path: Path, root: Path, output_format: str) -> int:
     try:
         print(reader(plan_path, policy_path, state_path, root, output_format))
     except FileNotFoundError as exc:
@@ -398,12 +225,7 @@ def _print_policy_aware(
     return 0
 
 
-def _print_path_review(
-    policy_path: Path,
-    root: Path,
-    paths: list[str],
-    output_format: str,
-) -> int:
+def _print_path_review(policy_path: Path, root: Path, paths: list[str], output_format: str) -> int:
     try:
         print(read_path_review(policy_path, paths, root=root, output_format=output_format))
     except FileNotFoundError:
@@ -429,21 +251,9 @@ def _print_policy(policy_path: Path) -> int:
     return 0
 
 
-def _print_run_summary(
-    plan_path: Path,
-    policy_path: Path,
-    timestamp: str | None,
-    output_format: str,
-) -> int:
+def _print_run_summary(plan_path: Path, policy_path: Path, timestamp: str | None, output_format: str) -> int:
     try:
-        print(
-            read_run_summary_preview(
-                plan_path,
-                policy_path,
-                timestamp=timestamp,
-                output_format=output_format,
-            )
-        )
+        print(read_run_summary_preview(plan_path, policy_path, timestamp=timestamp, output_format=output_format))
     except FileNotFoundError:
         print(f"Plan file not found: {plan_path}")
         return 2
@@ -458,14 +268,7 @@ def _print_inventory(root_path: Path) -> int:
     return 0
 
 
-def _write_run_history(
-    plan_path: Path,
-    state_path: Path,
-    policy_path: Path,
-    root: Path,
-    output_path: Path,
-    confirm_write: bool,
-) -> int:
+def _write_run_history(plan_path: Path, state_path: Path, policy_path: Path, root: Path, output_path: Path, confirm_write: bool) -> int:
     try:
         result = write_run_history_record(
             plan_path.read_text(encoding="utf-8"),
@@ -524,6 +327,18 @@ def _latest_run_history(root: Path, output_format: str) -> int:
     return 0
 
 
+def _compare_run_history(before_record: Path, after_record: Path, root: Path, output_format: str) -> int:
+    try:
+        print(read_run_history_comparison(before_record, after_record, root=root, output_format=output_format))
+    except FileNotFoundError as exc:
+        print(f"Run-history comparison record not found: {exc.filename}")
+        return 2
+    except RunHistoryCompareError as exc:
+        print(f"Run-history compare refused: {exc}")
+        return 2
+    return 0
+
+
 _POLICY_AWARE_READERS = {
     "plan": read_repository_plan,
     "propose": read_change_proposal,
@@ -548,13 +363,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "tasks":
         return _print_tasks(Path(args.plan), next_only=args.next)
-
     if args.command == "lint-plan":
         return _print_lint_plan(Path(args.plan))
-
     if args.command == "report":
         return _print_report(Path(args.plan), Path(args.state), Path(args.policy))
-
     if args.command in _POLICY_AWARE_READERS:
         return _print_policy_aware(
             _POLICY_AWARE_READERS[args.command],
@@ -564,45 +376,22 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.root),
             args.format,
         )
-
     if args.command == "run-history-write":
-        return _write_run_history(
-            Path(args.plan),
-            Path(args.state),
-            Path(args.policy),
-            Path(args.root),
-            Path(args.output),
-            args.confirm_write,
-        )
-
+        return _write_run_history(Path(args.plan), Path(args.state), Path(args.policy), Path(args.root), Path(args.output), args.confirm_write)
     if args.command == "run-history-read":
         return _read_run_history(Path(args.record), Path(args.root), args.format)
-
     if args.command == "run-history-list":
         return _list_run_history(Path(args.root), args.max_records, args.format)
-
     if args.command == "run-history-latest":
         return _latest_run_history(Path(args.root), args.format)
-
+    if args.command == "run-history-compare":
+        return _compare_run_history(Path(args.before), Path(args.after), Path(args.root), args.format)
     if args.command == "review-files":
-        return _print_path_review(
-            Path(args.policy),
-            Path(args.root),
-            args.file,
-            args.format,
-        )
-
+        return _print_path_review(Path(args.policy), Path(args.root), args.file, args.format)
     if args.command == "policy":
         return _print_policy(Path(args.policy))
-
     if args.command == "run-summary":
-        return _print_run_summary(
-            Path(args.plan),
-            Path(args.policy),
-            args.timestamp,
-            args.format,
-        )
-
+        return _print_run_summary(Path(args.plan), Path(args.policy), args.timestamp, args.format)
     if args.command == "inventory":
         return _print_inventory(Path(args.root))
 
