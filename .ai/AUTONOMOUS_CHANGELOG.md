@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-082
+
+- Task ID: AUTO-082 — Add patch application readiness summary
+- Summary: Shipped `forge patch-application-readiness` and compatibility `forge-patch-application-readiness`, a read-only summary over ready patch-application preflight JSON plus clear patch-application audit JSON. The new gate checks objective/path/validation alignment, carries upstream blockers forward, keeps `patch_application_allowed` false, and provides a final advisory checkpoint before any future guarded patch-applier design.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, workflow, patch-application preflight/audit implementation, and tests. Work stayed directly on `main`. PR #4 was already merged, while PRs #2, #3, and #5 were closed or obsolete. No open PR required integration.
+- Validation completed: Static source/package/router/test review completed through the GitHub repository API. Added deterministic unit and CLI tests for ready evidence, blocked evidence, path mismatch, unsafe paths, wrong payload titles, JSON/text output, primary `forge` routing, and compatibility CLI behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending-final-commit plus preceding implementation/documentation commits
+- Follow-up notes: Add installed CI smoke coverage for `forge patch-application-readiness` and `forge-patch-application-readiness`, then continue toward a guarded patch-applier design only if readiness evidence remains clear.
+
 ## 2026-07-08 — AUTO-081
 
 - Task ID: AUTO-081 — Expose patch text preflight compatibility CLI
@@ -17,15 +26,6 @@
 - Validation completed: Static workflow review completed through the GitHub repository API. Direct local checkout/test execution remained unavailable, so the strongest practical validation was committed CI smoke coverage and JSON assertion review for the installed command chain.
 - Commit hash: pending-final-commit plus follow-up documentation/state commits
 - Follow-up notes: Add a read-only patch-application readiness summary that combines ready preflight and clear audit evidence before any write-capable patch applier is considered.
-
-## 2026-07-08 — AUTO-079
-
-- Task ID: AUTO-079 — Add patch application provenance audit
-- Summary: Shipped `forge patch-application-audit` and compatibility `forge-patch-application-audit`, a read-only audit over ready patch-application preflight JSON. The audit confirms provenance/path metadata consistency, explicit source labels, clear preflight blockers, non-empty validation steps, and hard refusal of actual patch application before any future write-capable patch design.
-- Branch and PR assessment: Inspected repository metadata and recent PRs. PR #4 was already merged, while PRs #2, #3, and #5 were closed or obsolete. No open PR required integration; work stayed directly on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic core tests and installed-router tests for clear evidence, blocked evidence, unsafe path refusal, wrong payload refusal, JSON/text output, primary route success, and fail-closed `--require-clear` behavior. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: e1637ce3ad0f8f4fcce57848a4b881073f7620d0 plus follow-up documentation/state commits
-- Follow-up notes: Add CI smoke coverage for primary and compatibility patch-application audit routes, then continue toward a guarded patch-application design only if provenance evidence remains clear.
 
 ## Historical note
 
