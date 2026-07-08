@@ -32,6 +32,7 @@ from autonomous_forge.run_history_reader import RunHistoryReadError, read_run_hi
 from autonomous_forge.run_history_writer import RunHistoryWriteError, write_run_history_record
 from autonomous_forge.run_summary import read_run_summary_preview
 from autonomous_forge.validation import read_validation_plan
+from autonomous_forge.validation_orchestration import read_validation_orchestration_preview
 from autonomous_forge.validation_preview import read_validation_preview
 from autonomous_forge.validation_result_preview import (
     ALLOWED_VALIDATION_RESULTS,
@@ -90,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("propose", "build a read-only change proposal from the selected plan task", "proposal format: text (default) or JSON"),
         ("validate-plan", "build a read-only validation plan from the selected proposal", "validation plan format: text (default) or JSON"),
         ("validation-preview", "preview validation command eligibility without running commands", "validation preview format: text (default) or JSON"),
+        ("validation-orchestration", "preview validation orchestration readiness without running commands", "validation orchestration format: text (default) or JSON"),
         ("review-artifact", "combine plan, proposal, validation, and path review without changing files", "review artifact format: text (default) or JSON"),
         ("run-history-preview", "preview a durable run-history record without writing files", "run-history preview format: text (default) or JSON"),
         ("preflight-readiness", "check readiness for a future opt-in persistence step", "preflight readiness format: text (default) or JSON"),
@@ -433,6 +435,7 @@ _POLICY_AWARE_READERS = {
     "propose": read_change_proposal,
     "validate-plan": read_validation_plan,
     "validation-preview": read_validation_preview,
+    "validation-orchestration": read_validation_orchestration_preview,
     "review-artifact": read_review_artifact,
     "run-history-preview": read_run_history_preview,
     "preflight-readiness": read_preflight_readiness,
