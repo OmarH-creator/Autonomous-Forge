@@ -8,13 +8,13 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-049 exposed the guarded executor-handoff persistence bridge as `forge executor-handoff-persist --executor-output ... --confirm-write --format text|json`. The command consumes reviewed `forge executor-run --format json` output, validates the advisory `persistence_handoff`, preserves passed or failed observed results, and writes only through existing validation-result writer semantics after explicit confirmation. This completes the CLI bridge from narrow local validation execution to durable local history without combining execution and persistence: it does not rerun commands, poll workflows, inspect diffs, infer success, generate patches, enforce policy, commit, push, or auto-mutate history. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review plus deterministic tests committed to `main`; CI should run the full suite after the push. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a read-only validation-result audit view that summarizes persisted executor observations before any patch or diff workflow.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-050 added a read-only executor-handoff persistence preview helper that summarizes reviewed `forge executor-run --format json` output before a maintainer chooses to persist it. The helper validates the same advisory `persistence_handoff` shape as the guarded writer, reports the target run-history record, validation execution value, result, note, required confirmation, derived write command, and safety boundary in text or JSON, and does not mutate files. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review plus deterministic tests committed to `main`; CI should run the full suite after the push. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: expose this preview through the CLI or fold it into a validation-result audit view before any patch/diff workflow.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, a guarded executor-handoff persistence CLI, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, a read-only executor-handoff persistence preview helper, a guarded executor-handoff persistence CLI, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
 - `forge command-execution-handoff` for a read-only pre-executor handoff that lists candidate validation commands, review blockers, confirmation requirements, and expected result-record fields without running commands.
@@ -53,11 +53,11 @@ forge run-history-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_S
 forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 ```
 
-Every command above is local-first. Most commands print review information only. `forge executor-run` can run one exact local validation command after explicit confirmation; it does not mutate files or persist results automatically. `forge executor-handoff-persist` is a separate explicit write step for reviewed executor JSON.
+Every command above is local-first. Most commands print review information only. `forge executor-run` can run one exact local validation command after explicit confirmation; it does not mutate files or persist results automatically. `forge executor-handoff-persist` is a separate explicit write step for reviewed executor JSON, and the programmatic executor-handoff preview helper can summarize the same handoff before the write step.
 
 ## Combined review, orchestration, gate, contract, dry-run, executor, and persistence workflow
 
-`forge review-artifact` is the current safest planning handoff. `forge validation-orchestration` summarizes validation readiness. `forge command-execution-handoff` turns that readiness into candidate command handoff data without running anything. `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` form the conservative no-subprocess chain. `forge executor-run` is the first opt-in local validation executor and remains restricted to exact contract candidates. `forge executor-handoff-persist` is the separate opt-in bridge from reviewed executor output to durable history.
+`forge review-artifact` is the current safest planning handoff. `forge validation-orchestration` summarizes validation readiness. `forge command-execution-handoff` turns that readiness into candidate command handoff data without running anything. `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` form the conservative no-subprocess chain. `forge executor-run` is the first opt-in local validation executor and remains restricted to exact contract candidates. The executor-handoff preview helper can render the pending durable-history write in read-only text or JSON. `forge executor-handoff-persist` is the separate opt-in bridge from reviewed executor output to durable history.
 
 ```bash
 forge executor-run \
@@ -87,7 +87,7 @@ The executor run reports:
 - `persistence_handoff`, including the exact explicit `forge validation-result-write --confirm-write` command for the observed result;
 - the explicit no-auto-persistence safety boundary.
 
-The handoff persistence command reports the source executor output, target history record, supplied validation result, note, and safety boundary. It refuses unavailable handoffs, mismatched results, malformed JSON, external executor-output paths, symlinks, and missing `--confirm-write`.
+The read-only preview helper reports the source executor output, target history record, validation execution value, supplied result, note, required confirmation, derived write command, and safety boundary without mutating the record. The handoff persistence command reports the source executor output, target history record, supplied validation result, note, and safety boundary. It refuses unavailable handoffs, mismatched results, malformed JSON, external executor-output paths, symlinks, and missing `--confirm-write`.
 
 ## Opt-in local run-history write, read, list, latest selection, comparison, and validation-result preview/write
 
@@ -115,24 +115,6 @@ forge validation-result-write \
   --format json
 ```
 
-Executor handoff persistence is available through `forge executor-handoff-persist` and as a programmatic helper for reviewed `executor-run --format json` output. It validates the handoff shape, preserves failed results, and delegates writes to the guarded validation-result writer only after explicit confirmation.
+Executor handoff persistence is available through `forge executor-handoff-persist` and as programmatic preview/write helpers for reviewed `executor-run --format json` output. It validates the handoff shape, preserves failed results, and delegates writes to the guarded validation-result writer only after explicit confirmation.
 
 These history, handoff, gate, contract, dry-run, and executor commands still do not run arbitrary commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge executor-run` runs one exact confirmed local validation command; only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` and `forge executor-handoff-persist` mutate one explicitly requested saved record only when called with `--confirm-write`.
-
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/EXECUTOR_RESULT_HANDOFFS.md`, `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, and `docs/COMMANDS.md` for focused contracts.
-
-## Other read-only views
-
-```bash
-forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
-forge report --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md
-forge policy --policy .forge/policy.md
-forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md
-forge run-summary --plan .ai/AUTONOMOUS_PLAN.md --policy .forge/policy.md --format json
-forge inventory --root .
-forge review-files --policy .forge/policy.md --root . --file src/autonomous_forge/cli.py
-```
-
-## Repository policy boundaries
-
-The repository policy lives in `.forge/policy.md`. Treat it as the source of truth for allowed paths, prohibited paths, human-approval triggers, and validation expectations.
