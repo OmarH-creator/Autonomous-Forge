@@ -1,6 +1,7 @@
 import json
 
 from autonomous_forge import cli_entry
+from autonomous_forge.content_audit import build_content_audit_data
 
 
 POLICY = """## Allowed paths
@@ -58,3 +59,47 @@ def test_installed_entrypoint_content_audit_reports_missing_policy(tmp_path, cap
     ]) == 2
 
     assert "Content audit input not found:" in capsys.readouterr().out
+
+
+def test_installed_entrypoint_diff_source_handoff_outputs_json(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(json.dumps(audit), encoding="utf-8")
+    after.write_text(json.dumps(audit), encoding="utf-8")
+
+    assert cli_entry.main([
+        "diff-source-handoff",
+        "--root",
+        str(tmp_path),
+        "--before",
+        str(before),
+        "--after",
+        str(after),
+        "--format",
+        "json",
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mode"] == "read-only"
+    assert payload["summary"]["counts"]["unchanged"] == 1
+    assert payload["requires_attention"] is False
+
+
+def test_installed_entrypoint_diff_source_handoff_refuses_bad_input(tmp_path, capsys):
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"title": "other", "mode": "read-only", "audited_paths": []}), encoding="utf-8")
+
+    assert cli_entry.main([
+        "diff-source-handoff",
+        "--root",
+        str(tmp_path),
+        "--before",
+        str(bad),
+        "--after",
+        str(bad),
+    ]) == 2
+
+    assert "Diff-source handoff refused:" in capsys.readouterr().out
