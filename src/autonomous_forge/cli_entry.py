@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from autonomous_forge.cli import main as _base_main
 from autonomous_forge.executor_observation_audit import (
     ExecutorObservationAuditError,
-    read_executor_observation_audit,
+    build_executor_observation_audit_data,
+    format_executor_observation_audit,
 )
 from autonomous_forge.validation_result_audit import ValidationResultAuditError, read_validation_result_audit
 
@@ -39,18 +41,21 @@ def _print_validation_result_audit(args: argparse.Namespace) -> int:
 def _print_executor_observation_audit(args: argparse.Namespace) -> int:
     """Print a read-only executor-observation audit across saved run-history records."""
     try:
-        print(
-            read_executor_observation_audit(
-                root=Path(args.root),
-                max_records=args.max_records,
-                output_format=args.format,
-            )
+        data = build_executor_observation_audit_data(
+            root=Path(args.root),
+            max_records=args.max_records,
         )
+        if args.format == "json":
+            print(json.dumps(data, indent=2, sort_keys=True))
+        else:
+            print(format_executor_observation_audit(data))
     except ExecutorObservationAuditError as exc:
         print(f"Executor-observation audit refused: {exc}")
         return 2
     except ValueError as exc:
         print(f"Executor-observation audit error: {exc}")
+        return 2
+    if args.require_clear and data["summary"]["overall_status"] != "clear":
         return 2
     return 0
 
@@ -80,6 +85,11 @@ def _build_executor_observation_audit_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--root", default=".", help="repository root containing .ai/run-history/")
     parser.add_argument("--max-records", type=int, default=20, help="maximum number of direct JSON records to audit")
+    parser.add_argument(
+        "--require-clear",
+        action="store_true",
+        help="return a failing exit code unless the aggregate executor-observation status is clear",
+    )
     parser.add_argument(
         "--format",
         choices=("text", "json"),
