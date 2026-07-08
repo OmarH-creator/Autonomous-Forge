@@ -1,8 +1,19 @@
 # Validation-result audits
 
-`validation_result_audit` is a read-only package helper for inspecting one saved `.ai/run-history/*.json` record after a validation result has been attached.
+`validation-result-audit` is a read-only CLI command and package helper for inspecting one saved `.ai/run-history/*.json` record after a validation result has been attached.
 
-It exists between durable validation-result persistence and any future patch or diff workflow. Before a later tool trusts a saved validation observation, this helper makes the record's validation fields explicit and checks whether they are internally consistent.
+It exists between durable validation-result persistence and any future patch or diff workflow. Before a later tool trusts a saved validation observation, this command makes the record's validation fields explicit and checks whether they are internally consistent.
+
+## CLI use
+
+```bash
+forge validation-result-audit \
+  --root . \
+  --record .ai/run-history/latest.json \
+  --format json
+```
+
+The command exits with `0` when the audit is produced and exits with `2` when the record is missing, malformed, outside `.ai/run-history/`, or otherwise unsafe to inspect.
 
 ## What it reports
 
@@ -19,7 +30,7 @@ The audit returns stable text or JSON with:
 
 ## Guard rules
 
-The helper is intentionally conservative:
+The audit is intentionally conservative:
 
 - `validation_result` must be one of the allowed validation-result values.
 - `not_run` results should keep `validation_execution=not_run` and should not carry a success/failure note.
