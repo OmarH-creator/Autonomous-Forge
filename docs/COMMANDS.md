@@ -1,17 +1,53 @@
 # Command Output Contracts
 
-Autonomous Forge commands are currently read-only except for explicitly confirmed local persistence commands. They inspect local files, print human-readable summaries or structured previews, and do not modify repository files unless the command contract explicitly says so.
+Autonomous Forge commands are currently read-only except for explicitly confirmed local persistence commands and the narrow opt-in local validation executor. They inspect local files, print human-readable summaries or structured previews, and do not modify repository files unless the command contract explicitly says so.
 
 These contracts describe implemented behavior only. They are intentionally plain so contributors and future automation can rely on stable command purposes without assuming enforcement or execution features that do not exist yet.
 
 ## General expectations
 
 - Commands write results to standard output.
-- Commands return exit code `0` when the requested read-only inspection or explicitly confirmed local persistence action succeeds.
-- Commands return exit code `2` for missing required input files, malformed roadmap/policy/history input, or refused write preconditions.
-- Commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions unless an explicit command contract narrowly allows a local file write.
+- Commands return exit code `0` when the requested read-only inspection, explicitly confirmed local persistence action, or completed executor run succeeds as a command invocation.
+- Commands return exit code `2` for missing required input files, malformed roadmap/policy/history input, refused write preconditions, refused executor preconditions, or blocked executor runs.
+- Commands should not create, edit, delete, commit, push, call networks, read environment variables, scan secrets, or enforce policy decisions unless an explicit command contract narrowly allows a local file write or one exact no-shell validation command.
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
-- JSON output is intended for review and automation handoff; it must remain deterministic and must not imply execution or approval.
+- JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
+
+## `forge executor-run`
+
+Purpose: run one exact local validation command after the executor contract and dry-run gate approve it.
+
+Inputs:
+
+- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used as the no-shell subprocess working directory, defaulting to `.`.
+- `--command`: exact executor-contract candidate command to run.
+- `--confirm-executor-dry-run`: required acknowledgement before the command can run.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge validation executor run
+Mode: opt-in local execution
+Command execution allowed: true
+Execution status: completed
+Validation execution: local_command_observed
+Validation result: passed|failed
+Return code: ...
+Safety boundary: Executor run used subprocess.run with shell=false ...
+```
+
+Expected successful JSON output includes the same information as structured data, including `requested_command`, `command_execution_allowed`, `execution_status`, `validation_execution`, `validation_result`, `return_code`, bounded `stdout` and `stderr` summaries, and `result_record_path`.
+
+Exit codes:
+
+- `0` when the executor run is allowed and the local command completes, even if the observed validation result is `failed`.
+- `2` when required inputs are missing, roadmap/policy input is malformed, the command is not an exact contract candidate, confirmation is missing, shell syntax is present, or the subprocess times out/refuses before completion.
+
+Safety limits: executor-run is a narrow local validation runner only. It uses `subprocess.run` with `shell=false`, accepts only exact executor-contract candidates, applies a fixed timeout, captures bounded output, and does not poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer repository success beyond the observed exit code, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
 
 ## `forge executor-contract`
 
@@ -55,4 +91,4 @@ Safety limits: executor-contract output is a contract preview only. It does not 
 
 ## Other implemented command contracts
 
-Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, and the run-history/validation-result documents under `docs/`.
+Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, and the run-history/validation-result documents under `docs/`.
