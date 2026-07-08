@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-053
+
+- Task ID: AUTO-053 — Expose validation-result audit through CLI
+- Summary: Exposed the saved validation-result audit as `forge validation-result-audit --format text|json`, routed the installed console script through a small extension entry point that delegates all existing commands unchanged, added deterministic CLI tests, documented the command contract, and extended installed-package CI smoke coverage so a saved validation result is audited after it is written.
+- Branch and PR assessment: Inspected repository metadata, branch search, recent open/closed PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, validation-result audit helper, existing CLI, package entry point, and relevant tests/docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for JSON/text audit CLI output, unsafe record refusal, and entry-point delegation to existing commands. CI smoke coverage now writes a validation result, audits it with `forge validation-result-audit --format json`, JSON-validates the audit output, and asserts `guard_status=consistent`. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before any patch, diff-inspection, or implementation-execution workflow.
+
 ## 2026-07-08 — AUTO-052
 
 - Task ID: AUTO-052 — Add read-only validation-result audit helper
@@ -17,33 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. The updated workflow JSON-validates executor output and persistence output, asserts completed observed execution, confirms the advisory handoff remains non-automatic, and verifies the persisted validation result summary. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: bb88c59b915fbdbcb38354ba78b9474ff8df0990
 - Follow-up notes: Expose the read-only executor-handoff persistence preview through a narrow CLI command or add a dedicated validation-result audit view before patch or diff workflow work begins.
-
-## 2026-07-08 — AUTO-050
-
-- Task ID: AUTO-050 — Add read-only executor-handoff persistence preview
-- Summary: Added `read_executor_handoff_persistence_preview()`, a read-only text/JSON summary for reviewed executor-run JSON that validates the advisory `persistence_handoff` and shows the target record, validation execution value, result, note, required confirmation, derived write command, and safety boundary before any history mutation.
-- Branch and PR assessment: Inspected recent commits, repository metadata, branch search, open/closed PRs, open issues, README, docs, roadmap, state, changelog, decisions, executor-handoff persistence helper, existing CLI, and tests. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for read-only JSON preview, text preview safety-boundary output, unknown-format refusal, and no mutation of the target run-history record. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Expose the preview helper through a narrow CLI command or add a dedicated read-only validation-result audit view before patch or diff workflow work begins.
-
-## 2026-07-08 — AUTO-049
-
-- Task ID: AUTO-049 — Expose guarded executor-handoff persistence through CLI
-- Summary: Added `forge executor-handoff-persist --executor-output ... --confirm-write --format text|json`, a narrow CLI bridge that consumes reviewed executor-run JSON, validates the advisory `persistence_handoff`, preserves passed or failed observed results, and delegates the write through existing validation-result writer semantics. The command keeps execution and persistence separate while reducing manual field-copying risk.
-- Branch and PR assessment: Inspected recent commits, latest commit status, open PRs, branch search, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run output, executor-handoff persistence helper, existing helper tests, and docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic CLI tests were added for missing confirmation refusal, confirmed JSON-summary persistence, saved-record mutation, and unavailable handoff refusal. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a read-only validation-result audit view that summarizes persisted executor observations and guard status before any patch, diff-inspection, or implementation-execution workflow.
-
-## 2026-07-08 — AUTO-048
-
-- Task ID: AUTO-048 — Guard reviewed executor handoff persistence
-- Summary: Added a guarded package-level executor-handoff persistence helper that consumes reviewed `forge executor-run --format json` output, validates the advisory `persistence_handoff`, rejects unavailable or mismatched handoffs, preserves failed observed results, and writes only through existing validation-result writer semantics after explicit confirmation. The helper keeps validation execution and result persistence separate while reducing manual field-copying risk.
-- Branch and PR assessment: Inspected repository metadata, branch search, recent PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run implementation, validation-result writer behavior, and current tests/docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for read-only payload building, missing confirmation refusal, confirmed failed-result persistence, unavailable handoff refusal, mismatched validation result refusal, and unsafe record path refusal. Direct local pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Expose the guarded executor-handoff persistence helper through a narrow CLI command with explicit `--confirm-write`, text/JSON summaries, and deterministic CLI coverage.
 
 ## Historical note
 
