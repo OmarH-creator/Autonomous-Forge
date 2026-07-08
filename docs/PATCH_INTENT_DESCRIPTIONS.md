@@ -28,9 +28,10 @@ The description status is `described` only when all of the following are true:
 - the review readiness is `ready`;
 - `patch_intent_allowed` is `true`;
 - the review has at least one compared path;
+- every compared path label is a safe repository-relative POSIX path label, not absolute, parent-traversing, blank, whitespace-padded, or backslash-based;
 - the review has no blockers.
 
-Any blocked, malformed, missing, outside-root, non-JSON, or symlinked evidence is refused or reported as blocked. With `--require-described`, blocked evidence returns exit code `2` after printing the description output.
+Any blocked, malformed, missing, outside-root, non-JSON, symlinked, or unsafe-path-label evidence is refused or reported as blocked. With `--require-described`, blocked evidence returns exit code `2` after printing the description output.
 
 ## Output purpose
 
