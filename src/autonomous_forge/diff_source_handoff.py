@@ -24,6 +24,8 @@ def _resolve_audit_json(root: Path, raw_path: Path) -> Path:
     """Resolve one content-audit JSON path under the repository root."""
     resolved_root = root.resolve()
     candidate = raw_path if raw_path.is_absolute() else resolved_root / raw_path
+    if candidate.is_symlink():
+        raise DiffSourceHandoffError(f"audit output must not be a symlink: {raw_path}")
     try:
         resolved = candidate.resolve()
         resolved.relative_to(resolved_root)
@@ -31,8 +33,6 @@ def _resolve_audit_json(root: Path, raw_path: Path) -> Path:
         raise DiffSourceHandoffError(f"audit output path is outside repository root: {raw_path}") from exc
     if resolved.suffix != ".json":
         raise DiffSourceHandoffError(f"audit output must be a .json file: {raw_path}")
-    if resolved.is_symlink():
-        raise DiffSourceHandoffError(f"audit output must not be a symlink: {raw_path}")
     if not resolved.is_file():
         raise DiffSourceHandoffError(f"audit output must be a regular file: {raw_path}")
     return resolved
