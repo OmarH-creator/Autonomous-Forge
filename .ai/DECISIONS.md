@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-064 — 2026-07-08 — Gate patch-intent work on clear diff-source evidence
+
+Context: `forge diff-source-handoff --require-clear` can fail closed on changed or non-clear content-audit comparison evidence, but future patch-intent work needs a separate review surface that consumes that evidence and clearly says whether patch-intent description may proceed.
+Decision: Add `forge patch-intent-review` as a read-only gate over one supplied diff-source handoff JSON payload. It reports `ready` only when the payload is read-only, attention-free, unchanged across all compared paths, clear after review, and has no changed fields. `--require-ready` returns exit code `2` for blocked evidence.
+Alternatives considered: Generate patch intent directly from diff-source evidence, inspect git diffs, make `diff-source-handoff` also own patch readiness, infer patch approval from clear evidence, or postpone the gate until patch generation exists.
+Consequences: Future patch-adjacent workflows get a conservative process gate before any patch-intent description. A ready result still does not approve patches, inspect diffs, run commands, or prove correctness.
+Human decision still required: No.
+
 ## DEC-062 — 2026-07-08 — Make diff-source evidence fail closed when requested
 
 Context: `forge diff-source-handoff` exposes whether content-audit comparison evidence requires attention, but future patch-adjacent workflows need an explicit process-level gate instead of parsing output manually.
@@ -14,14 +22,6 @@ Context: `forge content-audit` can produce bounded, read-only file-content obser
 Decision: Add `forge diff-source-handoff` as a read-only comparison of two explicit content-audit JSON outputs. The command constrains inputs under the configured root, refuses malformed or non-content-audit payloads, reports changed observation fields, and leaves all patch generation, git-diff inspection, command execution, workflow polling, and policy enforcement out of scope.
 Alternatives considered: Generate patches directly, inspect `git diff`, compare raw file contents, make `content-audit` compare files itself, or postpone patch-adjacent evidence review until a full executor exists.
 Consequences: The product now has a reviewable bridge from explicit content metadata to future patch/diff workflows while preserving the no-patch, no-diff, no-command, no-mutation safety boundary.
-Human decision still required: No.
-
-## DEC-060 — 2026-07-08 — Cover installed content-audit entrypoint behavior
-
-Context: GitHub Actions exercises `forge content-audit` through the installed package script, which routes through `autonomous_forge.cli_entry`, while existing focused tests mostly covered the content-audit core and base command surfaces.
-Decision: Add deterministic regression coverage for the installed entrypoint path, including JSON success for an allowed readable file and a missing-policy refusal case.
-Alternatives considered: Rely only on workflow smoke coverage, duplicate the command entirely in the base CLI, add broader extension-command tests in one larger sweep, or defer coverage until diff-source handoff work.
-Consequences: The installed package route used by CI is now protected by fast deterministic tests without changing content-audit runtime behavior. Future entrypoint extensions should receive similar targeted coverage.
 Human decision still required: No.
 
 ## Historical note
