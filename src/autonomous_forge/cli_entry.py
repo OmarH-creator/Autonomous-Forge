@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from autonomous_forge.cli import main as _base_main
+from autonomous_forge.content_audit import ContentAuditError, read_content_audit
 from autonomous_forge.executor_observation_audit import (
     ExecutorObservationAuditError,
     build_executor_observation_audit_data,
@@ -60,6 +61,29 @@ def _print_executor_observation_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_content_audit(args: argparse.Namespace) -> int:
+    """Print a read-only changed-content audit for explicit repository paths."""
+    try:
+        print(
+            read_content_audit(
+                Path(args.policy),
+                args.file,
+                root=Path(args.root),
+                output_format=args.format,
+            )
+        )
+    except FileNotFoundError as exc:
+        print(f"Content audit input not found: {exc.filename}")
+        return 2
+    except ContentAuditError as exc:
+        print(f"Content audit refused: {exc}")
+        return 2
+    except ValueError as exc:
+        print(f"Content audit error: {exc}")
+        return 2
+    return 0
+
+
 def _build_validation_result_audit_parser() -> argparse.ArgumentParser:
     """Build the parser for the validation-result audit command."""
     parser = argparse.ArgumentParser(
@@ -99,6 +123,24 @@ def _build_executor_observation_audit_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_content_audit_parser() -> argparse.ArgumentParser:
+    """Build the parser for the changed-content audit command."""
+    parser = argparse.ArgumentParser(
+        prog="forge content-audit",
+        description="Audit explicit repository file contents without printing content or changing files.",
+    )
+    parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    parser.add_argument("--root", default=".", help="repository root used to constrain audited paths")
+    parser.add_argument("--file", action="append", default=[], help="repository-relative file path to audit; repeat for multiple paths")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="changed-content audit format: text (default) or JSON",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -108,6 +150,9 @@ def main(argv: list[str] | None = None) -> int:
     if args and args[0] == "executor-observation-audit":
         parser = _build_executor_observation_audit_parser()
         return _print_executor_observation_audit(parser.parse_args(args[1:]))
+    if args and args[0] == "content-audit":
+        parser = _build_content_audit_parser()
+        return _print_content_audit(parser.parse_args(args[1:]))
     return _base_main(args)
 
 
