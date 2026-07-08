@@ -35,12 +35,14 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           forge --version
+          forge git-diff-review --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
           forge patch-text-review --help
+          forge-git-diff-review --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
           forge-patch-proposal-review --help
@@ -88,6 +90,25 @@ jobs:
             --command "python -m pytest" \
             --confirm-executor-dry-run \
             --format json > /tmp/autonomous-forge-executor-dry-run.json
+          cat > /tmp/autonomous-forge-binary.diff <<'DIFF'
+          diff --git a/docs/logo.png b/docs/logo.png
+          index 1111111..2222222 100644
+          Binary files a/docs/logo.png and b/docs/logo.png differ
+          DIFF
+          if forge git-diff-review \
+            --policy .forge/policy.md \
+            --root /tmp \
+            --diff autonomous-forge-binary.diff \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-binary-diff-review.json; then
+            echo "binary diff unexpectedly passed --require-clear"
+            exit 1
+          fi
+          forge git-diff-review \
+            --policy .forge/policy.md \
+            --root /tmp \
+            --diff autonomous-forge-binary.diff \
+            --format json > /tmp/autonomous-forge-binary-diff-review.json
           forge content-audit \
             --policy .forge/policy.md \
             --root . \
@@ -217,6 +238,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-executor-gate.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-binary-diff-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-diff-source-handoff.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-intent-review.json > /dev/null
@@ -237,6 +259,12 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+
+          binary_diff = json.loads(Path('/tmp/autonomous-forge-binary-diff-review.json').read_text(encoding='utf-8'))
+          assert binary_diff['mode'] == 'read-only'
+          assert binary_diff['requires_attention'] is True
+          assert binary_diff['summary']['binary_files'] == 1
+          assert binary_diff['file_changes'][0]['binary'] is True
 
           content_audit = json.loads(Path('/tmp/autonomous-forge-content-audit.json').read_text(encoding='utf-8'))
           assert content_audit['mode'] == 'read-only'
