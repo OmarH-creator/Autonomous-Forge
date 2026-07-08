@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-084
+
+- Task ID: AUTO-084 — Harden supplied git diff review for binary and metadata-only changes
+- Summary: Hardened `forge git-diff-review` and compatibility `forge-git-diff-review` so allowed-path binary diffs and metadata-only file-mode diffs no longer pass as clear ordinary text diffs. The JSON/text review data now surfaces per-file `binary`, `mode_changes`, and `metadata_only` fields, adds `binary_files` and `metadata_only_changes` summary counts, and makes `--require-clear` fail closed on those signals.
+- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, git-diff review implementation, focused docs, tests, and CI workflow. Work stayed directly on `main`. No open PR required integration. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 remain product-direction or example/documentation feedback.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for binary diffs, metadata-only mode changes, JSON/text output fields, and fail-closed clear gating. Added installed workflow smoke coverage that verifies binary diff evidence fails `--require-clear` and still produces parseable JSON. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 39dc809f990a18d5a401bd19d6d88b05809ffad5 plus preceding implementation/test/docs/workflow commits
+- Follow-up notes: Add guarded commit/workflow status inspection so reviewed diffs can be connected to observable validation status before any write-capable patch applier is considered.
+
 ## 2026-07-08 — AUTO-083
 
 - Task ID: AUTO-083 — Add supplied git diff review
@@ -17,15 +26,6 @@
 - Validation completed: Static source/package/router/test review completed through the GitHub repository API. Added deterministic unit and CLI tests for ready evidence, blocked evidence, path mismatch, unsafe paths, wrong payload titles, JSON/text output, primary `forge` routing, and compatibility CLI behavior. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending-final-commit plus preceding implementation/documentation commits
 - Follow-up notes: Add installed CI smoke coverage for `forge patch-application-readiness` and `forge-patch-application-readiness`, then continue toward a guarded patch-applier design only if readiness evidence remains clear.
-
-## 2026-07-08 — AUTO-081
-
-- Task ID: AUTO-081 — Expose patch text preflight compatibility CLI
-- Summary: Added the missing installed `forge-patch-text-preflight` compatibility console script for the existing patch text preflight CLI and expanded the GitHub Actions smoke chain to run it, parse its JSON, and assert exact parity with the primary `forge patch-text-preflight` route before later patch-text review and patch-application audit evidence gates consume that output.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, README/status, roadmap, state, changelog, pyproject, workflow, and patch-text preflight implementation. Work stayed directly on `main`. PR #4 was already merged, while PRs #2, #3, and #5 were closed or obsolete. No open PR required integration.
-- Validation completed: Static package/workflow review completed through the GitHub repository API. The updated workflow now exercises `forge-patch-text-preflight --help`, generates compatibility JSON, validates that JSON with `python -m json.tool`, and asserts exact primary/compatibility preflight parity. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: bb37d8d1caafac576b59ec1a1870f1b615f296f8 plus follow-up state/changelog commits
-- Follow-up notes: Add a read-only patch-application readiness summary that combines ready preflight and clear audit evidence before any write-capable patch applier is considered.
 
 ## Historical note
 
