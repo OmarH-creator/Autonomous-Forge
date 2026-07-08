@@ -33,7 +33,7 @@ It does not yet append to a hash-linked long-lived history index, automatically 
 ## Roadmap v1 — Completed foundation
 
 ### AUTO-001 — Local CLI, roadmap parsing, task selection, and dry-run reports through AUTO-004
-Priority: P1-P2
+Priority: P1
 Status: DONE
 
 Goal: Establish an installable local CLI that can parse roadmap tasks, select the next eligible item deterministically, and report repository state without changing files.
@@ -48,7 +48,7 @@ Notes: Historical detailed task records remain available in repository history.
 ## Roadmap v2 — Completed safety and reporting surface
 
 ### AUTO-005 — Policy, linting, inventory, and run-summary previews through AUTO-017
-Priority: P1-P3
+Priority: P1
 Status: DONE
 
 Goal: Establish policy parsing, roadmap linting, contributor guidance, command contracts, repository inventory, and run-summary preview behavior.
