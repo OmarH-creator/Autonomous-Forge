@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-085 — 2026-07-09 — Reviewed diffs need supplied validation-status evidence before patch application
+
+Context: `forge git-diff-review` now inspects supplied unified diffs, including binary and metadata-only hardening, but a clear diff review still does not say whether validation passed for the relevant commit or workflow run. Moving toward a safe end-to-end maintenance workflow requires an explicit status-evidence checkpoint before any future write-capable patch applier is considered.
+Decision: Add `forge commit-status-review` plus compatibility `forge-commit-status-review` as a local read-only command over repository-local JSON status evidence. It accepts commit-status, check-run, workflow-run, or combined-status shaped payloads, classifies contexts as successful, failed, pending, or unknown, blocks missing/failed/pending/unknown evidence, supports deterministic JSON/text output, and makes `--require-clear` fail closed unless all supplied evidence is successful.
+Alternatives considered: Poll GitHub directly, move immediately to patch application, rely on executor-observation audit only, add documentation-only guidance, or fold status evidence into git-diff review.
+Consequences: Maintainers can now connect reviewed diffs to explicit validation-status evidence without adding network access or workflow execution to the product. Supplied evidence can still be stale or incomplete, so the command remains advisory and does not prove correctness, verify commits cryptographically, poll live workflow status, apply patches, approve implementation, mutate history, commit, push, or change files.
+Human decision still required: No.
+
 ## DEC-084 — 2026-07-09 — Binary and metadata-only diffs must not pass as ordinary clear text diffs
 
 Context: `forge git-diff-review` moved the product beyond JSON evidence-only review into actual supplied unified-diff inspection, but allowed-path binary diffs and file-mode-only diffs could still appear clear because they had safe paths and no parse warnings. A future patch-applier workflow should not treat binary or metadata-only evidence as equivalent to reviewed textual hunks.
@@ -14,14 +22,6 @@ Context: The repository had a long patch-adjacent evidence chain through content
 Decision: Add `forge git-diff-review` plus compatibility `forge-git-diff-review` as a local read-only command over a repository-local `.diff` or `.patch` file. It parses unified diff headers, file status, hunk counts, additions, deletions, old/new path labels, policy status, and path-presence signals, with `--require-clear` for fail-closed advisory gating.
 Alternatives considered: Move directly to a patch applier, keep relying on JSON evidence summaries only, add documentation-only guidance, run `git diff` internally, or check workflow status first.
 Consequences: Maintainers now get bounded supplied-diff inspection without applying patches or running commands. The command still does not read target file contents, generate patch text, apply patches, run validation, check workflow status, approve implementation, mutate history, commit, push, or change files.
-Human decision still required: No.
-
-## DEC-082 — 2026-07-08 — Patch application needs a final readiness summary before applier design
-
-Context: Patch-application preflight can confirm reviewed patch-text evidence and explicit provenance metadata, and patch-application audit can verify that provenance remains internally consistent while actual application stays disallowed. Maintainers still need one compact checkpoint that confirms both evidence files agree before any future write-capable patch-applier design is considered.
-Decision: Add `forge patch-application-readiness` plus compatibility `forge-patch-application-readiness` as a read-only summary over supplied preflight and audit JSON. It requires read-only payloads, compares objectives, reviewed paths, validation steps, upstream blockers, and confirms both inputs keep `patch_application_allowed` false. The readiness command itself also keeps `patch_application_allowed` false.
-Alternatives considered: Move directly to a patch applier, make patch-application audit imply readiness, inspect git diffs, generate patch text, or document the handoff without a command surface.
-Consequences: Maintainers gain a final advisory evidence checkpoint before any future guarded patch-applier design. The command still does not read target contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, mutate history, commit, push, or change files.
 Human decision still required: No.
 
 ## Historical note
