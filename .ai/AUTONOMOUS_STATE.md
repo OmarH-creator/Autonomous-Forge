@@ -1,14 +1,14 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-050 — Add read-only executor-handoff persistence preview
+- Current task ID: AUTO-051 — Smoke-test executor handoff persistence in CI
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-07-08T12:36:51+04:00
-- Last successful implementation commit hash: pending final commit/status check
-- Latest run summary: Added `read_executor_handoff_persistence_preview()` so reviewed `forge executor-run --format json` output can be summarized in read-only text or JSON before a maintainer chooses to run the confirmed persistence command.
-- Files changed in the latest run: `src/autonomous_forge/executor_handoff_persistence.py`, `tests/test_executor_handoff_persistence.py`, `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, and `.ai/DECISIONS.md`.
-- Validation commands and results: Static review completed through the GitHub repository API. Deterministic tests were added for read-only JSON preview, text preview safety-boundary output, unknown-format refusal, and no mutation of the target run-history record. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
+- Last run timestamp: 2026-07-08T12:58:53+04:00
+- Last successful implementation commit hash: 7f5094863d2f1a61ee443a638c12c90f11144227
+- Latest run summary: Extended GitHub Actions installed-package smoke coverage so `forge executor-run --format json` writes a repository-local `executor-run-output.json`, then `forge executor-handoff-persist --confirm-write --format json` consumes it and verifies the guarded persistence summary.
+- Files changed in the latest run: `.github/workflows/test.yml`, `README.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, and `.ai/AUTONOMOUS_PLAN.md`.
+- Validation commands and results: Static review completed through the GitHub repository API. CI workflow coverage now JSON-validates executor output and persistence output, asserts completed observed execution, confirms the advisory handoff remains non-automatic, and verifies the persisted validation result summary. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
 - Current blockers: Runtime local checkout and test execution remain unavailable from this environment. Main-branch CI visibility may lag direct commits. The preview helper is not yet exposed as a `forge` CLI command.
-- Known risks and assumptions: The preview helper does not run validation, rerun executor output, poll workflow status, verify commits, inspect diffs, infer repository success beyond supplied executor output, generate patches, enforce policy, mutate history, commit, push, or grant approval.
+- Known risks and assumptions: The new CI smoke path mutates only the workflow workspace copy of `.ai/run-history/ci-smoke.json`, does not commit generated records, does not poll workflow status, does not infer success outside the observed executor output, and still relies on the existing executor-output path guard requiring repository-local JSON.
 - Recommended next task: Expose the executor-handoff persistence preview through a narrow CLI command or add a dedicated read-only validation-result audit view before any patch, diff-inspection, or implementation-execution workflow.
