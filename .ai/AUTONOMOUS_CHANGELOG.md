@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-034
+
+- Task ID: AUTO-034 — Add run-history comparison preview
+- Summary: Added `forge run-history-compare`, a read-only command that compares two explicit persisted `.ai/run-history/*.json` records and reports changed or unchanged task, review, preflight, validation, changed-files, commit, blocker, and safety-note fields without mutating files or inferring success.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, README, roadmap, state, changelog, decisions, source, tests, docs, and current command surfaces. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`. A newer safety-hardening mainline update was preserved while layering the comparison surface on top.
+- Validation completed: Added deterministic tests for changed fields, unchanged records, text output, JSON output, unsafe path refusal, malformed-record refusal, CLI JSON output, and CLI refusal output. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Add a guarded validation-result attachment preview before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
+
 ## 2026-07-08 — AUTO-033B
 
 - Task ID: AUTO-033B — Harden run-history direct-file boundary
@@ -26,24 +35,6 @@
 - Validation completed: Added deterministic tests for missing history directories, sorted readable records, malformed-record refusal, max-record limits, text output, JSON output, CLI success, and CLI refusal paths. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment. Final commit status was inspected after push.
 - Commit hash: Recorded in Git history for this direct-main run.
 - Follow-up notes: Add a read-only latest-record selector or record comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
-
-## 2026-07-08 — AUTO-032A
-
-- Task ID: AUTO-032A — Harden run-history CI smoke coverage
-- Summary: Added GitHub Actions smoke coverage for the installed run-history preview, preflight readiness, confirmed local history write, and history read command path. The workflow stores generated JSON in `/tmp` where appropriate and uses `python -m json.tool` to reject malformed JSON output.
-- Branch and PR assessment: Inspected repository metadata, recent PRs, README, workflow, roadmap, state, changelog, decisions, CLI, writer, reader, and reader tests. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Direct local test execution remained unavailable in this environment, so the improvement strengthens future GitHub Actions validation.
-- Commit hash: 9e84e8ca7c397e13ed1f8b70511e9ca2b2dffdd1
-- Follow-up notes: README and roadmap updates were attempted but blocked by the repository-write safety gate in this tool runtime. Add a read-only explicit-record index preview next.
-
-## 2026-07-08 — AUTO-031
-
-- Task ID: AUTO-031 — Add local run-history reader
-- Summary: Added `forge run-history-read`, a read-only command that loads one explicit `.ai/run-history/*.json` record, validates the supported `run-history/v1` shape, and summarizes task, review, validation, preflight, persistence, blocker, and safety-note fields in text or JSON.
-- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, open issues, README, roadmap, state, changelog, decisions, source, tests, docs, current command surfaces, and workflow/status availability. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Added deterministic tests for summary data, text output, JSON output, path refusal, malformed JSON, unsupported schema refusal, and CLI success/failure paths. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment. Final commit status was inspected after push.
-- Commit hash: Recorded in Git history for this direct-main run.
-- Follow-up notes: Add a read-only explicit-record index preview before adding an index writer, validation executor, diff inspection, patch generation, or broader write behavior.
 
 ## Historical note
 
