@@ -9,6 +9,7 @@ from pathlib import Path
 
 from autonomous_forge.cli import main as _base_main
 from autonomous_forge.content_audit import ContentAuditError, read_content_audit
+from autonomous_forge.diff_source_handoff import DiffSourceHandoffError, read_diff_source_handoff
 from autonomous_forge.executor_observation_audit import (
     ExecutorObservationAuditError,
     build_executor_observation_audit_data,
@@ -84,6 +85,29 @@ def _print_content_audit(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_diff_source_handoff(args: argparse.Namespace) -> int:
+    """Print a read-only comparison of two content-audit JSON outputs."""
+    try:
+        print(
+            read_diff_source_handoff(
+                Path(args.before),
+                Path(args.after),
+                root=Path(args.root),
+                output_format=args.format,
+            )
+        )
+    except FileNotFoundError as exc:
+        print(f"Diff-source handoff input not found: {exc.filename}")
+        return 2
+    except DiffSourceHandoffError as exc:
+        print(f"Diff-source handoff refused: {exc}")
+        return 2
+    except ValueError as exc:
+        print(f"Diff-source handoff error: {exc}")
+        return 2
+    return 0
+
+
 def _build_validation_result_audit_parser() -> argparse.ArgumentParser:
     """Build the parser for the validation-result audit command."""
     parser = argparse.ArgumentParser(
@@ -141,6 +165,24 @@ def _build_content_audit_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_diff_source_handoff_parser() -> argparse.ArgumentParser:
+    """Build the parser for the diff-source handoff command."""
+    parser = argparse.ArgumentParser(
+        prog="forge diff-source-handoff",
+        description="Compare two content-audit JSON outputs without reading file contents or changing files.",
+    )
+    parser.add_argument("--before", required=True, help="earlier content-audit JSON output inside the repository root")
+    parser.add_argument("--after", required=True, help="later content-audit JSON output inside the repository root")
+    parser.add_argument("--root", default=".", help="repository root used to constrain audit-output paths")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="diff-source handoff format: text (default) or JSON",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -153,6 +195,9 @@ def main(argv: list[str] | None = None) -> int:
     if args and args[0] == "content-audit":
         parser = _build_content_audit_parser()
         return _print_content_audit(parser.parse_args(args[1:]))
+    if args and args[0] == "diff-source-handoff":
+        parser = _build_diff_source_handoff_parser()
+        return _print_diff_source_handoff(parser.parse_args(args[1:]))
     return _base_main(args)
 
 
