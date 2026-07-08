@@ -25,9 +25,34 @@ def _require_mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
-def _load_executor_output(path: Path | str) -> dict[str, Any]:
-    """Load one reviewed executor-run JSON payload from disk."""
-    source = Path(path)
+def _validate_executor_output_path(root: Path, path: Path | str) -> Path:
+    """Return a safe executor-output JSON path inside the repository root."""
+    resolved_root = root.resolve()
+    requested_path = Path(path)
+    candidate = requested_path if requested_path.is_absolute() else resolved_root / requested_path
+    if candidate.is_symlink():
+        raise ExecutorHandoffPersistenceError("executor output path must be a real file, not a symlink")
+
+    resolved_path = candidate.resolve()
+    try:
+        resolved_path.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ExecutorHandoffPersistenceError(
+            f"executor output path must stay inside repository root: {path}"
+        ) from exc
+
+    if resolved_path.suffix != ".json":
+        raise ExecutorHandoffPersistenceError("executor output path must use a .json extension")
+    if not resolved_path.exists():
+        raise FileNotFoundError(str(resolved_path))
+    if resolved_path.is_dir():
+        raise ExecutorHandoffPersistenceError("executor output path points to a directory")
+    return resolved_path
+
+
+def _load_executor_output(path: Path | str, *, root: Path = Path(".")) -> dict[str, Any]:
+    """Load one reviewed executor-run JSON payload from a safe repository-local path."""
+    source = _validate_executor_output_path(root, path)
     try:
         payload = json.loads(source.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -73,11 +98,11 @@ def build_executor_handoff_persistence_payload(
     root: Path = Path("."),
 ) -> dict[str, Any]:
     """Build the guarded validation-result payload from reviewed executor-run JSON without writing."""
-    executor_output = _load_executor_output(executor_output_path)
+    executor_output = _load_executor_output(executor_output_path, root=root)
     handoff = _extract_available_handoff(executor_output)
     try:
         return {
-            "executor_output_path": str(executor_output_path),
+            "executor_output_path": str(_validate_executor_output_path(root, executor_output_path)),
             "record": handoff["record"],
             "validation_result": handoff["validation_result"],
             "validation_note": handoff.get("validation_note") or None,
@@ -102,7 +127,8 @@ def write_executor_handoff_persistence(
     if not confirm_write:
         raise ExecutorHandoffPersistenceError("--confirm-write is required")
 
-    executor_output = _load_executor_output(executor_output_path)
+    safe_executor_output_path = _validate_executor_output_path(root, executor_output_path)
+    executor_output = _load_executor_output(safe_executor_output_path, root=root)
     handoff = _extract_available_handoff(executor_output)
     try:
         result = write_validation_result_attachment(
@@ -117,7 +143,7 @@ def write_executor_handoff_persistence(
 
     return {
         "path": result["path"],
-        "source": str(executor_output_path),
+        "source": str(safe_executor_output_path),
         "validation_execution": result["validation_execution"],
         "validation_result": result["validation_result"],
         "validation_note": result["validation_note"],
