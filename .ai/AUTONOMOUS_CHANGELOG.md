@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-062
+
+- Task ID: AUTO-062 — Add fail-closed diff-source handoff gate
+- Summary: Added `--require-clear` to `forge diff-source-handoff`. The command remains read-only and still emits the same text or JSON comparison evidence, but it now returns exit code `2` when supplied content-audit comparison evidence has added, removed, changed, non-clear, or otherwise attention-required observations.
+- Branch and PR assessment: Inspected repository metadata, recent closed/merged PRs, open issues, README, roadmap/state/changelog/decisions, CI workflow, CLI entrypoint, diff-source handoff docs, content-audit behavior, and installed-entrypoint tests. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic installed-entrypoint tests now cover clear evidence passing with `--require-clear` and changed evidence returning exit code `2`. CI smoke coverage now runs the installed `forge diff-source-handoff --require-clear` command against unchanged live content-audit outputs and validates the JSON evidence.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a guarded read-only patch-intent or git-diff review surface that consumes clear content-audit and diff-source evidence without generating or applying patches automatically.
+
 ## 2026-07-08 — AUTO-061
 
 - Task ID: AUTO-061 — Add diff-source handoff comparison
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Regression tests were committed for installed-entrypoint content-audit JSON output and missing-policy refusal. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: 55e62c6be4d7bd357ecbb598ebd56145fa7aace7
 - Follow-up notes: Add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
-
-## 2026-07-08 — AUTO-059
-
-- Task ID: AUTO-059 — Harden planned file-area parsing for hidden policy paths
-- Summary: Integrated the useful blocker fix from open PR #7 directly onto `main`. `_split_expected_areas` now iteratively peels surrounding backticks and trailing sentence/list punctuation so hidden dotfile paths such as `.env` remain exact in planned-file area output when roadmap text uses patterns like ``.env`.`` or ``.env`,``.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branches, open/closed PRs, open issues, README, roadmap/state/changelog/decisions, proposal parsing code, and dotfile tests. PR #7 contained relevant validated work for a concrete failing test; its patch was integrated directly on `main` per the main-only workflow. PR #8 remains open and unintegrated because this run focused on the active failing parser blocker. Older PRs are closed, merged, or obsolete.
-- Validation completed: Static review completed through the GitHub repository API. Regression tests now cover the existing hidden-dotfile sentence-punctuation case and a trailing-comma roadmap token. Direct local pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Close PR #7 as obsolete after confirming the mainline fix is recorded; add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
 
 ## Historical note
 
