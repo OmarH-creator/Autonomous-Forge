@@ -46,6 +46,58 @@ def _command_args(command: str) -> list[str]:
     return args
 
 
+def _validation_note(command: str, execution_status: str, return_code: int | None) -> str:
+    """Build a deterministic note for explicit validation-result persistence."""
+    code = "none" if return_code is None else str(return_code)
+    return f"executor-run {execution_status} for {command!r}; return_code={code}"
+
+
+def _build_persistence_handoff(
+    *,
+    command: str,
+    execution_status: str,
+    validation_result: str,
+    return_code: int | None,
+    result_record_path: str | None,
+) -> dict[str, Any]:
+    """Describe the explicit validation-result-write call without performing it."""
+    if not result_record_path or validation_result == "not_run":
+        return {
+            "available": False,
+            "reason": "no observed executor result is available to persist",
+            "auto_persistence": False,
+            "confirmation_required": "--confirm-write",
+            "write_command": "none",
+            "write_command_args": [],
+        }
+
+    note = _validation_note(command, execution_status, return_code)
+    command_args = [
+        "forge",
+        "validation-result-write",
+        "--root",
+        ".",
+        "--record",
+        result_record_path,
+        "--result",
+        validation_result,
+        "--note",
+        note,
+        "--confirm-write",
+    ]
+    return {
+        "available": True,
+        "reason": "observed executor result can be persisted by explicit user request",
+        "auto_persistence": False,
+        "confirmation_required": "--confirm-write",
+        "record": result_record_path,
+        "validation_result": validation_result,
+        "validation_note": note,
+        "write_command": shlex.join(command_args),
+        "write_command_args": command_args,
+    }
+
+
 def build_executor_run_data(
     contract_data: dict[str, Any],
     *,
@@ -62,6 +114,7 @@ def build_executor_run_data(
         confirm_executor_dry_run=confirm_executor_dry_run,
     )
     if not dry_run.get("dry_run_would_execute", False):
+        result_record_path = dry_run.get("simulated_execution", {}).get("result_record_path")
         return {
             "title": "Autonomous Forge validation executor run",
             "mode": "opt-in local execution",
@@ -72,12 +125,19 @@ def build_executor_run_data(
             "execution_status": "blocked-not-run",
             "block_reasons": dry_run.get("block_reasons", []),
             "timeout_seconds": timeout_seconds,
-            "result_record_path": dry_run.get("simulated_execution", {}).get("result_record_path"),
+            "result_record_path": result_record_path,
             "validation_execution": "not run",
             "validation_result": "not_run",
             "return_code": None,
             "stdout": _clip_output(""),
             "stderr": _clip_output(""),
+            "persistence_handoff": _build_persistence_handoff(
+                command=str(dry_run.get("requested_command", "")),
+                execution_status="blocked-not-run",
+                validation_result="not_run",
+                return_code=None,
+                result_record_path=result_record_path,
+            ),
             "safety_boundary": (
                 "Validation executor refused before subprocess creation; no command was run, "
                 "no validation result was inferred, and saved history was not mutated."
@@ -117,6 +177,7 @@ def build_executor_run_data(
         stderr = f"{type(exc).__name__}: {exc}"
         result = "failed"
 
+    result_record_path = dry_run.get("simulated_execution", {}).get("result_record_path")
     return {
         "title": "Autonomous Forge validation executor run",
         "mode": "opt-in local execution",
@@ -127,17 +188,24 @@ def build_executor_run_data(
         "execution_status": execution_status,
         "block_reasons": [],
         "timeout_seconds": timeout_seconds,
-        "result_record_path": dry_run.get("simulated_execution", {}).get("result_record_path"),
+        "result_record_path": result_record_path,
         "validation_execution": "local_command_observed",
         "validation_result": result,
         "return_code": return_code,
         "stdout": _clip_output(stdout),
         "stderr": _clip_output(stderr),
-        "follow_up": "Use forge validation-result-write --confirm-write to persist the observed result if appropriate.",
+        "persistence_handoff": _build_persistence_handoff(
+            command=command,
+            execution_status=execution_status,
+            validation_result=result,
+            return_code=return_code,
+            result_record_path=result_record_path,
+        ),
+        "follow_up": "Review persistence_handoff.write_command and run it only if the observed result should be saved.",
         "safety_boundary": (
             "Executor run used subprocess.run with shell=false for one exact executor-contract candidate only. "
             "It did not poll workflows, verify commits, inspect diffs, generate patches, enforce policy, commit, push, "
-            "or mutate saved history."
+            "or mutate saved history. The persistence handoff is advisory and still requires explicit --confirm-write."
         ),
     }
 
@@ -145,6 +213,7 @@ def build_executor_run_data(
 def format_executor_run(data: dict[str, Any]) -> str:
     """Format executor run data as stable human-readable text."""
     selected = data["selected_task"]
+    handoff = data["persistence_handoff"]
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -171,6 +240,8 @@ def format_executor_run(data: dict[str, Any]) -> str:
         [
             f"Stdout chars: {data['stdout']['chars']} (truncated={str(data['stdout']['truncated']).lower()})",
             f"Stderr chars: {data['stderr']['chars']} (truncated={str(data['stderr']['truncated']).lower()})",
+            f"Persistence handoff available: {str(handoff['available']).lower()}",
+            f"Persistence handoff command: {handoff['write_command']}",
             f"Follow-up: {data.get('follow_up', 'none')}",
             f"Safety boundary: {data['safety_boundary']}",
         ]
