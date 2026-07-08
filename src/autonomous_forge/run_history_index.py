@@ -17,6 +17,9 @@ class RunHistoryIndexError(ValueError):
     """Raised when run-history records cannot be safely listed."""
 
 
+_VALIDATION_RESULT_FIELDS = ("passed", "failed", "skipped", "not_run", "unknown")
+
+
 def _history_dir(root: Path) -> Path:
     """Return the resolved local run-history directory under the repository root."""
     resolved_root = root.resolve()
@@ -57,8 +60,60 @@ def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     return summary, None
 
 
+def _validation_result_guard(validation_result: str) -> str:
+    """Return a conservative status guard for one saved validation result."""
+    if validation_result == "passed":
+        return "clear"
+    if validation_result == "failed":
+        return "block"
+    if validation_result == "skipped":
+        return "needs-review"
+    if validation_result == "not_run":
+        return "needs-validation"
+    return "unknown"
+
+
+def _empty_validation_result_summary() -> dict[str, int]:
+    """Return stable counters for saved validation results."""
+    return {result: 0 for result in _VALIDATION_RESULT_FIELDS}
+
+
+def _build_validation_guard(validation_results: dict[str, int], *, refused: int, readable: int) -> dict[str, Any]:
+    """Return conservative validation guidance for a set of history records."""
+    if readable == 0:
+        return {
+            "overall_status": "no-readable-records",
+            "reason": "no readable run-history records were available",
+        }
+    if validation_results["failed"]:
+        return {
+            "overall_status": "blocked",
+            "reason": "at least one readable record has a failed supplied validation result",
+        }
+    if refused:
+        return {
+            "overall_status": "needs-review",
+            "reason": "one or more direct JSON records were refused and need review",
+        }
+    if validation_results["not_run"] or validation_results["unknown"]:
+        return {
+            "overall_status": "needs-validation",
+            "reason": "one or more readable records do not have an attached validation result",
+        }
+    if validation_results["skipped"]:
+        return {
+            "overall_status": "needs-review",
+            "reason": "one or more readable records have a skipped supplied validation result",
+        }
+    return {
+        "overall_status": "clear",
+        "reason": "all readable records in this limited view have passed supplied validation results",
+    }
+
+
 def _record_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
     """Return the shared list/latest record summary shape for a readable record."""
+    validation_result = str(summary.get("validation_result", "unknown"))
     return {
         "path": summary["source_path"],
         "status": "readable",
@@ -66,6 +121,9 @@ def _record_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
         "task": summary["task"],
         "review_status": summary["review_status"],
         "preflight_overall_status": summary["preflight_summary"].get("overall_status", "unknown"),
+        "validation_execution": summary.get("validation_execution", "unknown"),
+        "validation_result": validation_result,
+        "validation_guard": _validation_result_guard(validation_result),
         "commit": summary["commit"],
     }
 
@@ -79,7 +137,38 @@ def _refused_record(path: Path, reason: str | None) -> dict[str, Any]:
         "task": None,
         "review_status": "unknown",
         "preflight_overall_status": "unknown",
+        "validation_execution": "unknown",
+        "validation_result": "unknown",
+        "validation_guard": "unknown",
         "commit": "unknown",
+    }
+
+
+def _missing_directory_data(directory: Path, max_records: int) -> dict[str, Any]:
+    """Return stable output for a missing history directory."""
+    return {
+        "title": "Autonomous Forge run-history index",
+        "mode": "read-only",
+        "history_dir": str(directory),
+        "history_dir_status": "missing",
+        "max_records": max_records,
+        "summary": {
+            "records_found": 0,
+            "records_listed": 0,
+            "valid": 0,
+            "refused": 0,
+            "validation_results": _empty_validation_result_summary(),
+        },
+        "records": [],
+        "validation_guard": {
+            "overall_status": "no-records",
+            "reason": "no readable run-history records were found",
+        },
+        "safety_boundary": (
+            "Run-history index output only; no files are changed, no directories are scanned "
+            "recursively, no validation commands are run, no diffs are inspected, no patches are "
+            "generated, no approvals are granted, and policy is not enforced."
+        ),
     }
 
 
@@ -90,20 +179,7 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
 
     directory = _history_dir(root)
     if not directory.exists():
-        return {
-            "title": "Autonomous Forge run-history index",
-            "mode": "read-only",
-            "history_dir": str(directory),
-            "history_dir_status": "missing",
-            "max_records": max_records,
-            "summary": {"records_found": 0, "records_listed": 0, "valid": 0, "refused": 0},
-            "records": [],
-            "safety_boundary": (
-                "Run-history index output only; no files are changed, no directories are scanned "
-                "recursively, no validation commands are run, no diffs are inspected, no patches are "
-                "generated, no approvals are granted, and policy is not enforced."
-            ),
-        }
+        return _missing_directory_data(directory, max_records)
     if not directory.is_dir():
         raise RunHistoryIndexError(".ai/run-history exists but is not a directory")
 
@@ -111,6 +187,7 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
     records = []
     valid = 0
     refused = 0
+    validation_results = _empty_validation_result_summary()
     for path in candidates[:max_records]:
         summary, reason = _read_summary(path)
         if summary is None:
@@ -118,6 +195,10 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
             records.append(_refused_record(path, reason))
             continue
         valid += 1
+        result = str(summary.get("validation_result", "unknown"))
+        if result not in validation_results:
+            result = "unknown"
+        validation_results[result] += 1
         records.append(_record_from_summary(summary))
 
     return {
@@ -131,8 +212,10 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
             "records_listed": len(records),
             "valid": valid,
             "refused": refused,
+            "validation_results": validation_results,
         },
         "records": records,
+        "validation_guard": _build_validation_guard(validation_results, refused=refused, readable=valid),
         "safety_boundary": (
             "Run-history index output only; no files are changed, no directories are scanned "
             "recursively, no validation commands are run, no diffs are inspected, no patches are "
@@ -199,6 +282,7 @@ def build_run_history_latest_data(root: Path = Path(".")) -> dict[str, Any]:
 def format_run_history_index(data: dict[str, Any]) -> str:
     """Format the run-history index as stable human-readable text."""
     summary = data["summary"]
+    validation_results = summary["validation_results"]
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -210,6 +294,15 @@ def format_run_history_index(data: dict[str, Any]) -> str:
         f"- records listed: {summary['records_listed']}",
         f"- valid: {summary['valid']}",
         f"- refused: {summary['refused']}",
+        "Validation results:",
+        f"- passed: {validation_results['passed']}",
+        f"- failed: {validation_results['failed']}",
+        f"- skipped: {validation_results['skipped']}",
+        f"- not run: {validation_results['not_run']}",
+        f"- unknown: {validation_results['unknown']}",
+        "Validation guard:",
+        f"- overall status: {data['validation_guard']['overall_status']}",
+        f"- reason: {data['validation_guard']['reason']}",
         "Records:",
     ]
     if not data["records"]:
@@ -222,7 +315,9 @@ def format_run_history_index(data: dict[str, Any]) -> str:
             lines.append(
                 f"- {record['path']}: {record['status']} | task={task_id} {task_title} | "
                 f"review={record['review_status']} | "
-                f"preflight={record['preflight_overall_status']} | commit={record['commit']}"
+                f"preflight={record['preflight_overall_status']} | "
+                f"validation={record['validation_result']} ({record['validation_guard']}) | "
+                f"commit={record['commit']}"
             )
             if record["status"] == "refused":
                 lines.append(f"  reason: {record['reason']}")
@@ -255,7 +350,9 @@ def format_run_history_latest(data: dict[str, Any]) -> str:
         lines.append(
             f"- {latest['path']}: task={task_id} {task_title} | "
             f"review={latest['review_status']} | "
-            f"preflight={latest['preflight_overall_status']} | commit={latest['commit']}"
+            f"preflight={latest['preflight_overall_status']} | "
+            f"validation={latest['validation_result']} ({latest['validation_guard']}) | "
+            f"commit={latest['commit']}"
         )
     if data["refused_records"]:
         lines.append("Refused records:")
