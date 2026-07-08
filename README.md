@@ -8,7 +8,7 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-059 integrated the useful parser fix from open PR #7 directly onto `main`. Planned file-area parsing now preserves hidden policy paths such as `.env` when roadmap text wraps them in backticks and then follows them with sentence or list punctuation, preventing review artifacts from showing dangling-backtick path tokens. Regression coverage was added for the existing hidden-dotfile case and for a trailing-comma roadmap token. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review plus committed deterministic tests. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-060 hardened installed-entrypoint confidence for the CI-exercised `forge content-audit` command by adding deterministic `cli_entry` regression coverage for JSON success and missing-policy refusal. This closes the test gap between the package script entry point and the content-audit command that GitHub Actions smoke coverage runs after installation. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review plus committed deterministic tests. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
 
 The repository now contains:
 
@@ -21,7 +21,7 @@ The repository now contains:
 - `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` for the conservative pre-execution chain from eligibility checks to contract review to a no-subprocess dry-run of one exact command candidate.
 - `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, including a reviewable `persistence_handoff` for saving the observed result separately.
 - `forge executor-handoff-persist` for a separately confirmed write that consumes reviewed executor JSON and delegates the durable result attachment through validation-result writer guards.
-- Smoke and deterministic coverage for the CLI’s current local workflows, including hidden-dotfile planned-area parsing.
+- Smoke and deterministic coverage for the CLI’s current local workflows, including hidden-dotfile planned-area parsing and installed-entrypoint content-audit behavior.
 - CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, executor-gate command, executor-contract command, executor-dry-run command, content-audit command, executor-run command, executor-handoff persistence command, run-history persistence/list/latest/compare flow, validation-result preview/write/audit/read handoff, executor-observation audit, and installed console entry point after installation.
 
 ## Install for local development
@@ -118,17 +118,3 @@ forge run-history-write \
 ```
 
 `forge validation-result-write` attaches an already-observed validation result to one saved record after explicit confirmation. It does not run validation commands, check workflow status, or infer success; it only persists the supplied result value.
-
-```bash
-forge validation-result-write \
-  --root . \
-  --record .ai/run-history/latest.json \
-  --result passed \
-  --note "pytest passed locally" \
-  --confirm-write \
-  --format json
-```
-
-Executor handoff persistence is available through `forge executor-handoff-persist` and as programmatic preview/write helpers for reviewed `executor-run --format json` output. `forge validation-result-audit` can inspect the saved record afterward and flag inconsistent saved validation fields before a future patch or diff workflow relies on them. `forge executor-observation-audit --require-clear` can inspect aggregate saved observation status across direct local history records and fail closed if the saved executor evidence is not clear. These audit surfaces validate handoff shape, preserve failed results, and keep write behavior delegated to guarded validation-result writer paths only after explicit confirmation.
-
-These history, handoff, gate, contract, dry-run, executor, and audit commands still do not run arbitrary commands, inspect diffs, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge content-audit` reads explicit repository file contents to compute bounded metadata and secret-marker signals without printing content; only `forge executor-run` runs one exact confirmed local validation command; only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` and `forge executor-handoff-persist` mutate one explicitly requested saved record only when called with `--confirm-write`.
