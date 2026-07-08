@@ -35,7 +35,9 @@ jobs:
         run: |
           forge --version
           forge patch-proposal-review --help
+          forge patch-proposal-draft --help
           forge-patch-proposal-review --help
+          forge-patch-proposal-draft --help
       - name: Validate repository planning inputs
         run: |
           forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
@@ -116,12 +118,22 @@ jobs:
             --content-audit autonomous-forge-content-audit.json \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-review.json
+          forge patch-proposal-draft \
+            --root /tmp \
+            --review autonomous-forge-patch-proposal-review.json \
+            --require-draft-ready \
+            --format json > /tmp/autonomous-forge-patch-proposal-draft.json
           forge-patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
             --content-audit autonomous-forge-content-audit.json \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-review-compat.json
+          forge-patch-proposal-draft \
+            --root /tmp \
+            --review autonomous-forge-patch-proposal-review.json \
+            --require-draft-ready \
+            --format json > /tmp/autonomous-forge-patch-proposal-draft-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -135,6 +147,8 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-proposal-manifest.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-review-compat.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-proposal-draft.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-proposal-draft-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -182,6 +196,16 @@ jobs:
 
           patch_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-review-compat.json').read_text(encoding='utf-8'))
           assert patch_review_compat == patch_review
+
+          patch_draft = json.loads(Path('/tmp/autonomous-forge-patch-proposal-draft.json').read_text(encoding='utf-8'))
+          assert patch_draft['mode'] == 'read-only'
+          assert patch_draft['draft_status'] == 'draft-ready'
+          assert patch_draft['patch_draft_allowed'] is True
+          assert patch_draft['target_path_count'] == 2
+          assert patch_draft['draft_outline']['validation_plan'] == ['python -m pytest']
+
+          patch_draft_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-draft-compat.json').read_text(encoding='utf-8'))
+          assert patch_draft_compat == patch_draft
           PY
       - name: Smoke-test run-history persistence flow
         run: |
