@@ -10,6 +10,7 @@ from autonomous_forge.executor_gate import (
     build_executor_precondition_gate,
     build_executor_precondition_gate_data,
 )
+from autonomous_forge.validation_result_preview import ALLOWED_VALIDATION_RESULTS
 
 _FUTURE_CONFIRMATION_FLAG = "--confirm-executor-dry-run"
 
@@ -67,14 +68,14 @@ def build_executor_contract_data(gate_data: dict[str, Any]) -> dict[str, Any]:
         "result_capture_shape": {
             "record_path": gate_data.get("result_record_target"),
             "fields": ["validation_execution", "validation_result", "validation_note"],
-            "allowed_results": ["passed", "failed", "blocked", "unknown"],
+            "allowed_results": list(ALLOWED_VALIDATION_RESULTS),
             "write_command": "forge validation-result-write --confirm-write",
             "reason": "future executor output must be recorded only after observed validation completes",
         },
         "timeout_policy": {
             "default_seconds": 300,
             "maximum_seconds": 900,
-            "behavior": "future executor must stop the command at timeout and report validation_result=blocked unless explicit observed output proves otherwise",
+            "behavior": "future executor must stop the command at timeout and record an allowed externally observed validation result",
         },
         "required_future_inputs": [
             _FUTURE_CONFIRMATION_FLAG,
