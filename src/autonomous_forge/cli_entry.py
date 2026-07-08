@@ -20,6 +20,7 @@ from autonomous_forge.patch_intent_description import (
     read_patch_intent_description,
 )
 from autonomous_forge.patch_intent_review import PatchIntentReviewError, read_patch_intent_review
+from autonomous_forge.patch_proposal_manifest import PatchProposalManifestError, read_patch_proposal_manifest
 from autonomous_forge.validation_result_audit import ValidationResultAuditError, read_validation_result_audit
 
 
@@ -185,6 +186,43 @@ def _print_patch_intent_description(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_patch_proposal_manifest(args: argparse.Namespace) -> int:
+    """Print a read-only patch proposal manifest from described intent evidence."""
+    try:
+        output = read_patch_proposal_manifest(
+            Path(args.description),
+            objective=args.objective,
+            requested_paths=args.path,
+            validation_steps=args.validation,
+            root=Path(args.root),
+            output_format=args.format,
+        )
+        print(output)
+        if args.require_ready:
+            gate_data = json.loads(
+                read_patch_proposal_manifest(
+                    Path(args.description),
+                    objective=args.objective,
+                    requested_paths=args.path,
+                    validation_steps=args.validation,
+                    root=Path(args.root),
+                    output_format="json",
+                )
+            )
+            if gate_data["manifest_status"] != "ready":
+                return 2
+    except FileNotFoundError as exc:
+        print(f"Patch proposal manifest input not found: {exc.filename}")
+        return 2
+    except PatchProposalManifestError as exc:
+        print(f"Patch proposal manifest refused: {exc}")
+        return 2
+    except ValueError as exc:
+        print(f"Patch proposal manifest error: {exc}")
+        return 2
+    return 0
+
+
 def _build_validation_result_audit_parser() -> argparse.ArgumentParser:
     """Build the parser for the validation-result audit command."""
     parser = argparse.ArgumentParser(
@@ -309,6 +347,31 @@ def _build_patch_intent_description_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_patch_proposal_manifest_parser() -> argparse.ArgumentParser:
+    """Build the parser for the patch proposal manifest command."""
+    parser = argparse.ArgumentParser(
+        prog="forge patch-proposal-manifest",
+        description="Build a read-only patch proposal manifest from described patch-intent evidence.",
+    )
+    parser.add_argument("--description", required=True, help="patch-intent description JSON output inside the repository root")
+    parser.add_argument("--objective", required=True, help="concrete maintainer change objective to include in the manifest")
+    parser.add_argument("--path", action="append", default=[], help="requested repository-relative path; repeat for multiple paths")
+    parser.add_argument("--validation", action="append", default=[], help="expected validation step; repeat for multiple steps")
+    parser.add_argument("--root", default=".", help="repository root used to constrain manifest input paths")
+    parser.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="return a failing exit code unless the proposal manifest is ready",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="patch proposal manifest format: text (default) or JSON",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -330,6 +393,9 @@ def main(argv: list[str] | None = None) -> int:
     if args and args[0] == "patch-intent-describe":
         parser = _build_patch_intent_description_parser()
         return _print_patch_intent_description(parser.parse_args(args[1:]))
+    if args and args[0] == "patch-proposal-manifest":
+        parser = _build_patch_proposal_manifest_parser()
+        return _print_patch_proposal_manifest(parser.parse_args(args[1:]))
     return _base_main(args)
 
 
