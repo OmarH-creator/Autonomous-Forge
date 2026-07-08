@@ -155,3 +155,109 @@ Exit codes:
 - `2` when the audit is refused, input is unsafe, `--max-records` is invalid, or `--require-clear` is requested and the aggregate status is anything other than `clear`.
 
 Safety limits: executor-observation-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files. `--require-clear` changes only the process exit code.
+
+## `forge validation-result-audit`
+
+Purpose: audit one saved `.ai/run-history/*.json` validation observation without changing files.
+
+Inputs:
+
+- `--record`: required run-history record path under `.ai/run-history/`.
+- `--root`: repository root used to constrain the record path, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge validation-result audit
+Mode: read-only
+Validation execution: ...
+Validation result: passed|failed|skipped|not_run
+Guard status: consistent|needs-review
+Safety boundary: Validation-result audit output only; ...
+```
+
+Expected successful JSON output includes `mode`, `source_path`, `schema_version`, `task`, `validation_execution`, `validation_result`, `validation_note`, `guard_status`, `guard_notes`, `allowed_results`, `persistence`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the audit is produced.
+- `2` when the record is missing, malformed, outside `.ai/run-history/`, unsupported, or unsafe to inspect.
+
+Safety limits: validation-result-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+
+## `forge executor-run`
+
+Purpose: run one exact local validation command after the executor contract and dry-run gate approve it.
+
+Inputs:
+
+- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used as the no-shell subprocess working directory, defaulting to `.`.
+- `--command`: exact executor-contract candidate command to run.
+- `--confirm-executor-dry-run`: required acknowledgement before the command can run.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge validation executor run
+Mode: opt-in local execution
+Command execution allowed: true
+Execution status: completed
+Validation execution: local_command_observed
+Validation result: passed|failed
+Return code: ...
+Safety boundary: Executor run used subprocess.run with shell=false ...
+```
+
+Expected successful JSON output includes the same information as structured data, including `requested_command`, `command_execution_allowed`, `execution_status`, `validation_execution`, `validation_result`, `return_code`, bounded `stdout` and `stderr` summaries, and `result_record_path`.
+
+Exit codes:
+
+- `0` when the executor run is allowed and the local command completes, even if the observed validation result is `failed`.
+- `2` when required inputs are missing, roadmap/policy input is malformed, the command is not an exact contract candidate, confirmation is missing, shell syntax is present, or the subprocess times out/refuses before completion.
+
+Safety limits: executor-run is a narrow local validation runner only. It uses `subprocess.run` with `shell=false`, accepts only exact executor-contract candidates, applies a fixed timeout, captures bounded output, and does not poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer repository success beyond the observed exit code, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+
+## `forge executor-contract`
+
+Purpose: preview the future validation executor contract without running commands.
+
+Inputs:
+
+- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used for review signals, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge validation executor contract preview
+Mode: read-only
+Validation execution: not run
+Contract status: defined|blocked-no-gated-commands
+Future confirmation flag: --confirm-executor-dry-run
+Executor dry-run allowed now: false
+Allowed command classes:
+Candidate commands:
+Refusal cases:
+Result capture shape:
+Timeout policy:
+Required future inputs:
+Non-goals:
+Safety boundary: Validation executor contract preview only; ...
+```
+
+Expected successful JSON output includes the same contract information as structured data, including `future_confirmation_flag`, `executor_dry_run_allowed_now`, `allowed_command_classes`, `candidate_commands`, `refusal_cases`, `result_capture_shape`, `timeout_policy`, `required_future_inputs`, and `non_goals`.
+
+Exit codes:
+
+- `0` when the contract preview is produced.
+- `2` when inputs are missing or malformed.
+
+Safety limits: executor-contract is read-only and advisory. It does not run commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
