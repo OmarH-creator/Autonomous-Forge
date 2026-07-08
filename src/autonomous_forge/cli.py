@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from autonomous_forge.command_execution_handoff import read_command_execution_handoff_preview
+from autonomous_forge.executor_gate import read_executor_precondition_gate
 from autonomous_forge.inventory import build_repository_inventory
 from autonomous_forge.path_review import read_path_review
 from autonomous_forge.plan import (
@@ -94,6 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("validation-preview", "preview validation command eligibility without running commands", "validation preview format: text (default) or JSON"),
         ("validation-orchestration", "preview validation orchestration readiness without running commands", "validation orchestration format: text (default) or JSON"),
         ("command-execution-handoff", "preview future command-execution handoff inputs without running commands", "command-execution handoff format: text (default) or JSON"),
+        ("executor-gate", "preview guarded executor preconditions without running commands", "executor gate format: text (default) or JSON"),
         ("review-artifact", "combine plan, proposal, validation, and path review without changing files", "review artifact format: text (default) or JSON"),
         ("run-history-preview", "preview a durable run-history record without writing files", "run-history preview format: text (default) or JSON"),
         ("preflight-readiness", "check readiness for a future opt-in persistence step", "preflight readiness format: text (default) or JSON"),
@@ -439,6 +441,7 @@ _POLICY_AWARE_READERS = {
     "validation-preview": read_validation_preview,
     "validation-orchestration": read_validation_orchestration_preview,
     "command-execution-handoff": read_command_execution_handoff_preview,
+    "executor-gate": read_executor_precondition_gate,
     "review-artifact": read_review_artifact,
     "run-history-preview": read_run_history_preview,
     "preflight-readiness": read_preflight_readiness,
