@@ -163,5 +163,26 @@ jobs:
           }
           assert {'validation_execution', 'validation_result'}.issubset(changed_fields)
           PY
+      - name: Smoke-test opt-in executor run
+        run: |
+          forge executor-run \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --command "python -m pytest" \
+            --confirm-executor-dry-run \
+            --format json > /tmp/autonomous-forge-executor-run.json
+          python -m json.tool /tmp/autonomous-forge-executor-run.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/autonomous-forge-executor-run.json').read_text(encoding='utf-8'))
+          assert payload['execution_status'] == 'completed'
+          assert payload['validation_execution'] == 'local_command_observed'
+          assert payload['validation_result'] == 'passed'
+          assert payload['return_code'] == 0
+          PY
       - name: Run test suite
         run: python -m pytest -q
