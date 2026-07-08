@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-036B
+
+- Task ID: AUTO-036 — Add explicit validation-result attachment writer core
+- Summary: Added `validation_result_writer`, a guarded local writer that attaches one externally supplied validation result to one explicit real non-symlink `.ai/run-history/*.json` record after `confirm_write=True`. The writer reuses the validation-result preview contract and the run-history reader path guard, updates only validation-result fields plus persistence/safety notes, and does not run validation or infer success.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README, roadmap, state, changelog, decisions, validation-result preview code/tests, run-history reader/writer boundaries, and current docs. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic tests for payload generation, confirmation refusal without mutation, successful persistence, `not_run` handling, unsafe path refusal, unsupported result refusal, and malformed-record refusal. Static review completed through the GitHub repository API; direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Wire the writer into the `forge` CLI with `--confirm-write`, then add CI smoke coverage for preview/write/read validation-result handoff behavior.
+
 ## 2026-07-08 — AUTO-036
 
 - Task ID: AUTO-036 — Harden explicit run-history reads against symlinked records
