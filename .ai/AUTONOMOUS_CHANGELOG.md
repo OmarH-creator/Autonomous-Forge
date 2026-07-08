@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-040C
+
+- Task ID: AUTO-040C — Add CI smoke coverage for validation-result comparison handoff
+- Summary: Hardened `.github/workflows/test.yml` so the installed-package smoke workflow now preserves a before-validation CI run-history record, attaches a supplied validation result with explicit confirmation, reads the updated record, compares before/after records with `forge run-history-compare --format json`, JSON-validates all handoff outputs, and asserts that validation execution/result changed in the comparison output.
+- Branch and PR assessment: Inspected repository metadata, recent commits, open PRs, branch search results, README, roadmap, state, changelog, decisions, workflow smoke coverage, CLI command surface, run-history reader/compare code, and comparison tests. No open PR required integration through the available connector view. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Installed-package CI smoke coverage was extended for validation-result preview/write/read/compare behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 421f75b77138cfdc58aed591737cd36aebdda44a
+- Follow-up notes: Add a read-only validation orchestration preview that consumes validation plan/candidate data and saved run-history validation guards before any command execution, workflow polling, or patch-generation behavior.
+
 ## 2026-07-08 — AUTO-039
 
 - Task ID: AUTO-039 — Add JSON validation-result write summaries
