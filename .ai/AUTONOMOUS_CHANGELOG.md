@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-048
+
+- Task ID: AUTO-048 — Guard reviewed executor handoff persistence
+- Summary: Added a guarded package-level executor-handoff persistence helper that consumes reviewed `forge executor-run --format json` output, validates the advisory `persistence_handoff`, rejects unavailable or mismatched handoffs, preserves failed observed results, and writes only through existing validation-result writer semantics after explicit confirmation. The helper keeps validation execution and result persistence separate while reducing manual field-copying risk.
+- Branch and PR assessment: Inspected repository metadata, branch search, recent PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run implementation, validation-result writer behavior, and current tests/docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for read-only payload building, missing confirmation refusal, confirmed failed-result persistence, unavailable handoff refusal, mismatched validation result refusal, and unsafe record path refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Expose the guarded executor-handoff persistence helper through a narrow CLI command with explicit `--confirm-write`, text/JSON summaries, and deterministic CLI coverage.
+
 ## 2026-07-08 — AUTO-047
 
 - Task ID: AUTO-047 — Harden executor launch-failure reporting and reconcile persistence handoff
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for blocked execution without confirmation, exact candidate execution with a fake no-shell runner, failed return-code mapping, unknown/shell command blockers, and CLI JSON refusal behavior. Installed-package CI smoke coverage was extended to run `forge executor-run --command "python -m pytest" --confirm-executor-dry-run --format json`. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Harden executor-runtime error handling and then add an executor-result persistence handoff that prepares the exact `forge validation-result-write --confirm-write` call from observed executor output without automatic history mutation.
-
-## 2026-07-08 — AUTO-045
-
-- Task ID: AUTO-045 — Add executor dry-run preview
-- Summary: Added `forge executor-dry-run --format text|json`, a read-only dry-run preview that validates one exact executor-contract candidate command, requires `--confirm-executor-dry-run`, reports blockers, and emits simulated execution/result-record metadata without running a subprocess.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-contract code/tests/docs, CLI command surface, and current documentation. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for ready dry-runs, missing confirmation, unknown commands, shell-syntax blockers, text output, and CLI JSON output. Installed-package CI smoke coverage was extended for `forge executor-dry-run --format json`. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Implement the narrow opt-in local validation executor only after preserving exact command matching, no-shell execution, timeout handling, observed result reporting, and no automatic history mutation.
 
 ## Historical note
 
