@@ -48,6 +48,8 @@ def _validate_record_path(root: Path, record_path: Path | str) -> Path:
         raise FileNotFoundError(str(resolved_record))
     if resolved_record.is_dir():
         raise RunHistoryReadError("record path points to a directory")
+    if not resolved_record.is_file():
+        raise RunHistoryReadError("record path must point to a regular file")
     return resolved_record
 
 
