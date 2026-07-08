@@ -141,6 +141,50 @@ def test_read_patch_proposal_review_refuses_duplicate_audited_paths(tmp_path):
         read_patch_proposal_review(manifest, audit, root=tmp_path)
 
 
+@pytest.mark.parametrize(
+    "unsafe_path",
+    [
+        "",
+        " README.md",
+        "README.md ",
+        "/README.md",
+        "../README.md",
+        "docs/../README.md",
+        ".",
+        "..",
+        "docs\\README.md",
+    ],
+)
+def test_read_patch_proposal_review_refuses_unsafe_manifest_path_labels(tmp_path, unsafe_path):
+    manifest = _write_json(tmp_path, "manifest.json", _manifest((unsafe_path,)))
+    audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md",)))
+
+    with pytest.raises(PatchProposalReviewError, match="manifest input has unsafe path label"):
+        read_patch_proposal_review(manifest, audit, root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "unsafe_path",
+    [
+        "",
+        " README.md",
+        "README.md ",
+        "/README.md",
+        "../README.md",
+        "docs/../README.md",
+        ".",
+        "..",
+        "docs\\README.md",
+    ],
+)
+def test_read_patch_proposal_review_refuses_unsafe_content_audit_path_labels(tmp_path, unsafe_path):
+    manifest = _write_json(tmp_path, "manifest.json", _manifest(("README.md",)))
+    audit = _write_json(tmp_path, "audit.json", _content_audit((unsafe_path,)))
+
+    with pytest.raises(PatchProposalReviewError, match="content-audit input has unsafe path label"):
+        read_patch_proposal_review(manifest, audit, root=tmp_path)
+
+
 def test_read_patch_proposal_review_refuses_symlink_input(tmp_path):
     target = _write_json(tmp_path, "manifest.json", _manifest(("README.md",)))
     link = tmp_path / "link.json"
