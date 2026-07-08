@@ -2,7 +2,7 @@
 
 `forge diff-source-handoff` compares two explicit `forge content-audit --format json` outputs before any future patch-generation workflow relies on file-content evidence.
 
-The command is read-only. It reads the supplied JSON audit outputs, verifies that they are content-audit payloads, compares path-level audit observations, and reports whether the handoff requires review.
+The command is read-only. It reads the supplied JSON audit outputs, verifies that they are content-audit payloads, compares path-level audit observations, and reports whether the handoff requires review. With `--require-clear`, it can also fail closed when the comparison requires attention while still leaving files unchanged.
 
 ## Usage
 
@@ -25,6 +25,7 @@ forge diff-source-handoff \
   --root . \
   --before before-content-audit.json \
   --after after-content-audit.json \
+  --require-clear \
   --format json
 ```
 
@@ -39,10 +40,16 @@ The handoff reports:
 - after-audit clear and needs-review counts;
 - an overall `requires_attention` gate and reason.
 
+## Exit codes
+
+- `0` when the handoff is produced without `--require-clear`.
+- `0` with `--require-clear` only when `requires_attention` is `false`.
+- `2` with `--require-clear` when added, removed, changed, non-clear, or attention-required evidence is present.
+
 ## Refusals
 
 The command refuses to process inputs that are outside the configured root, are not `.json` files, are symlinks, are not regular files, are malformed JSON, are not content-audit payloads, are not read-only payloads, lack an `audited_paths` list, or contain duplicate audited path entries.
 
 ## Safety boundary
 
-The command reads supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, run commands, check workflow status, enforce policy, or change files.
+The command reads supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, run commands, check workflow status, enforce policy, or change files. `--require-clear` changes only the process exit code.
