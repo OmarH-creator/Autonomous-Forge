@@ -75,7 +75,7 @@ def _add_history_root_format(parser: argparse.ArgumentParser, *, format_help: st
 
 def _add_executor_command_args(parser: argparse.ArgumentParser, *, action_name: str) -> None:
     _add_plan_state_policy_root_format(parser, format_help=f"{action_name} format: text (default) or JSON")
-    parser.add_argument("--command", required=True, help="exact executor-contract candidate command")
+    parser.add_argument("--command", dest="requested_command", required=True, help="exact executor-contract candidate command")
     parser.add_argument(
         "--confirm-executor-dry-run",
         action="store_true",
@@ -333,7 +333,7 @@ def _print_executor_dry_run(args: argparse.Namespace) -> int:
                 Path(args.policy),
                 Path(args.state),
                 Path(args.root),
-                requested_command=args.command,
+                requested_command=args.requested_command,
                 confirm_executor_dry_run=args.confirm_executor_dry_run,
                 output_format=args.format,
             )
@@ -357,7 +357,7 @@ def _print_executor_run(args: argparse.Namespace) -> int:
             Path(args.policy),
             Path(args.state),
             Path(args.root),
-            requested_command=args.command,
+            requested_command=args.requested_command,
             confirm_executor_dry_run=args.confirm_executor_dry_run,
             output_format=args.format,
         )
