@@ -74,12 +74,19 @@ jobs:
             --command "python -m pytest" \
             --confirm-executor-dry-run \
             --format json > /tmp/autonomous-forge-executor-dry-run.json
+          forge content-audit \
+            --policy .forge/policy.md \
+            --root . \
+            --file README.md \
+            --file src/autonomous_forge/content_audit.py \
+            --format json > /tmp/autonomous-forge-content-audit.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-gate.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
       - name: Smoke-test run-history persistence flow
         run: |
           forge run-history-preview \
