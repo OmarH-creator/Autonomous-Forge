@@ -5,6 +5,7 @@ from autonomous_forge.cli import main
 
 VALID_POLICY = """## Allowed paths
 - `src/**`
+- `README.md`
 
 ## Prohibited paths
 - `.env`
@@ -198,7 +199,7 @@ def test_policy_command_prints_read_only_summary(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "Repository policy summary" in output
     assert "Mode: read-only" in output
-    assert "Allowed paths: 1" in output
+    assert "Allowed paths: 2" in output
     assert "Prohibited paths: 1" in output
 
 
@@ -254,3 +255,99 @@ def test_run_summary_command_prints_machine_readable_json_preview(tmp_path, caps
         "commit": "none",
         "notes": "Read-only preview only; no run-summary file was written.",
     }
+
+
+def test_content_audit_cli_outputs_json_without_file_body(tmp_path, capsys):
+    policy = tmp_path / "policy.md"
+    readme = tmp_path / "README.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    readme.write_text("secret body text\n", encoding="utf-8")
+
+    assert main([
+        "content-audit",
+        "--policy", str(policy),
+        "--root", str(tmp_path),
+        "--file", "README.md",
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["title"] == "Autonomous Forge changed-content audit"
+    assert data["summary"]["counts"]["clear"] == 1
+    assert data["audited_paths"][0]["path"] == "README.md"
+    assert "secret body text" not in json.dumps(data)
+
+
+def test_diff_source_handoff_cli_require_clear_returns_zero_for_clear_json(tmp_path, capsys):
+    policy = tmp_path / "policy.md"
+    readme = tmp_path / "README.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    readme.write_text("# Title\n", encoding="utf-8")
+
+    assert main([
+        "content-audit",
+        "--policy", str(policy),
+        "--root", str(tmp_path),
+        "--file", "README.md",
+        "--format", "json",
+    ]) == 0
+    audit = capsys.readouterr().out
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(audit, encoding="utf-8")
+    after.write_text(audit, encoding="utf-8")
+
+    assert main([
+        "diff-source-handoff",
+        "--root", str(tmp_path),
+        "--before", "before.json",
+        "--after", "after.json",
+        "--require-clear",
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["requires_attention"] is False
+    assert data["summary"]["counts"]["unchanged"] == 1
+
+
+def test_diff_source_handoff_cli_require_clear_fails_on_changed_json(tmp_path, capsys):
+    policy = tmp_path / "policy.md"
+    readme = tmp_path / "README.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    readme.write_text("# Title\n", encoding="utf-8")
+
+    assert main([
+        "content-audit",
+        "--policy", str(policy),
+        "--root", str(tmp_path),
+        "--file", "README.md",
+        "--format", "json",
+    ]) == 0
+    before_payload = capsys.readouterr().out
+    readme.write_text("# Title\n\nMore text\n", encoding="utf-8")
+    assert main([
+        "content-audit",
+        "--policy", str(policy),
+        "--root", str(tmp_path),
+        "--file", "README.md",
+        "--format", "json",
+    ]) == 0
+    after_payload = capsys.readouterr().out
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(before_payload, encoding="utf-8")
+    after.write_text(after_payload, encoding="utf-8")
+
+    assert main([
+        "diff-source-handoff",
+        "--root", str(tmp_path),
+        "--before", "before.json",
+        "--after", "after.json",
+        "--require-clear",
+        "--format", "json",
+    ]) == 2
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["requires_attention"] is True
+    assert data["summary"]["counts"]["changed"] == 1
