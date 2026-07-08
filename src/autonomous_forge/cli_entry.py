@@ -15,6 +15,10 @@ from autonomous_forge.executor_observation_audit import (
     build_executor_observation_audit_data,
     format_executor_observation_audit,
 )
+from autonomous_forge.patch_intent_description import (
+    PatchIntentDescriptionError,
+    read_patch_intent_description,
+)
 from autonomous_forge.patch_intent_review import PatchIntentReviewError, read_patch_intent_review
 from autonomous_forge.validation_result_audit import ValidationResultAuditError, read_validation_result_audit
 
@@ -150,6 +154,37 @@ def _print_patch_intent_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_patch_intent_description(args: argparse.Namespace) -> int:
+    """Print a read-only patch-intent description from patch-intent review evidence."""
+    try:
+        output = read_patch_intent_description(
+            Path(args.patch_review),
+            root=Path(args.root),
+            output_format=args.format,
+        )
+        print(output)
+        if args.require_described:
+            gate_data = json.loads(
+                read_patch_intent_description(
+                    Path(args.patch_review),
+                    root=Path(args.root),
+                    output_format="json",
+                )
+            )
+            if gate_data["intent_status"] != "described":
+                return 2
+    except FileNotFoundError as exc:
+        print(f"Patch-intent description input not found: {exc.filename}")
+        return 2
+    except PatchIntentDescriptionError as exc:
+        print(f"Patch-intent description refused: {exc}")
+        return 2
+    except ValueError as exc:
+        print(f"Patch-intent description error: {exc}")
+        return 2
+    return 0
+
+
 def _build_validation_result_audit_parser() -> argparse.ArgumentParser:
     """Build the parser for the validation-result audit command."""
     parser = argparse.ArgumentParser(
@@ -252,6 +287,28 @@ def _build_patch_intent_review_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _build_patch_intent_description_parser() -> argparse.ArgumentParser:
+    """Build the parser for the patch-intent description command."""
+    parser = argparse.ArgumentParser(
+        prog="forge patch-intent-describe",
+        description="Describe future patch intent from ready review evidence without generating patches.",
+    )
+    parser.add_argument("--patch-review", required=True, help="patch-intent review JSON output inside the repository root")
+    parser.add_argument("--root", default=".", help="repository root used to constrain description input paths")
+    parser.add_argument(
+        "--require-described",
+        action="store_true",
+        help="return a failing exit code unless patch intent can be described from ready evidence",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="patch-intent description format: text (default) or JSON",
+    )
+    return parser
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -270,6 +327,9 @@ def main(argv: list[str] | None = None) -> int:
     if args and args[0] == "patch-intent-review":
         parser = _build_patch_intent_review_parser()
         return _print_patch_intent_review(parser.parse_args(args[1:]))
+    if args and args[0] == "patch-intent-describe":
+        parser = _build_patch_intent_description_parser()
+        return _print_patch_intent_description(parser.parse_args(args[1:]))
     return _base_main(args)
 
 
