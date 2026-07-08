@@ -9,6 +9,7 @@ from typing import Any
 from autonomous_forge.validation_result_preview import ALLOWED_VALIDATION_RESULTS
 from autonomous_forge.validation_result_writer import (
     ValidationResultWriteError,
+    build_validation_result_write_payload,
     write_validation_result_attachment,
 )
 
@@ -71,7 +72,7 @@ def build_executor_handoff_persistence_payload(
     *,
     root: Path = Path("."),
 ) -> dict[str, Any]:
-    """Build the guarded validation-result payload from reviewed executor-run JSON."""
+    """Build the guarded validation-result payload from reviewed executor-run JSON without writing."""
     executor_output = _load_executor_output(executor_output_path)
     handoff = _extract_available_handoff(executor_output)
     try:
@@ -80,13 +81,12 @@ def build_executor_handoff_persistence_payload(
             "record": handoff["record"],
             "validation_result": handoff["validation_result"],
             "validation_note": handoff.get("validation_note") or None,
-            "write_payload": write_validation_result_attachment(
+            "write_payload": build_validation_result_write_payload(
                 handoff["record"],
                 root=root,
                 result=handoff["validation_result"],
                 note=handoff.get("validation_note"),
-                confirm_write=True,
-            )["payload"],
+            ),
         }
     except ValidationResultWriteError as exc:
         raise ExecutorHandoffPersistenceError(str(exc)) from exc
