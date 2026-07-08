@@ -131,3 +131,22 @@ def test_write_executor_handoff_persistence_refuses_unsafe_record_path(tmp_path)
 
     with pytest.raises(ExecutorHandoffPersistenceError, match="under .ai/run-history"):
         write_executor_handoff_persistence(executor_output, root=tmp_path, confirm_write=True)
+
+
+def test_build_executor_handoff_persistence_payload_refuses_external_executor_output(tmp_path):
+    _write_record(tmp_path)
+    outside = tmp_path.parent / "outside-executor-output.json"
+    outside.write_text(json.dumps({"persistence_handoff": {}}), encoding="utf-8")
+
+    with pytest.raises(ExecutorHandoffPersistenceError, match="must stay inside repository root"):
+        build_executor_handoff_persistence_payload(outside, root=tmp_path)
+
+
+def test_build_executor_handoff_persistence_payload_refuses_symlinked_executor_output(tmp_path):
+    _write_record(tmp_path)
+    real_output = _write_executor_output(tmp_path)
+    link = tmp_path / "linked-executor-output.json"
+    link.symlink_to(real_output)
+
+    with pytest.raises(ExecutorHandoffPersistenceError, match="not a symlink"):
+        build_executor_handoff_persistence_payload(link, root=tmp_path)
