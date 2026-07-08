@@ -110,6 +110,12 @@ def build_executor_run_data(
         stdout = exc.stdout if isinstance(exc.stdout, str) else ""
         stderr = exc.stderr if isinstance(exc.stderr, str) else ""
         result = "failed"
+    except OSError as exc:
+        execution_status = "launch-failed"
+        return_code = None
+        stdout = ""
+        stderr = f"{type(exc).__name__}: {exc}"
+        result = "failed"
 
     return {
         "title": "Autonomous Forge validation executor run",
