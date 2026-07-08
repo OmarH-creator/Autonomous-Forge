@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-039
+
+- Task ID: AUTO-039 — Add JSON validation-result write summaries
+- Summary: Added `--format json` to `forge validation-result-write` so automation can persist one explicitly supplied validation result and receive a stable machine-readable summary containing the record path, validation execution, validation result, and validation note. Text output remains the default, and the command still requires `--confirm-write`.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, open issues, README, roadmap, state, changelog, decisions, validation-result write docs/tests, and current CLI command surface. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic CLI test coverage was added for JSON validation-result write output while preserving existing text-output and missing-confirmation refusal coverage. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: cc5843b2b329c74c7d680498917b8222a48f098c
+- Follow-up notes: Add a read-only validation orchestration preview that consumes validation plan/candidate data and saved run-history validation guards before any command execution, workflow polling, or patch-generation behavior.
+
 ## 2026-07-08 — AUTO-038
 
 - Task ID: AUTO-038 — Add read-only validation-result history summary
@@ -26,15 +35,6 @@
 - Validation completed: Added deterministic CLI tests for successful validation-result writes and missing-confirmation refusal. Static review completed through the GitHub repository API; direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: Recorded in Git history for this direct-main run.
 - Follow-up notes: Add CI smoke coverage for validation-result preview/write/read handoff before adding validation orchestration, workflow polling, diff inspection, or broader persistence.
-
-## 2026-07-08 — AUTO-036B
-
-- Task ID: AUTO-036 — Add explicit validation-result attachment writer core
-- Summary: Added `validation_result_writer`, a guarded local writer that attaches one externally supplied validation result to one explicit real non-symlink `.ai/run-history/*.json` record after `confirm_write=True`. The writer reuses the validation-result preview contract and the run-history reader path guard, updates only validation-result fields plus persistence/safety notes, and does not run validation or infer success.
-- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README, roadmap, state, changelog, decisions, validation-result preview code/tests, run-history reader/writer boundaries, and current docs. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Added deterministic tests for payload generation, confirmation refusal without mutation, successful persistence, `not_run` handling, unsafe path refusal, unsupported result refusal, and malformed-record refusal. Static review completed through the GitHub repository API; direct local pytest execution remained unavailable in this environment.
-- Commit hash: Recorded in Git history for this direct-main run.
-- Follow-up notes: Wire the writer into the `forge` CLI with `--confirm-write`, then add CI smoke coverage for preview/write/read validation-result handoff behavior.
 
 ## Historical note
 
