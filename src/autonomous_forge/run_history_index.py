@@ -1,0 +1,165 @@
+"""List persisted local run-history records safely."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from autonomous_forge.run_history_reader import (
+    RunHistoryReadError,
+    _require_mapping,
+    summarize_run_history_record,
+)
+
+
+class RunHistoryIndexError(ValueError):
+    """Raised when run-history records cannot be safely listed."""
+
+
+def _history_dir(root: Path) -> Path:
+    """Return the resolved local run-history directory under the repository root."""
+    resolved_root = root.resolve()
+    return (resolved_root / ".ai" / "run-history").resolve()
+
+
+def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Return a record summary or a refusal reason for one JSON file."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        summary = summarize_run_history_record(
+            _require_mapping(payload, "record payload"),
+            source_path=str(path),
+        )
+    except json.JSONDecodeError as exc:
+        return None, f"record JSON is malformed: {exc.msg}"
+    except RunHistoryReadError as exc:
+        return None, str(exc)
+    return summary, None
+
+
+def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 20) -> dict[str, Any]:
+    """Build a deterministic read-only index of local run-history JSON records."""
+    if max_records < 1:
+        raise RunHistoryIndexError("max_records must be at least 1")
+
+    directory = _history_dir(root)
+    if not directory.exists():
+        return {
+            "title": "Autonomous Forge run-history index",
+            "mode": "read-only",
+            "history_dir": str(directory),
+            "history_dir_status": "missing",
+            "max_records": max_records,
+            "summary": {"records_found": 0, "records_listed": 0, "valid": 0, "refused": 0},
+            "records": [],
+            "safety_boundary": (
+                "Run-history index output only; no files are changed, no directories are scanned "
+                "recursively, no validation commands are run, no diffs are inspected, no patches are "
+                "generated, no approvals are granted, and policy is not enforced."
+            ),
+        }
+    if not directory.is_dir():
+        raise RunHistoryIndexError(".ai/run-history exists but is not a directory")
+
+    candidates = sorted(path for path in directory.iterdir() if path.is_file() and path.suffix == ".json")
+    records = []
+    valid = 0
+    refused = 0
+    for path in candidates[:max_records]:
+        summary, reason = _read_summary(path)
+        if summary is None:
+            refused += 1
+            records.append(
+                {
+                    "path": str(path),
+                    "status": "refused",
+                    "reason": reason,
+                    "task": None,
+                    "review_status": "unknown",
+                    "preflight_overall_status": "unknown",
+                    "commit": "unknown",
+                }
+            )
+            continue
+        valid += 1
+        records.append(
+            {
+                "path": summary["source_path"],
+                "status": "readable",
+                "reason": "none",
+                "task": summary["task"],
+                "review_status": summary["review_status"],
+                "preflight_overall_status": summary["preflight_summary"].get("overall_status", "unknown"),
+                "commit": summary["commit"],
+            }
+        )
+
+    return {
+        "title": "Autonomous Forge run-history index",
+        "mode": "read-only",
+        "history_dir": str(directory),
+        "history_dir_status": "present",
+        "max_records": max_records,
+        "summary": {
+            "records_found": len(candidates),
+            "records_listed": len(records),
+            "valid": valid,
+            "refused": refused,
+        },
+        "records": records,
+        "safety_boundary": (
+            "Run-history index output only; no files are changed, no directories are scanned "
+            "recursively, no validation commands are run, no diffs are inspected, no patches are "
+            "generated, no approvals are granted, and policy is not enforced."
+        ),
+    }
+
+
+def format_run_history_index(data: dict[str, Any]) -> str:
+    """Format the run-history index as stable human-readable text."""
+    summary = data["summary"]
+    lines = [
+        str(data["title"]),
+        f"Mode: {data['mode']}",
+        f"History directory: {data['history_dir']}",
+        f"History directory status: {data['history_dir_status']}",
+        f"Max records: {data['max_records']}",
+        "Summary:",
+        f"- records found: {summary['records_found']}",
+        f"- records listed: {summary['records_listed']}",
+        f"- valid: {summary['valid']}",
+        f"- refused: {summary['refused']}",
+        "Records:",
+    ]
+    if not data["records"]:
+        lines.append("- none")
+    else:
+        for record in data["records"]:
+            task = record["task"] or {}
+            task_id = task.get("id") or "unknown"
+            task_title = task.get("title") or "unknown"
+            lines.append(
+                f"- {record['path']}: {record['status']} | task={task_id} {task_title} | "
+                f"review={record['review_status']} | "
+                f"preflight={record['preflight_overall_status']} | commit={record['commit']}"
+            )
+            if record["status"] == "refused":
+                lines.append(f"  reason: {record['reason']}")
+    lines.append(f"Safety boundary: {data['safety_boundary']}")
+    return "\n".join(lines)
+
+
+def read_run_history_index(
+    *,
+    root: Path = Path("."),
+    max_records: int = 20,
+    output_format: str = "text",
+) -> str:
+    """Read and format a local run-history index without changing files."""
+    data = build_run_history_index_data(root, max_records=max_records)
+    if output_format == "json":
+        return json.dumps(data, indent=2, sort_keys=True)
+    if output_format != "text":
+        raise ValueError(f"Unsupported run-history-list output format: {output_format}")
+    return format_run_history_index(data)
