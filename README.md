@@ -8,13 +8,13 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-036 hardened explicit run-history reads so `forge run-history-read` refuses symlinked record paths and only summarizes real `.json` files under `.ai/run-history/`. The run added regression coverage and updated the run-history read documentation. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and repository test additions. No visual updates were needed because this was a CLI safety-boundary fix. Next objective: add CI smoke coverage for `run-history-compare` and `validation-result-preview`, or add an explicitly confirmed validation-result attachment writer after the preview/read boundaries remain stable.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-036B added the guarded `validation_result_writer` core so one externally supplied validation result can be attached to one explicit real non-symlink `.ai/run-history/*.json` record after explicit confirmation. The run added deterministic unit coverage and focused documentation for the write boundary. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and repository test additions. No visual updates were needed because this was a narrow persistence-boundary feature rather than a new workflow diagram. Next objective: wire the validation-result writer into the `forge` CLI with `--confirm-write`, then add CI smoke coverage for preview/write/read behavior.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, one read-only latest-record selector, one read-only run-history comparison preview, and one validation-result attachment preview.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, one read-only latest-record selector, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer core.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
@@ -24,6 +24,7 @@ The repository now contains:
 - `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files.
 - `forge run-history-compare` for comparing two explicit saved history records without mutating files or inferring success.
 - `forge validation-result-preview` for previewing a supplied validation result attachment to one saved history record without rewriting it.
+- `validation_result_writer` for attaching one supplied validation result to one explicit saved history record after a confirmed Python API call; CLI wiring is the next step.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, and run-history persistence/list/latest flow after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
@@ -102,7 +103,7 @@ forge preflight-readiness \
 
 ## Opt-in local run-history write, read, list, latest selection, comparison, and validation-result preview
 
-`forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
+`forge run-history-write` is the only current CLI command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
 
 ```bash
 forge run-history-write \
@@ -161,9 +162,23 @@ forge validation-result-preview \
   --format json
 ```
 
-These history commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`.
+`validation_result_writer` is currently exposed as a guarded Python API. It records an already-observed external validation result after explicit confirmation without running validation commands.
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, and `docs/COMMANDS.md` for focused contracts.
+```python
+from pathlib import Path
+from autonomous_forge.validation_result_writer import write_validation_result_attachment
+
+write_validation_result_attachment(
+    Path(".ai/run-history/latest.json"),
+    result="passed",
+    note="pytest passed locally",
+    confirm_write=True,
+)
+```
+
+These history commands and APIs still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `validation_result_writer` mutates one explicitly requested saved record only when called with explicit confirmation.
+
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
