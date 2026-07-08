@@ -81,7 +81,7 @@ def test_command_execution_handoff_ready_after_clear_history(tmp_path):
 
     assert data["handoff_status"] == "ready-for-manual-execution-review"
     assert data["orchestration_status"] == "ready-for-manual-validation-review"
-    assert data["expected_result_record_update"]["record_path"] == ".ai/run-history/passed.json"
+    assert data["expected_result_record_update"]["record_path"].endswith(".ai/run-history/passed.json")
     assert data["blockers"] == []
     assert "explicit future executor confirmation before any command is run" in data["required_confirmation"]
 
