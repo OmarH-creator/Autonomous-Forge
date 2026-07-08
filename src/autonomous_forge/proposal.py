@@ -20,7 +20,14 @@ def _split_expected_areas(expected_files: str) -> tuple[str, ...]:
 
     areas: list[str] = []
     for raw_part in normalized.splitlines():
-        part = raw_part.strip().strip("`").rstrip(";.").strip()
+        part = raw_part.strip()
+        # Peel trailing sentence punctuation and surrounding backticks in any
+        # order so tokens like ``.env`.`` from the roadmap normalize to `.env`
+        # instead of leaving a dangling backtick after the leading period.
+        previous = None
+        while part and part != previous:
+            previous = part
+            part = part.strip("`").rstrip(";.,").strip()
         if not part or part.lower() == "not documented":
             continue
         areas.append(part)
