@@ -50,6 +50,22 @@ def test_build_executor_observation_audit_data_blocks_failed_observations(tmp_pa
     assert "failed validation result must block" in blocked[0]["notes"][1]
 
 
+def test_build_executor_observation_audit_data_honors_max_records_with_newest_filenames(tmp_path):
+    _write_record(tmp_path, "2026-07-06.json", _payload(result="failed", note="old failure"))
+    _write_record(tmp_path, "2026-07-07.json", _payload(result="passed", note="middle pass"))
+    _write_record(tmp_path, "2026-07-08.json", _payload(result="passed", note="new pass"))
+
+    data = build_executor_observation_audit_data(root=tmp_path, max_records=2)
+
+    assert data["summary"]["records_found"] == 3
+    assert data["summary"]["records_listed"] == 2
+    assert data["summary"]["overall_status"] == "clear"
+    assert data["summary"]["counts"]["observed-clear"] == 2
+    assert data["summary"]["counts"]["observed-blocked"] == 0
+    assert data["records"][0]["path"].endswith("2026-07-07.json")
+    assert data["records"][1]["path"].endswith("2026-07-08.json")
+
+
 def test_build_executor_observation_audit_data_reports_missing_observations(tmp_path):
     _write_record(tmp_path, "001.json", _payload(result="not_run", execution="not_run", note="none"))
 
