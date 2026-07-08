@@ -117,6 +117,10 @@ def test_executor_run_reports_launch_failure_as_failed_result(tmp_path):
     assert data["validation_execution"] == "local_command_observed"
     assert data["validation_result"] == "failed"
     assert data["return_code"] is None
+    assert data["persistence_handoff"]["available"] is True
+    assert data["persistence_handoff"]["validation_result"] == "failed"
+    assert "return_code=none" in data["persistence_handoff"]["validation_note"]
+    assert "--result failed" in data["persistence_handoff"]["write_command"]
     assert "FileNotFoundError" in data["stderr"]["text"]
     assert "python executable missing" in data["stderr"]["text"]
 
@@ -198,6 +202,8 @@ def test_executor_run_blocks_unknown_and_shell_commands(tmp_path):
     assert unknown["execution_status"] == "blocked-not-run"
     assert "requested command is not an exact executor-contract candidate" in unknown["block_reasons"]
     assert "requested command contains shell control, expansion, redirection, or multiline syntax" in shell["block_reasons"]
+    assert unknown["persistence_handoff"]["available"] is False
+    assert shell["persistence_handoff"]["available"] is False
 
 
 
