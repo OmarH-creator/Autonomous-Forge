@@ -39,6 +39,7 @@ The executor run:
 - applies a fixed 300-second timeout;
 - captures bounded stdout and stderr summaries;
 - reports the observed return code and maps it to `validation_result=passed` or `validation_result=failed`;
+- reports subprocess launch failures, such as a missing executable, as structured `execution_status=launch-failed` and `validation_result=failed` output instead of crashing the CLI;
 - leaves persistence to a later explicit `forge validation-result-write --confirm-write` call.
 
 ## Safety boundary
