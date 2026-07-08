@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from autonomous_forge import cli_entry
+from autonomous_forge import __version__, cli_entry
 from autonomous_forge.change_readiness_cli import main as _change_readiness_main
 from autonomous_forge.commit_readiness_cli import main as _commit_readiness_main
 from autonomous_forge.commit_status_review_cli import main as _commit_status_review_main
@@ -42,6 +42,9 @@ _EXTENSION_COMMANDS = {
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including primary-surface extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
+    if args == ["--version"]:
+        print(f"Autonomous Forge {__version__}")
+        return 0
     if args and args[0] in _EXTENSION_COMMANDS:
         return _EXTENSION_COMMANDS[args[0]](args[1:])
     return cli_entry.main(args)
