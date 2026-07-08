@@ -8,10 +8,45 @@ These contracts describe implemented behavior only. They are intentionally plain
 
 - Commands write results to standard output.
 - Commands return exit code `0` when the requested read-only inspection, explicitly confirmed local persistence action, or completed executor run succeeds as a command invocation.
-- Commands return exit code `2` for missing required input files, malformed roadmap/policy/history input, refused write preconditions, refused executor preconditions, or blocked executor runs.
+- Commands return exit code `2` for missing required input files, malformed roadmap/policy/history input, refused write preconditions, refused executor preconditions, blocked executor runs, or explicitly requested fail-closed audit gates whose evidence is not clear.
 - Commands should not create, edit, delete, commit, push, call networks, read environment variables, scan secrets, or enforce policy decisions unless an explicit command contract narrowly allows a local file write or one exact no-shell validation command.
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
+
+## `forge executor-observation-audit`
+
+Purpose: audit aggregate saved executor observations across direct `.ai/run-history/*.json` records without changing files.
+
+Inputs:
+
+- `--root`: repository root containing `.ai/run-history/`, defaulting to `.`.
+- `--max-records`: maximum number of direct JSON records to audit, defaulting to `20`.
+- `--require-clear`: optional fail-closed gate; when present, the command returns exit code `2` unless the aggregate status is `clear`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge executor-observation audit
+Mode: read-only
+Summary:
+- observed clear: ...
+- observed blocked: ...
+- missing observation: ...
+- needs review: ...
+- overall status: clear|blocked|needs-review|needs-validation|no-records
+Safety boundary: Executor-observation audit output only; ...
+```
+
+Expected JSON output includes `mode`, `history_dir`, `history_dir_status`, `summary`, `records`, `index_validation_guard`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the audit is produced and `--require-clear` is not requested.
+- `0` when `--require-clear` is requested and the aggregate status is `clear`.
+- `2` when the audit is refused, input is unsafe, `--max-records` is invalid, or `--require-clear` is requested and the aggregate status is anything other than `clear`.
+
+Safety limits: executor-observation-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files. `--require-clear` changes only the process exit code.
 
 ## `forge validation-result-audit`
 
@@ -121,4 +156,4 @@ Safety limits: executor-contract output is a contract preview only. It does not 
 
 ## Other implemented command contracts
 
-Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, and the run-history/validation-result documents under `docs/`.
+Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
