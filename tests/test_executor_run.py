@@ -8,10 +8,15 @@ from tests.test_executor_gate import VALID_PLAN, VALID_POLICY
 from tests.test_run_history_index import _payload, _write_record
 
 
-def _ready_contract(tmp_path):
+def _ready_state(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
     _write_record(tmp_path, "passed.json", payload=_payload("AUTO-046", "Passed validation", "passed"))
+    return state
+
+
+def _ready_contract(tmp_path):
+    state = _ready_state(tmp_path)
     return json.loads(
         build_executor_contract(
             VALID_PLAN,
@@ -65,13 +70,15 @@ def test_executor_run_executes_exact_candidate_with_no_shell_runner(tmp_path):
 
 
 def test_executor_run_reports_failed_observed_exit_code(tmp_path):
+    state = _ready_state(tmp_path)
+
     def fake_runner(args, **kwargs):
         return subprocess.CompletedProcess(args=args, returncode=5, stdout="", stderr="no tests\n")
 
     output = build_executor_run(
         VALID_PLAN,
         VALID_POLICY,
-        state_path=(tmp_path / "AUTONOMOUS_STATE.md"),
+        state_path=state,
         root=tmp_path,
         requested_command="python -m pytest",
         confirm_executor_dry_run=True,
