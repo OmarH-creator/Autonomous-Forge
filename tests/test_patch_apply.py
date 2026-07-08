@@ -34,6 +34,18 @@ def _preview(original="hello\nold\n", replacement="hello\nnew\n"):
     )
 
 
+def _write_patch_apply_inputs(tmp_path):
+    target = tmp_path / "README.md"
+    target.write_text("hello\nold\n", encoding="utf-8")
+    replacement = tmp_path / "replacement.txt"
+    replacement.write_text("hello\nnew\n", encoding="utf-8")
+    preview = tmp_path / "preview.json"
+    preview.write_text(json.dumps(_preview()), encoding="utf-8")
+    change_readiness = tmp_path / "change-readiness.json"
+    change_readiness.write_text(json.dumps(CHANGE_READINESS), encoding="utf-8")
+    return target, replacement, preview, change_readiness
+
+
 def test_build_patch_apply_data_allows_confirmed_matching_preview():
     data = build_patch_apply_data(
         _preview(),
@@ -110,14 +122,7 @@ def test_build_patch_apply_data_refuses_unsafe_path():
 
 
 def test_patch_apply_cli_writes_only_after_confirmed_evidence(tmp_path, capsys):
-    target = tmp_path / "README.md"
-    target.write_text("hello\nold\n", encoding="utf-8")
-    replacement = tmp_path / "replacement.txt"
-    replacement.write_text("hello\nnew\n", encoding="utf-8")
-    preview = tmp_path / "preview.json"
-    preview.write_text(json.dumps(_preview()), encoding="utf-8")
-    change_readiness = tmp_path / "change-readiness.json"
-    change_readiness.write_text(json.dumps(CHANGE_READINESS), encoding="utf-8")
+    target, replacement, preview, change_readiness = _write_patch_apply_inputs(tmp_path)
 
     assert forge_main([
         "patch-apply",
@@ -138,15 +143,27 @@ def test_patch_apply_cli_writes_only_after_confirmed_evidence(tmp_path, capsys):
     assert target.read_text(encoding="utf-8") == "hello\nnew\n"
 
 
-def test_patch_apply_cli_refuses_without_confirmation(tmp_path, capsys):
-    target = tmp_path / "README.md"
-    target.write_text("hello\nold\n", encoding="utf-8")
-    replacement = tmp_path / "replacement.txt"
-    replacement.write_text("hello\nnew\n", encoding="utf-8")
-    preview = tmp_path / "preview.json"
-    preview.write_text(json.dumps(_preview()), encoding="utf-8")
-    change_readiness = tmp_path / "change-readiness.json"
-    change_readiness.write_text(json.dumps(CHANGE_READINESS), encoding="utf-8")
+def test_patch_apply_cli_reports_blocked_without_require_applied(tmp_path, capsys):
+    target, replacement, preview, change_readiness = _write_patch_apply_inputs(tmp_path)
+
+    assert forge_main([
+        "patch-apply",
+        "--root", str(tmp_path),
+        "--preview", str(preview),
+        "--change-readiness", str(change_readiness),
+        "--path", "README.md",
+        "--replacement", str(replacement),
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["apply_status"] == "blocked"
+    assert data["file_changed"] is False
+    assert target.read_text(encoding="utf-8") == "hello\nold\n"
+
+
+def test_patch_apply_cli_refuses_without_confirmation_when_require_applied(tmp_path, capsys):
+    target, replacement, preview, change_readiness = _write_patch_apply_inputs(tmp_path)
 
     assert forge_main([
         "patch-apply",
