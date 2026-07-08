@@ -1,11 +1,19 @@
 # Autonomous Decisions
 
+## DEC-040 — 2026-07-08 — Gate validation orchestration with saved history guards
+
+Context: Validation plans, command-candidate previews, saved run-history records, validation-result writes, and validation-result guard summaries existed, but there was no single artifact that combined these signals before any validation executor, workflow polling, or patch-generation behavior.
+Decision: Add a read-only validation orchestration preview core that combines validation-plan data, validation command-candidate counts, aggregate saved-history validation guards, latest-record validation guard, explicit blockers, risk notes, and a no-execution safety boundary.
+Alternatives considered: Run validation commands, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, mutate history automatically, or skip directly to a validation executor.
+Consequences: Future orchestration can consume saved validation context conservatively before execution exists. The new layer remains deterministic and local-first, but it is not yet exposed through the installed `forge` CLI command surface.
+Human decision still required: No.
+
 ## DEC-040C — 2026-07-08 — Smoke-test validation-result comparison before orchestration
 
 Context: The repository had installed-package CI smoke coverage for validation-result preview/write/read, and `forge run-history-compare` existed as a read-only memory-inspection surface, but CI did not exercise comparison against the before/after validation-result handoff.
-Decision: Extend the existing smoke workflow to preserve a before-validation temporary record, attach a supplied validation result with `--confirm-write`, read the updated record, compare the before/after records with `forge run-history-compare --format json`, JSON-validate the outputs, and assert that validation execution/result changed.
-Alternatives considered: Rely on unit tests only, add a separate workflow, start validation orchestration immediately, poll GitHub Actions, run validation commands through the product, infer success from commits, inspect diffs, generate patches, or broaden persistence behavior.
-Consequences: The installed CLI now proves the validation-result persistence and comparison handoff works together in CI while still avoiding product-level validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and tracked-file mutation by the CLI.
+Decision: Extend the installed-package smoke workflow to preserve a before-validation record, attach a supplied validation result, read the updated record, compare before/after records, JSON-validate all handoff outputs, and assert validation execution/result changes in the comparison.
+Alternatives considered: Rely on unit tests only, move directly to validation orchestration, add workflow polling, run validation through the product CLI, infer success from CI status, inspect diffs, or generate patches.
+Consequences: The saved validation-result handoff is now covered through comparison in CI smoke logic while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and broad mutation.
 Human decision still required: No.
 
 ## DEC-039 — 2026-07-08 — Emit machine-readable validation-result write summaries
@@ -14,30 +22,6 @@ Context: `forge validation-result-write` could persist a supplied validation out
 Decision: Add `--format json` to `forge validation-result-write` and return only a narrow stable summary: `path`, `validation_execution`, `validation_result`, and `validation_note`.
 Alternatives considered: Expose the entire saved payload by default, change the writer schema, add workflow polling, run validation commands, infer success from commits, inspect diffs, generate patches, or move directly to validation orchestration.
 Consequences: Automation can consume confirmed validation-result writes safely and deterministically while the command still requires `--confirm-write`, mutates only one explicit saved run-history record, and avoids validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and broad file mutation.
-Human decision still required: No.
-
-## DEC-038 — 2026-07-08 — Summarize saved validation results before orchestration
-
-Context: `forge validation-result-write` can attach supplied validation outcomes to saved run-history records, and CI now smoke-tests that handoff, but `run-history-list` and `run-history-latest` did not surface validation-result status clearly enough for future orchestration previews.
-Decision: Extend the read-only run-history list/latest summaries with saved validation execution/result fields, per-record validation guards, aggregate validation-result counts, and a conservative aggregate guard on the list view.
-Alternatives considered: Add a separate command immediately, run validation commands, poll workflow status, infer success from commits, write a durable index, inspect diffs, generate patches, or move directly to an executor.
-Consequences: Maintainers can see whether saved history contains passed, failed, skipped, not-run, unknown, or refused validation records before broader orchestration is considered, while the product still avoids validation execution, workflow polling, commit verification, diff inspection, patch generation, policy enforcement, inferred success, and record mutation.
-Human decision still required: No.
-
-## DEC-037 — 2026-07-08 — Smoke-test the validation-result handoff in CI before broader validation orchestration
-
-Context: `forge validation-result-write` is the first confirmed command that rewrites a saved run-history record with an externally supplied validation result, but the existing GitHub Actions smoke workflow only covered run-history write/read/list/latest behavior.
-Decision: Extend the installed-package CI smoke sequence to create the temporary history record, preview a supplied validation result, write it with `--confirm-write`, read it back, JSON-validate the outputs, and assert the persisted validation execution/result/note fields.
-Alternatives considered: Rely on unit tests only, add a separate workflow, start workflow polling, infer success from CI status, run validation through the product CLI, inspect diffs, generate patches, or broaden persistence before smoke coverage exists.
-Consequences: The mutable validation-result handoff now has repository-level smoke coverage while still avoiding product-level validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and broad file mutation.
-Human decision still required: No.
-
-## DEC-036C — 2026-07-08 — Expose validation-result writes through a confirmed CLI command
-
-Context: `validation_result_writer` could attach a supplied validation result through a guarded Python API, but maintainers could not use that persistence step through the installed `forge` command surface.
-Decision: Add `forge validation-result-write` with explicit `--confirm-write`, reuse the same allowed result values and `.ai/run-history/*.json` path boundary, and print the persisted validation execution/result/note after the write.
-Alternatives considered: Keep the writer as Python API only, run validation commands, poll GitHub workflow status, infer success from commits, write broader history indexes, generate patches, or move directly to a validation executor.
-Consequences: The product gains an end-user-accessible persistence handoff for externally observed validation outcomes while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, recursive scans, and broad file mutation.
 Human decision still required: No.
 
 ## Historical note
