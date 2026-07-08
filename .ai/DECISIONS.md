@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-036B — 2026-07-08 — Add a confirmed validation-result writer core before any executor
+
+Context: `forge validation-result-preview` can review a supplied validation result, and the run-history reader/list/latest/compare surfaces can inspect saved records, but there was no guarded persistence step for recording an externally observed validation outcome.
+Decision: Add `validation_result_writer` as a narrow local writer that requires `confirm_write=True`, reuses the preview contract and real-file run-history path guard, and updates only the selected saved record's validation fields plus persistence/safety notes.
+Alternatives considered: Wire the CLI first without a tested core, run validation commands, poll GitHub workflow status, verify commits, infer success from record contents, write a history index, inspect diffs, generate patches, or move directly to a broader executor.
+Consequences: The product gains the next persistence primitive while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, recursive scans, and broad file mutation.
+Human decision still required: No.
+
 ## DEC-036 — 2026-07-08 — Refuse symlinked explicit history reads
 
 Context: `forge run-history-list` and `forge run-history-latest` already avoid symlinked direct history candidates, but `forge run-history-read` accepted one explicit record path and only validated the resolved target boundary before reading it.
