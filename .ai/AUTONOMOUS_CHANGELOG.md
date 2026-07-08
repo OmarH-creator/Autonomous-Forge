@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-088
+
+- Task ID: AUTO-088 — Add explicitly confirmed guarded patch apply
+- Summary: Added `forge patch-apply` and compatibility `forge-patch-apply`, a narrow local write command that applies one explicit replacement-text file only after generated patch-preview JSON and ready change-readiness JSON match the current target. It requires `--confirm-apply`, verifies the current target plus replacement reproduce the supplied preview exactly, writes only the requested target path, and reports deterministic text/JSON.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, patch-generation preview implementation, focused docs, tests, policy, and CI workflow. Work stayed directly on `main`. Open PR #10 is a CI concurrency guard, but it was not integrated because the run needed to ship the next product capability. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for confirmed matching apply readiness, missing confirmation, stale preview refusal, blocked change-readiness evidence, unsafe path refusal, CLI JSON write behavior, and no-confirmation refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add an explicit post-apply validation handoff so changed files are not treated as complete until validation evidence is recorded.
+
 ## 2026-07-09 — AUTO-087
 
 - Task ID: AUTO-087 — Add guarded patch-generation preview
@@ -17,15 +26,6 @@
 - Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for ready evidence, blocked diff/status evidence, JSON/text output, fail-closed ready gating, and out-of-root input refusal. Added installed workflow smoke coverage for primary and compatibility change-readiness routes. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: f46e9ae6e855d8a10b81de8e2adde8ddf82cda2a plus preceding implementation/test/docs/workflow commits
 - Follow-up notes: Add guarded patch-generation preview design after ready change-readiness evidence, without automatic patch application.
-
-## 2026-07-09 — AUTO-085
-
-- Task ID: AUTO-085 — Add supplied commit and workflow status review
-- Summary: Added `forge commit-status-review` and compatibility `forge-commit-status-review`, a local read-only review over supplied commit-status, check-run, and workflow-run JSON evidence. The command classifies supplied contexts as successful, failed, pending, or unknown; blocks missing, failed, pending, or unrecognized evidence; emits deterministic text/JSON; and supports `--require-clear`.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, git-diff review implementation, focused docs, tests, and CI workflow. Work stayed directly on `main`. No open PR required integration. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 remain product-direction or example/documentation feedback.
-- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for successful status evidence, failed/pending/unknown evidence, workflow-run evidence, missing evidence, JSON/text output, fail-closed clear gating, and out-of-root input refusal. Added installed workflow smoke coverage for primary and compatibility status-review routes. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: aab3a39c5b7e89d07ef17927810300c79c4c924a plus preceding implementation/test/docs/workflow commits
-- Follow-up notes: Combine clear supplied git-diff review and clear supplied commit-status review into a single change-readiness summary before any write-capable patch applier is considered.
 
 ## Historical note
 
