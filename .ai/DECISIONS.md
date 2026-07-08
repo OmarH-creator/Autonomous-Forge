@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-051 — 2026-07-08 — Exercise executor handoff persistence in CI
+
+Context: CI already ran `forge executor-run --format json`, but the resulting JSON was written under `/tmp`, while `forge executor-handoff-persist` intentionally accepts only repository-local JSON paths. That meant the installed-package smoke path did not verify the guarded handoff persistence command.
+Decision: Change the workflow to write executor output to repository-local `executor-run-output.json`, JSON-validate it, run `forge executor-handoff-persist --confirm-write --format json`, and assert that the executor handoff remains advisory/non-automatic while the persisted summary reports `external_result_attached` and `passed`.
+Alternatives considered: Keep only unit tests, write executor output under `/tmp` and skip persistence, weaken the executor-output path guard to accept external paths, auto-persist from executor-run, or add a separate workflow job with duplicated setup.
+Consequences: CI now exercises the complete installed executor-to-persistence handoff while preserving the repository-local path guard and the explicit separation between command execution and history mutation.
+Human decision still required: No.
+
 ## DEC-050 — 2026-07-08 — Preview executor handoff persistence before writing
 
 Context: `forge executor-handoff-persist` can now write reviewed executor-run JSON into durable run history after explicit confirmation, but callers still need a read-only way to summarize the exact pending persistence action before mutating the saved record.
