@@ -41,6 +41,7 @@ def test_executor_run_blocks_before_subprocess_without_confirmation(tmp_path):
     assert data["command_execution_allowed"] is False
     assert data["execution_status"] == "blocked-not-run"
     assert data["validation_execution"] == "not run"
+    assert data["persistence_handoff"]["available"] is False
     assert "missing --confirm-executor-dry-run" in data["block_reasons"]
 
 
@@ -70,7 +71,7 @@ def test_executor_run_executes_exact_candidate_with_no_shell_runner(tmp_path):
     assert data["validation_result"] == "passed"
     assert data["return_code"] == 0
     assert data["stdout"]["text"] == "ok\n"
-    assert data["follow_up"].startswith("Use forge validation-result-write")
+    assert data["follow_up"].startswith("Review persistence_handoff.write_command")
 
 
 
@@ -121,6 +122,64 @@ def test_executor_run_reports_launch_failure_as_failed_result(tmp_path):
 
 
 
+def test_executor_run_builds_explicit_validation_result_write_handoff(tmp_path):
+    def fake_runner(args, **kwargs):
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok\n", stderr="")
+
+    data = build_executor_run_data(
+        _ready_contract(tmp_path),
+        root=tmp_path,
+        requested_command="python -m pytest",
+        confirm_executor_dry_run=True,
+        runner=fake_runner,
+    )
+
+    handoff = data["persistence_handoff"]
+    assert handoff["available"] is True
+    assert handoff["auto_persistence"] is False
+    assert handoff["confirmation_required"] == "--confirm-write"
+    assert handoff["validation_result"] == "passed"
+    assert handoff["validation_note"] == "executor-run completed for 'python -m pytest'; return_code=0"
+    assert handoff["write_command_args"] == [
+        "forge",
+        "validation-result-write",
+        "--root",
+        ".",
+        "--record",
+        ".ai/run-history/latest.json",
+        "--result",
+        "passed",
+        "--note",
+        "executor-run completed for 'python -m pytest'; return_code=0",
+        "--confirm-write",
+    ]
+    assert "validation-result-write" in handoff["write_command"]
+    assert "--confirm-write" in handoff["write_command"]
+
+
+
+def test_executor_run_text_includes_persistence_handoff_command(tmp_path):
+    state = _ready_state(tmp_path)
+
+    def fake_runner(args, **kwargs):
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok\n", stderr="")
+
+    output = build_executor_run(
+        VALID_PLAN,
+        VALID_POLICY,
+        state_path=state,
+        root=tmp_path,
+        requested_command="python -m pytest",
+        confirm_executor_dry_run=True,
+        runner=fake_runner,
+    )
+
+    assert "Persistence handoff available: true" in output
+    assert "Persistence handoff command: forge validation-result-write" in output
+    assert "--confirm-write" in output
+
+
+
 def test_executor_run_blocks_unknown_and_shell_commands(tmp_path):
     contract = _ready_contract(tmp_path)
     unknown = build_executor_run_data(
@@ -164,3 +223,4 @@ def test_executor_run_cli_blocks_without_confirmation(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["execution_status"] == "blocked-not-run"
     assert data["command_execution_allowed"] is False
+    assert data["persistence_handoff"]["available"] is False
