@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-060 — 2026-07-08 — Cover installed content-audit entrypoint behavior
+
+Context: GitHub Actions exercises `forge content-audit` through the installed package script, which routes through `autonomous_forge.cli_entry`, while existing focused tests mostly covered the content-audit core and base command surfaces.
+Decision: Add deterministic regression coverage for the installed entrypoint path, including JSON success for an allowed readable file and a missing-policy refusal case.
+Alternatives considered: Rely only on workflow smoke coverage, duplicate the command entirely in the base CLI, add broader extension-command tests in one larger sweep, or defer coverage until diff-source handoff work.
+Consequences: The installed package route used by CI is now protected by fast deterministic tests without changing content-audit runtime behavior. Future entrypoint extensions should receive similar targeted coverage.
+Human decision still required: No.
+
 ## DEC-059 — 2026-07-08 — Integrate the hidden dotfile parser fix directly on main
 
 Context: Open PR #7 documented a concrete failing case where roadmap expected-file tokens such as ``.env`.`` could be normalized as `.env`` with a dangling backtick, weakening the precision of policy-aware planned-file review for hidden paths.
@@ -14,14 +22,6 @@ Context: `forge content-audit` is now installed and JSON-smoke-tested in CI, but
 Decision: Extend the installed-package workflow smoke step with semantic assertions over `/tmp/autonomous-forge-content-audit.json`, including expected total count, clear counts, `requires_attention=false`, and allowed/readable status for the content-audit module.
 Alternatives considered: Leave JSON shape validation only, move the assertions to unit tests only, add a new workflow job, make content-audit a fail-closed gate immediately, inspect git diffs, or generate patches.
 Consequences: The content-audit command has stronger CI evidence before future patch-adjacent work depends on it, while the command remains read-only and advisory.
-Human decision still required: No.
-
-## DEC-057 — 2026-07-08 — Prefer latest saved evidence in limited run-history audits and smoke-test new content audit
-
-Context: `forge run-history-list` and `forge executor-observation-audit` accept `--max-records`, but the previous implementation applied that limit to the first filename-sorted records. In a growing run-history directory, a small limit could therefore audit old records while omitting the newest saved validation evidence. During the same run, a concurrent content-audit command landed without installed-package workflow smoke coverage.
-Decision: Keep deterministic filename ordering, but apply the limit to the newest filename-sorted direct JSON records and display that limited window in ascending filename order. Expose the ordering in run-history-list output and document the audit behavior. Also add CI smoke coverage that runs installed `forge content-audit --format json` against explicit repository paths and validates JSON shape.
-Alternatives considered: Keep oldest-first limits, reverse all displayed output, remove `--max-records`, scan recursively, use filesystem modification time, rely only on `run-history-latest`, or defer content-audit smoke coverage until a later semantic assertion pass.
-Consequences: Limited run-history and executor-observation audit windows now better match maintainer expectations for recent evidence while preserving stable output and the existing direct-file safety boundary. The new content-audit CLI route is now exercised in GitHub Actions after installation, but semantic output assertions still need a follow-up.
 Human decision still required: No.
 
 ## Historical note
