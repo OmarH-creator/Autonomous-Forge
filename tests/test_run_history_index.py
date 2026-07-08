@@ -41,6 +41,7 @@ def test_build_run_history_index_data_reports_missing_directory(tmp_path):
     data = build_run_history_index_data(tmp_path)
 
     assert data["history_dir_status"] == "missing"
+    assert data["ordering"] == "filename ascending; when limited, the newest filenames are listed"
     assert data["summary"] == {
         "records_found": 0,
         "records_listed": 0,
@@ -60,6 +61,7 @@ def test_build_run_history_index_data_lists_readable_records_in_name_order(tmp_p
     data = build_run_history_index_data(tmp_path)
 
     assert data["history_dir_status"] == "present"
+    assert data["ordering"] == "filename ascending; when limited, the newest filenames are listed"
     assert data["summary"]["records_found"] == 2
     assert data["summary"]["valid"] == 2
     assert data["summary"]["validation_results"]["not_run"] == 2
@@ -118,15 +120,19 @@ def test_build_run_history_index_data_reports_refused_records(tmp_path):
     assert refused[0]["validation_guard"] == "unknown"
 
 
-def test_build_run_history_index_data_honors_max_records(tmp_path):
-    _write_record(tmp_path, "a.json")
-    _write_record(tmp_path, "b.json")
+def test_build_run_history_index_data_honors_max_records_with_newest_filenames(tmp_path):
+    _write_record(tmp_path, "2026-07-06.json", payload=_payload("AUTO-030", "Oldest record"))
+    _write_record(tmp_path, "2026-07-07.json", payload=_payload("AUTO-031", "Middle record"))
+    _write_record(tmp_path, "2026-07-08.json", payload=_payload("AUTO-032", "Newest record", "passed"))
 
-    data = build_run_history_index_data(tmp_path, max_records=1)
+    data = build_run_history_index_data(tmp_path, max_records=2)
 
-    assert data["summary"]["records_found"] == 2
-    assert data["summary"]["records_listed"] == 1
-    assert data["records"][0]["path"].endswith("a.json")
+    assert data["summary"]["records_found"] == 3
+    assert data["summary"]["records_listed"] == 2
+    assert data["records"][0]["path"].endswith("2026-07-07.json")
+    assert data["records"][0]["task"]["id"] == "AUTO-031"
+    assert data["records"][1]["path"].endswith("2026-07-08.json")
+    assert data["records"][1]["task"]["id"] == "AUTO-032"
 
 
 def test_build_run_history_index_data_refuses_invalid_max_records(tmp_path):
@@ -187,6 +193,7 @@ def test_read_run_history_index_formats_text(tmp_path):
 
     assert "Autonomous Forge run-history index" in output
     assert "History directory status: present" in output
+    assert "Ordering: filename ascending; when limited, the newest filenames are listed" in output
     assert "records found: 1" in output
     assert "not run: 1" in output
     assert "overall status: needs-validation" in output
@@ -202,6 +209,7 @@ def test_read_run_history_index_formats_json(tmp_path):
     data = json.loads(output)
 
     assert data["mode"] == "read-only"
+    assert data["ordering"] == "filename ascending; when limited, the newest filenames are listed"
     assert data["summary"]["valid"] == 1
     assert data["summary"]["validation_results"]["passed"] == 1
     assert data["validation_guard"]["overall_status"] == "clear"
