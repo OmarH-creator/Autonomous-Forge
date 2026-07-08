@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-047 — 2026-07-08 — Treat executor launch failures as validation observations
+
+Context: `forge executor-run` handled completed and timed-out subprocesses, but OS-level startup failures such as a missing executable could still escape as unhandled CLI errors after the dry-run gate had approved the exact command.
+Decision: Catch `OSError` from the no-shell subprocess runner and report it as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output with bounded stderr context and no return code.
+Alternatives considered: Let startup errors crash the CLI, treat missing executables as blocked before execution despite occurring after gate approval, silently mark them not-run, or broaden command execution to recover automatically.
+Consequences: Executor output remains machine-readable and durable-history-ready even when local runtime setup is broken, while preserving the same narrow command allowlist and no-auto-persistence boundary.
+Human decision still required: No.
+
 ## DEC-046 — 2026-07-08 — Permit one narrow opt-in local validation executor
 
 Context: `forge executor-dry-run` proved that one requested command could match the executor contract, but the product still could not perform the local validation step needed for an end-to-end maintenance workflow.
@@ -14,14 +22,6 @@ Context: `forge executor-contract` defined future executor requirements, but the
 Decision: Add `forge executor-dry-run --format text|json` as a read-only dry-run preview. It accepts one exact command candidate, requires `--confirm-executor-dry-run`, blocks shell-control syntax and unknown commands, and emits simulated execution/result-record metadata while keeping `command_execution_allowed=false`.
 Alternatives considered: Move directly to a subprocess executor, run arbitrary commands, rely only on the contract document, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, or mutate history automatically.
 Consequences: Maintainers can now review whether a specific validation command would pass the gate/contract chain before any real execution behavior exists. The command remains advisory and does not run validations, prove success, or approve execution.
-Human decision still required: No.
-
-## DEC-044 — 2026-07-08 — Define executor contract before command execution
-
-Context: `forge executor-gate` exposed whether a future dry-run executor path was eligible for explicit future confirmation, but the exact contract for a later executor was still implicit.
-Decision: Add `forge executor-contract --format text|json` as a read-only contract preview. The contract consumes executor-gate data and names the future `--confirm-executor-dry-run` flag, allowed command classes, refusal cases, result-capture shape, timeout policy, required future inputs, non-goals, and safety boundary while keeping `executor_dry_run_allowed_now=false`.
-Alternatives considered: Move directly to a command runner, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, mutate history automatically, or leave executor behavior to undocumented future assumptions.
-Consequences: Maintainers can now review the exact future executor requirements before any command-running behavior exists. The command remains advisory and does not run validations, prove success, or approve execution.
 Human decision still required: No.
 
 ## Historical note
