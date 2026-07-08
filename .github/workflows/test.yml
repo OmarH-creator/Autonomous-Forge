@@ -87,6 +87,20 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          content_audit = json.loads(Path('/tmp/autonomous-forge-content-audit.json').read_text(encoding='utf-8'))
+          assert content_audit['mode'] == 'read-only'
+          assert content_audit['summary']['total'] == 2
+          assert content_audit['summary']['counts']['clear'] == 2
+          assert content_audit['requires_attention'] is False
+          audited = {item['path']: item for item in content_audit['audited_paths']}
+          assert audited['README.md']['review_status'] == 'clear'
+          assert audited['src/autonomous_forge/content_audit.py']['content_status'] == 'readable'
+          assert audited['src/autonomous_forge/content_audit.py']['policy_status'] == 'allowed'
+          PY
       - name: Smoke-test run-history persistence flow
         run: |
           forge run-history-preview \
