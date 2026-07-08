@@ -117,7 +117,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-list.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-latest.json > /dev/null
-      - name: Smoke-test validation-result attachment and comparison flow
+      - name: Smoke-test validation-result attachment, audit, and comparison flow
         run: |
           cp .ai/run-history/ci-smoke.json .ai/run-history/ci-smoke-before-validation.json
           forge validation-result-preview \
@@ -133,6 +133,10 @@ jobs:
             --note "CI smoke supplied result" \
             --confirm-write \
             --format json > /tmp/autonomous-forge-validation-result-write.json
+          forge validation-result-audit \
+            --root . \
+            --record .ai/run-history/ci-smoke.json \
+            --format json > /tmp/autonomous-forge-validation-result-audit.json
           forge run-history-read \
             --root . \
             --record .ai/run-history/ci-smoke.json \
@@ -144,6 +148,7 @@ jobs:
             --format json > /tmp/autonomous-forge-run-history-compare.json
           python -m json.tool /tmp/autonomous-forge-validation-result-preview.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-write.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-validation-result-audit.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-compare.json > /dev/null
           python - <<'PY'
@@ -154,6 +159,11 @@ jobs:
           assert payload['record']['validation_execution'] == 'external_result_attached'
           assert payload['record']['validation_result'] == 'passed'
           assert payload['record']['validation_note'] == 'CI smoke supplied result'
+
+          audit = json.loads(Path('/tmp/autonomous-forge-validation-result-audit.json').read_text(encoding='utf-8'))
+          assert audit['guard_status'] == 'consistent'
+          assert audit['validation_result'] == 'passed'
+          assert audit['validation_note'] == 'CI smoke supplied result'
 
           comparison = json.loads(Path('/tmp/autonomous-forge-run-history-compare.json').read_text(encoding='utf-8'))
           changed_fields = {
