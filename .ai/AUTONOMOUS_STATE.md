@@ -1,14 +1,14 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-042 — Smoke-test validation orchestration in CI
+- Current task ID: AUTO-042 — Add command-execution handoff preview
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-07-08T09:00:35+04:00
-- Last successful implementation commit hash: 2ea7748fd9f069d64ab458f3cbce5281a4c705b8
-- Latest run summary: Hardened the installed-package GitHub Actions workflow so it now runs `forge validation-orchestration --format json` against the live repository planning inputs and JSON-validates the generated orchestration artifact. This protects the CLI command exposed in AUTO-041 from drifting out of CI coverage.
-- Files changed in the latest run: `.github/workflows/test.yml`, `README.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, and `.ai/AUTONOMOUS_STATE.md`.
-- Validation commands and results: Static review completed through the GitHub repository API. CI smoke coverage was extended for validation orchestration JSON output. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
-- Current blockers: Runtime local checkout and test execution remain unavailable from this environment. Main-branch CI visibility may lag direct commits. The product still has no command-execution handoff preview or validation executor.
-- Known risks and assumptions: The CI smoke test validates command availability and JSON shape, but the orchestration command remains advisory only. It does not run validation commands, poll workflow status, verify commits, inspect diffs, infer repository success, generate patches, enforce policy, or mutate saved history.
-- Recommended next task: Add a read-only command-execution handoff preview that consumes orchestration readiness and validation command candidates without executing commands.
+- Last run timestamp: 2026-07-08T09:02:51+04:00
+- Last successful implementation commit hash: 8d4c07534f46d36801c8127e403c337d52fcfa39
+- Latest run summary: Shipped `forge command-execution-handoff --format text|json`, a read-only pre-executor handoff that consumes validation orchestration readiness and validation command candidates. It reports eligible commands, candidates requiring review, blockers, confirmation requirements, and expected validation-result record fields without running commands or mutating history.
+- Files changed in the latest run: `src/autonomous_forge/command_execution_handoff.py`, `src/autonomous_forge/cli.py`, `tests/test_command_execution_handoff.py`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `.github/workflows/test.yml`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, and `.ai/AUTONOMOUS_STATE.md`.
+- Validation commands and results: Static review completed through the GitHub repository API. Deterministic tests were added for the command-execution handoff core and CLI JSON output. CI smoke coverage was extended for `forge command-execution-handoff --format json`. Direct local checkout/test execution remains unavailable from this environment; final GitHub status checks may lag direct commits.
+- Current blockers: Runtime local checkout and test execution remain unavailable from this environment. Main-branch CI visibility may lag direct commits. The product still has no guarded executor precondition gate and no validation executor.
+- Known risks and assumptions: The command-execution handoff preview is advisory only. It does not run validation commands, poll workflow status, verify commits, inspect diffs, infer repository success, generate patches, enforce policy, mutate saved history, or grant approval.
+- Recommended next task: Add a read-only guarded executor precondition gate that consumes command-execution handoff data and saved-history guards before any command-running implementation exists.
