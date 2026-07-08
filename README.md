@@ -8,18 +8,18 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-076 shipped `forge patch-text-review`, a read-only gate that consumes ready patch-text preflight JSON plus explicit per-path patch summaries and returns ready/blocked status before any future patch-text generation or apply workflow. It verifies preflight readiness, patch-text review allowance, safe repository-relative labels, exact path alignment, non-empty summaries, and validation-step presence without reading target contents, inspecting git diffs, generating patch text, applying patches, running commands, or changing files. Direct local checkout/test execution remained unavailable in this environment, so validation was limited to GitHub API static review plus committed deterministic tests and workflow smoke coverage. No visual updates were needed because the current overview diagram remains accurate. Next objective: add a guarded read-only patch-application preflight or patch-text provenance check before any write-capable patch behavior.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-077 shipped `forge patch-application-preflight`, a read-only advisory gate that consumes ready patch-text review JSON plus explicit per-path provenance metadata before any future patch-application design relies on reviewed patch text. It verifies ready review evidence, patch-text review allowance, exact path coverage, no extra provenance paths, explicit source labels, matching expected summaries, and validation-step presence. `patch_application_allowed` is always `false`, and the command does not read target contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, approve implementation, commit, push, or change files. Direct local checkout/test execution remained unavailable in this environment, so validation was limited to GitHub API static review plus committed deterministic tests. No visual updates were needed because the current overview diagram remains accurate. Next objective: add a read-only patch provenance/audit chain that can compare future patch-application preflight evidence against saved review artifacts before any write-capable patch behavior exists.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
-- A minimal Python package with a primary `forge` console script and compatibility `forge-patch-proposal-review` / `forge-patch-proposal-draft` / `forge-patch-text-review` console scripts.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, a guarded executor-handoff persistence CLI, changed-file reviews, changed-content audit, diff-source handoff comparison with an optional `--require-clear` gate, patch-intent review with an optional `--require-ready` gate, patch-intent description with an optional `--require-described` gate and unsafe candidate-path-label refusal, patch proposal manifests with an optional `--require-ready` gate, patch proposal review with `--require-ready`, unsafe requested/audited path-label refusal, non-empty validation-step enforcement, patch proposal draft preview with `--require-draft-ready`, patch text preflight with `--require-ready`, and patch text review with `--require-ready`.
+- A minimal Python package with a primary `forge` console script and compatibility `forge-patch-application-preflight` / `forge-patch-proposal-review` / `forge-patch-proposal-draft` / `forge-patch-text-review` console scripts.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, a guarded executor-handoff persistence CLI, changed-file reviews, changed-content audit, diff-source handoff comparison with an optional `--require-clear` gate, patch-intent review with an optional `--require-ready` gate, patch-intent description with an optional `--require-described` gate and unsafe candidate-path-label refusal, patch proposal manifests with an optional `--require-ready` gate, patch proposal review with `--require-ready`, unsafe requested/audited path-label refusal, non-empty validation-step enforcement, patch proposal draft preview with `--require-draft-ready`, patch text preflight with `--require-ready`, patch text review with `--require-ready`, and patch application preflight with `--require-ready`.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
 - `forge command-execution-handoff`, `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` for the conservative pre-execution chain.
 - `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, plus `forge executor-handoff-persist` for separately confirmed durable result persistence.
-- Smoke and deterministic coverage for the CLI’s current local workflows, including primary and compatibility patch proposal review/draft behavior, primary patch text preflight behavior, and primary/compatibility patch text review behavior.
+- Smoke and deterministic coverage for the CLI’s current local workflows, including primary and compatibility patch proposal review/draft behavior, primary patch text preflight behavior, primary/compatibility patch text review behavior, and primary patch application preflight behavior.
 - CI smoke coverage that validates live repository roadmap, policy, state, installed console entry points, the primary `forge patch-proposal-review` / `forge patch-proposal-draft` / `forge patch-text-preflight` / `forge patch-text-review` routes, compatibility routes, matching JSON between primary and compatibility proposal-review/draft/review routes, run-history persistence/list/latest flow, validation-result handoff, and executor-observation audit behavior.
 
 ## Install for local development
@@ -27,10 +27,12 @@ The repository now contains:
 ```bash
 python -m pip install -e .
 forge --help
+forge patch-application-preflight --help
 forge patch-proposal-review --help
 forge patch-proposal-draft --help
 forge patch-text-preflight --help
 forge patch-text-review --help
+forge-patch-application-preflight --help
 forge-patch-proposal-review --help
 forge-patch-proposal-draft --help
 forge-patch-text-review --help
@@ -58,7 +60,8 @@ forge patch-proposal-manifest --root . --description patch-intent-description.js
 forge patch-proposal-review --root . --manifest patch-proposal-manifest.json --content-audit fresh-content-audit.json --require-ready --format json > patch-proposal-review.json
 forge patch-proposal-draft --root . --review patch-proposal-review.json --require-draft-ready --format json > patch-proposal-draft.json
 forge patch-text-preflight --root . --draft patch-proposal-draft.json --path README.md --change-summary "Describe the intended README patch text." --require-ready --format json > patch-text-preflight.json
-forge patch-text-review --root . --preflight patch-text-preflight.json --path README.md --patch-summary "Review the intended README patch text." --require-ready --format json
+forge patch-text-review --root . --preflight patch-text-preflight.json --path README.md --patch-summary "Review the intended README patch text." --require-ready --format json > patch-text-review.json
+forge patch-application-preflight --root . --review patch-text-review.json --path README.md --patch-source manual-review-note --expected-summary "Review the intended README patch text." --require-ready --format json
 forge executor-run --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root . --command "python -m pytest" --confirm-executor-dry-run --format json > executor-run-output.json
 forge executor-handoff-persist --root . --executor-output executor-run-output.json --confirm-write --format json
 forge validation-result-audit --root . --record .ai/run-history/latest.json --format json
