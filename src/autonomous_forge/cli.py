@@ -37,6 +37,10 @@ from autonomous_forge.validation_result_preview import (
     ValidationResultPreviewError,
     read_validation_result_preview,
 )
+from autonomous_forge.validation_result_writer import (
+    ValidationResultWriteError,
+    write_validation_result_attachment,
+)
 
 
 def _add_plan_state_policy_root_format(parser: argparse.ArgumentParser, *, format_help: str) -> None:
@@ -131,6 +135,20 @@ def build_parser() -> argparse.ArgumentParser:
     validation_result_parser.add_argument("--root", default=".", help="repository root used to constrain the record path")
     validation_result_parser.add_argument("--note", default=None, help="optional validation note to include in the preview")
     validation_result_parser.add_argument("--format", choices=("text", "json"), default="text", help="validation-result preview format: text (default) or JSON")
+
+    validation_result_write_parser = subparsers.add_parser(
+        "validation-result-write",
+        help="explicitly attach a supplied validation result to one saved run-history record",
+    )
+    validation_result_write_parser.add_argument("--record", required=True, help="record path under .ai/run-history/ to update")
+    validation_result_write_parser.add_argument("--result", required=True, choices=ALLOWED_VALIDATION_RESULTS, help="validation result value to attach")
+    validation_result_write_parser.add_argument("--root", default=".", help="repository root used to constrain the record path")
+    validation_result_write_parser.add_argument("--note", default=None, help="optional validation note to persist")
+    validation_result_write_parser.add_argument(
+        "--confirm-write",
+        action="store_true",
+        help="required acknowledgement that this command rewrites one local run-history JSON record",
+    )
 
     review_files_parser = subparsers.add_parser("review-files", help="review explicit changed-file paths against repository policy")
     review_files_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
@@ -366,6 +384,29 @@ def _preview_validation_result(record_path: Path, result: str, root: Path, note:
     return 0
 
 
+def _write_validation_result(record_path: Path, result: str, root: Path, note: str | None, confirm_write: bool) -> int:
+    try:
+        write_result = write_validation_result_attachment(
+            record_path,
+            result=result,
+            root=root,
+            note=note,
+            confirm_write=confirm_write,
+        )
+    except FileNotFoundError as exc:
+        print(f"Validation-result write record not found: {exc.filename}")
+        return 2
+    except ValidationResultWriteError as exc:
+        print(f"Validation-result write refused: {exc}")
+        return 2
+
+    print(f"Validation-result attachment written: {write_result['path']}")
+    print(f"Validation execution: {write_result['validation_execution']}")
+    print(f"Validation result: {write_result['validation_result']}")
+    print(f"Validation note: {write_result['validation_note']}")
+    return 0
+
+
 _POLICY_AWARE_READERS = {
     "plan": read_repository_plan,
     "propose": read_change_proposal,
@@ -415,6 +456,8 @@ def main(argv: list[str] | None = None) -> int:
         return _compare_run_history(Path(args.before), Path(args.after), Path(args.root), args.format)
     if args.command == "validation-result-preview":
         return _preview_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.format)
+    if args.command == "validation-result-write":
+        return _write_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.confirm_write)
     if args.command == "review-files":
         return _print_path_review(Path(args.policy), Path(args.root), args.file, args.format)
     if args.command == "policy":
