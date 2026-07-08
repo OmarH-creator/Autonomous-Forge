@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-085
+
+- Task ID: AUTO-085 — Add supplied commit and workflow status review
+- Summary: Added `forge commit-status-review` and compatibility `forge-commit-status-review`, a local read-only review over supplied commit-status, check-run, and workflow-run JSON evidence. The command classifies supplied contexts as successful, failed, pending, or unknown; blocks missing, failed, pending, or unrecognized evidence; emits deterministic text/JSON; and supports `--require-clear`.
+- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, git-diff review implementation, focused docs, tests, and CI workflow. Work stayed directly on `main`. No open PR required integration. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 remain product-direction or example/documentation feedback.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for successful status evidence, failed/pending/unknown evidence, workflow-run evidence, missing evidence, JSON/text output, fail-closed clear gating, and out-of-root input refusal. Added installed workflow smoke coverage for primary and compatibility status-review routes. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: aab3a39c5b7e89d07ef17927810300c79c4c924a plus preceding implementation/test/docs/workflow commits
+- Follow-up notes: Combine clear supplied git-diff review and clear supplied commit-status review into a single change-readiness summary before any write-capable patch applier is considered.
+
 ## 2026-07-09 — AUTO-084
 
 - Task ID: AUTO-084 — Harden supplied git diff review for binary and metadata-only changes
@@ -17,15 +26,6 @@
 - Validation completed: Static source/package/router/test review completed through the GitHub repository API. Added deterministic tests for clean supplied diffs, blocked/unknown paths, JSON/text output, fail-closed behavior, out-of-root diff refusal, and primary `forge` routing. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending-final-commit plus preceding implementation/documentation commits
 - Follow-up notes: Add a guarded commit/workflow status inspection command so reviewed diffs can be tied to observable validation status before any write-capable patch applier is considered.
-
-## 2026-07-08 — AUTO-082
-
-- Task ID: AUTO-082 — Add patch application readiness summary
-- Summary: Shipped `forge patch-application-readiness` and compatibility `forge-patch-application-readiness`, a read-only summary over ready patch-application preflight JSON plus clear patch-application audit JSON. The new gate checks objective/path/validation alignment, carries upstream blockers forward, keeps `patch_application_allowed` false, and provides a final advisory checkpoint before any future guarded patch-applier design.
-- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, workflow, patch-application preflight/audit implementation, and tests. Work stayed directly on `main`. PR #4 was already merged, while PRs #2, #3, and #5 were closed or obsolete. No open PR required integration.
-- Validation completed: Static source/package/router/test review completed through the GitHub repository API. Added deterministic unit and CLI tests for ready evidence, blocked evidence, path mismatch, unsafe paths, wrong payload titles, JSON/text output, primary `forge` routing, and compatibility CLI behavior. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending-final-commit plus preceding implementation/documentation commits
-- Follow-up notes: Add installed CI smoke coverage for `forge patch-application-readiness` and `forge-patch-application-readiness`, then continue toward a guarded patch-applier design only if readiness evidence remains clear.
 
 ## Historical note
 
