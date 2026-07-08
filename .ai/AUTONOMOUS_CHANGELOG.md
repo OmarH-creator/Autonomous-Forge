@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-055
+
+- Task ID: AUTO-055 — Add executor-observation audit
+- Summary: Added `forge executor-observation-audit`, a read-only aggregate audit over direct `.ai/run-history/*.json` records. It classifies saved validation observations as observed-clear, observed-blocked, missing-observation, needs-review, or refused and reports a conservative overall status before future patch or diff workflow work relies on persisted executor evidence.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, README, roadmap, state, changelog, decisions, workflow smoke coverage, validation-result audit, run-history index/reader, executor handoff persistence, and relevant tests. Recent PRs were closed/merged or obsolete; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic tests for audit classification, JSON/text formatting, refused records, invalid limits, and CLI output/refusal. Extended installed-package CI smoke coverage to run `forge executor-observation-audit --format json` after a validation result is attached. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a read-only changed-content or diff-intent audit before any patch generation, diff inspection, or implementation-execution behavior.
+
 ## 2026-07-08 — AUTO-054
 
 - Task ID: AUTO-054 — Require regular run-history record files
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for JSON/text audit CLI output, unsafe record refusal, and entry-point delegation to existing commands. CI smoke coverage now writes a validation result, audits it with `forge validation-result-audit --format json`, JSON-validates the audit output, and asserts `guard_status=consistent`. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before any patch, diff-inspection, or implementation-execution workflow.
-
-## 2026-07-08 — AUTO-052
-
-- Task ID: AUTO-052 — Add read-only validation-result audit helper
-- Summary: Added `validation_result_audit`, a read-only package helper that inspects one saved `.ai/run-history/*.json` record, reports persisted validation execution/result/note fields, and returns a `consistent` or `needs-review` guard with explanatory notes. This gives future patch or diff workflows a reviewable way to inspect saved validation observations before relying on them.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent open/closed PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, run-history reader/writer, validation-result writer, executor-handoff persistence, CLI, and existing tests. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for consistent attached results, inconsistent attached results, clean `not_run`, unknown result values, text/JSON output, unsafe path refusal, malformed JSON refusal, and unsupported schema refusal. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Expose the validation-result audit through `forge validation-result-audit --format text|json` and add installed-package smoke coverage before any patch or diff workflow begins.
 
 ## Historical note
 
