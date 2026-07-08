@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-036
+
+- Task ID: AUTO-036 — Harden explicit run-history reads against symlinked records
+- Summary: Updated `forge run-history-read` so the explicit record path must be a real non-symlink JSON file under `.ai/run-history/` before it is read or summarized. This aligns one-record reads with the existing direct-file boundary used by run-history list/latest flows.
+- Branch and PR assessment: Inspected repository metadata, recent commits, workflow smoke coverage, README, state, changelog, decisions, run-history reader source/tests/docs, and validation-result preview surfaces. The run stayed on `main`; no open branch or PR required integration through the available connector view.
+- Validation completed: Added deterministic regression coverage for symlinked history-file refusal. Static review completed through the GitHub repository API; direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Add CI smoke coverage for `run-history-compare` and `validation-result-preview`, or add an explicitly confirmed validation-result attachment writer only after the preview contract and history read boundaries remain stable.
+
 ## 2026-07-08 — AUTO-035
 
 - Task ID: AUTO-035 — Add guarded validation-result attachment preview
@@ -24,15 +33,6 @@
 - Summary: Hardened `forge run-history-list` and `forge run-history-latest` so direct `.json` candidates must be real non-symlink files that resolve inside `.ai/run-history/`. This prevents symlinked JSON entries from escaping the documented history directory boundary.
 - Branch and PR assessment: Inspected repository metadata, recent commits, README, workflow, run-history index source, run-history tests, docs, state, changelog, and decisions. No open PR required integration. The run stayed on `main`.
 - Validation completed: Added deterministic regression coverage for symlinked JSON records and expanded GitHub Actions smoke coverage to run and JSON-validate `run-history-list` and `run-history-latest` after the CI history-write flow. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment.
-- Commit hash: Recorded in Git history for this direct-main run.
-- Follow-up notes: Add a read-only run-history comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
-
-## 2026-07-08 — AUTO-033
-
-- Task ID: AUTO-033 — Add run-history latest selector
-- Summary: Added `forge run-history-latest`, a read-only command that selects the latest readable direct `.ai/run-history/*.json` record by ascending filename order, reports malformed or unsupported records as refused, and avoids writing indexes or inferring success.
-- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README, roadmap, state, changelog, decisions, source, tests, docs, and current command surfaces. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Added deterministic tests for latest readable selection, malformed-record refusal, no-readable-record behavior, text output, JSON output, and CLI JSON output. Static review completed through the GitHub repository API; direct local checkout execution remained unavailable in this environment. Final commit status was inspected after push.
 - Commit hash: Recorded in Git history for this direct-main run.
 - Follow-up notes: Add a read-only run-history comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
 
