@@ -28,6 +28,7 @@ forge-patch-application-audit = "autonomous_forge.patch_application_audit_cli:ma
 forge-patch-application-preflight = "autonomous_forge.patch_application_preflight_cli:main"
 forge-patch-proposal-draft = "autonomous_forge.patch_proposal_draft_cli:main"
 forge-patch-proposal-review = "autonomous_forge.patch_proposal_review_cli:main"
+forge-patch-text-preflight = "autonomous_forge.patch_text_preflight_cli:main"
 forge-patch-text-review = "autonomous_forge.patch_text_review_cli:main"
 
 [tool.setuptools.packages.find]
