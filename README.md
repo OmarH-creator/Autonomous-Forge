@@ -8,7 +8,7 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-036C wired the guarded validation-result writer into the `forge` CLI as `forge validation-result-write`, requiring `--confirm-write` before rewriting one explicit real non-symlink `.ai/run-history/*.json` record with an externally supplied validation result. The run added deterministic CLI tests and updated the command/documentation contracts. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and repository test additions. No visual updates were needed because this was a narrow persistence-boundary command rather than a new workflow diagram. Next objective: add CI smoke coverage for preview/write/read validation-result behavior, then continue toward checked validation orchestration only after the explicit record-write surface remains stable.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-037 extended the installed GitHub Actions smoke workflow so the temporary CI run-history record now flows through `forge validation-result-preview`, `forge validation-result-write --confirm-write`, and `forge run-history-read`, with JSON parsing and field assertions for the persisted validation execution/result/note. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and workflow hardening. No visual updates were needed because this was a CI safety/checks improvement rather than a new workflow diagram. Next objective: add a read-only validation-result history/status summary before broader validation orchestration, workflow polling, diff inspection, or patch-generation behavior.
 
 The repository now contains:
 
@@ -26,7 +26,7 @@ The repository now contains:
 - `forge validation-result-preview` for previewing a supplied validation result attachment to one saved history record without rewriting it.
 - `forge validation-result-write` for attaching one supplied validation result to one explicit saved history record after `--confirm-write`.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
-- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, and run-history persistence/list/latest flow after installation.
+- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, run-history persistence/list/latest flow, and validation-result preview/write/read handoff after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
 
 ## Install for local development
