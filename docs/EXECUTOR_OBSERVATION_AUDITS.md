@@ -23,7 +23,7 @@ forge executor-observation-audit \
   --format json
 ```
 
-The command scans only direct JSON files under `.ai/run-history/`. It does not recurse into subdirectories, does not follow symlinks, and inherits the run-history index safeguards for malformed or refused records. Without `--require-clear`, the command exits successfully after printing the read-only audit unless the audit itself is malformed or refused. With `--require-clear`, it returns a failing exit code unless the aggregate executor-observation status is `clear`.
+The command scans only direct JSON files under `.ai/run-history/`. It does not recurse into subdirectories, does not follow symlinks, and inherits the run-history index safeguards for malformed or refused records. Candidate records are sorted by filename. When `--max-records` limits the view, the newest filename-sorted records are audited, so a small limit does not silently prefer older evidence over the latest saved observations. Without `--require-clear`, the command exits successfully after printing the read-only audit unless the audit itself is malformed or refused. With `--require-clear`, it returns a failing exit code unless the aggregate executor-observation status is `clear`.
 
 ## Output
 
