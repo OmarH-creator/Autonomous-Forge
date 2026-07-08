@@ -2,7 +2,7 @@
 
 `forge git-diff-review` reviews a repository-local `.diff` or `.patch` file before any future patch-applier workflow relies on it.
 
-The command is local-first and read-only. It inspects unified diff metadata, changed paths, hunk counts, additions, deletions, and policy matches. It does not apply the diff, read changed file contents, run commands, check workflow status, approve implementation, commit, push, or change files.
+The command is local-first and read-only. It inspects unified diff metadata, changed paths, hunk counts, additions, deletions, binary-diff markers, file-mode metadata changes, metadata-only changes, and policy matches. It does not apply the diff, read changed file contents, run commands, check workflow status, approve implementation, commit, push, or change files.
 
 ## Example
 
@@ -16,21 +16,22 @@ forge git-diff-review --policy .forge/policy.md --root . --diff changes.diff --r
 - `--policy`: repository policy file, defaulting to `.forge/policy.md`.
 - `--root`: repository root used to constrain the supplied diff path and path-presence checks.
 - `--diff`: repository-local `.diff` or `.patch` file to inspect.
-- `--require-clear`: returns exit code `2` unless every reviewed path is allowed and the supplied diff parses cleanly.
+- `--require-clear`: returns exit code `2` unless every reviewed path is allowed, the supplied text diff parses cleanly, and no binary or metadata-only changes need separate review.
 - `--format`: `text` or `json`, defaulting to `text`.
 
 ## Output contract
 
 Successful text output includes stable sections for:
 
-- file changes with old path, new path, status, additions, deletions, and hunk count;
+- file changes with old path, new path, status, additions, deletions, hunk count, binary flag, and metadata-only flag;
+- mode changes, when present;
 - path reviews with presence and policy status;
-- summary counts;
+- summary counts, including binary-file and metadata-only counts;
 - parse warnings, when present;
 - `Requires attention: true|false`;
 - reason, next step, and safety boundary.
 
-JSON output includes `title`, `mode`, `source`, `policy`, `file_changes`, `path_reviews`, `summary`, `parse_warnings`, `requires_attention`, `reason`, `next_step`, and `safety_boundary`.
+JSON output includes `title`, `mode`, `source`, `policy`, `file_changes`, `path_reviews`, `summary`, `parse_warnings`, `requires_attention`, `reason`, `next_step`, and `safety_boundary`. Each file-change object includes `binary`, `mode_changes`, and `metadata_only` fields so downstream review gates do not accidentally treat non-text or mode-only changes as ordinary clear text hunks.
 
 ## Exit codes
 
@@ -40,4 +41,4 @@ JSON output includes `title`, `mode`, `source`, `policy`, `file_changes`, `path_
 
 ## Safety limits
 
-This command is advisory. A clear result does not prove correctness, test success, or implementation quality. It only says the supplied unified diff parsed cleanly and all reviewed diff paths matched documented allowed policy paths.
+This command is advisory. A clear result does not prove correctness, test success, or implementation quality. It only says the supplied unified text diff parsed cleanly, avoided binary/metadata-only evidence that needs separate review, and all reviewed diff paths matched documented allowed policy paths.
