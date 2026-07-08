@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-091 — 2026-07-09 — Commit-status review may explicitly collect live GitHub workflow status
+
+Context: The workflow had moved beyond passive review into guarded patch preview, explicit patch application, and post-apply validation handoff, but `forge commit-status-review` still depended only on supplied JSON evidence. That meant status evidence could be stale unless a separate external step collected fresh workflow runs.
+Decision: Extend the existing `forge commit-status-review` and compatibility `forge-commit-status-review` command with explicit `--from-github`, optional `--commit-sha`, and bounded `--limit` support. The live path shells out to local `git` for `HEAD` when needed and `gh run list --commit <sha>` for workflow-run metadata, then normalizes that evidence through the same deterministic status-review and `--require-clear` gate used for supplied JSON.
+Alternatives considered: Add another standalone workflow-status command, keep supplied JSON only, rely on automation runtime GitHub APIs outside the product, or move directly to commit-readiness without live status collection.
+Consequences: Maintainers can now inspect live workflow status for a commit through the product surface when they explicitly opt in. This introduces a controlled external command dependency on local `git` and GitHub CLI, but it still does not rerun workflows, inspect logs, apply patches, write files, commit, or push.
+Human decision still required: No.
+
 ## DEC-090 — 2026-07-09 — Applied patches need explicit validation handoff before commit readiness
 
 Context: `forge patch-apply` introduced a real local write step, but after a successful file change the workflow only told users to run validation. There was no deterministic artifact proving that the required validation steps from the patch-apply report had at least been supplied as post-apply evidence before any future commit-readiness behavior.
