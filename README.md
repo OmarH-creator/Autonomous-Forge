@@ -6,9 +6,11 @@ The project starts as a local-first Python CLI. Its first goal is deliberately s
 
 For a visual orientation to the current read-only workflow and its safety boundary, see [the project overview](docs/OVERVIEW.md).
 
-## Current status
+## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. The repository now contains:
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-036 hardened explicit run-history reads so `forge run-history-read` refuses symlinked record paths and only summarizes real `.json` files under `.ai/run-history/`. The run added regression coverage and updated the run-history read documentation. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and repository test additions. No visual updates were needed because this was a CLI safety-boundary fix. Next objective: add CI smoke coverage for `run-history-compare` and `validation-result-preview`, or add an explicitly confirmed validation-result attachment writer after the preview/read boundaries remain stable.
+
+The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
@@ -17,7 +19,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
-- `forge run-history-read` for summarizing one saved `.ai/run-history/*.json` record without mutating files.
+- `forge run-history-read` for summarizing one saved real non-symlink `.ai/run-history/*.json` record without mutating files.
 - `forge run-history-list` for a deterministic, non-recursive preview of saved direct, non-symlink `.ai/run-history/*.json` records without writing an index.
 - `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files.
 - `forge run-history-compare` for comparing two explicit saved history records without mutating files or inferring success.
@@ -112,7 +114,7 @@ forge run-history-write \
   --confirm-write
 ```
 
-`forge run-history-read` summarizes one saved record without changing files or scanning the history directory.
+`forge run-history-read` summarizes one saved real non-symlink record without changing files or scanning the history directory.
 
 ```bash
 forge run-history-read \
@@ -178,23 +180,3 @@ forge review-files --policy .forge/policy.md --root . --file src/autonomous_forg
 ## Repository policy boundaries
 
 Policy documentation lives in `docs/POLICY.md`. The example policy at `.forge/policy.md` defines allowed paths, prohibited paths, human-approval requirements, and validation expectations. If future tooling cannot understand a policy file, it should avoid implementation work rather than guessing.
-
-## Run tests
-
-```bash
-python -m pip install -e .
-python -m pytest
-```
-
-## Safe contribution expectations
-
-Contributions should stay small, local-first, and reviewable. Do not add network actions, external command execution, deployment behavior, telemetry, or repository-permission changes unless the roadmap and repository policy explicitly allow it.
-
-## Current Autonomous Status
-
-- **Latest run:** Added `forge validation-result-preview`, a read-only command for previewing how a supplied validation result would attach to one saved `.ai/run-history/*.json` record.
-- **What changed:** Added `src/autonomous_forge/validation_result_preview.py`, wired `validation-result-preview --record ... --result ... --note ... --root . --format json` into the CLI, added deterministic tests, and documented the command in README and `docs/VALIDATION_RESULT_PREVIEWS.md`.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for proposed attachment output, `not_run` handling, invalid result refusal, unsafe path refusal, text output, JSON output, CLI JSON output, and malformed-record refusal. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
-- **Visual updates:** No new visual asset was needed; this change adds a narrow validation-result review surface rather than a new workflow diagram.
-- **Current limitations:** `forge validation-result-preview` is read-only. It does not write records, run validation commands, check workflow status, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond the supplied result value, enforce policy, commit, push, call networks, or mutate files.
-- **Next autonomous objective:** Add an explicitly confirmed validation-result attachment writer only after the preview contract is stable, or add stronger record/history status checks if write safety is not sufficient.
