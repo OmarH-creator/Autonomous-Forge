@@ -80,6 +80,22 @@ def test_build_run_history_index_data_refuses_invalid_max_records(tmp_path):
         build_run_history_index_data(tmp_path, max_records=0)
 
 
+def test_build_run_history_index_data_ignores_symlinked_json_records(tmp_path):
+    external = tmp_path / "outside.json"
+    external.write_text(json.dumps(_payload("AUTO-999", "Escaped record")), encoding="utf-8")
+    _write_record(tmp_path, "inside.json", payload=_payload("AUTO-031", "Inside record"))
+    symlink = tmp_path / ".ai" / "run-history" / "zzz-escaped.json"
+    symlink.symlink_to(external)
+
+    index_data = build_run_history_index_data(tmp_path)
+    latest_data = build_run_history_latest_data(tmp_path)
+
+    assert index_data["summary"] == {"records_found": 1, "records_listed": 1, "valid": 1, "refused": 0}
+    assert index_data["records"][0]["path"].endswith("inside.json")
+    assert latest_data["summary"] == {"records_found": 1, "readable": 1, "refused": 0}
+    assert latest_data["latest_record"]["task"]["id"] == "AUTO-031"
+
+
 def test_build_run_history_latest_data_selects_last_readable_filename(tmp_path):
     _write_record(tmp_path, "2026-07-07.json", payload=_payload("AUTO-031", "Older record"))
     _write_record(tmp_path, "2026-07-08.json", payload=_payload("AUTO-033", "Latest record"))
