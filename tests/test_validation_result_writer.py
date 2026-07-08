@@ -120,6 +120,31 @@ def test_validation_result_write_command_persists_supplied_result(tmp_path, caps
     assert saved["record"]["validation_note"] == "pytest passed"
 
 
+def test_validation_result_write_command_outputs_json_summary(tmp_path, capsys):
+    record = _write_record(tmp_path)
+
+    assert main([
+        "validation-result-write",
+        "--root", str(tmp_path),
+        "--record", str(record),
+        "--result", "failed",
+        "--note", "pytest failed",
+        "--confirm-write",
+        "--format", "json",
+    ]) == 0
+
+    printed = json.loads(capsys.readouterr().out)
+    saved = json.loads(record.read_text(encoding="utf-8"))
+    assert printed == {
+        "path": str(record),
+        "validation_execution": "external_result_attached",
+        "validation_note": "pytest failed",
+        "validation_result": "failed",
+    }
+    assert saved["record"]["validation_result"] == "failed"
+    assert saved["record"]["validation_note"] == "pytest failed"
+
+
 def test_validation_result_write_command_requires_confirmation(tmp_path, capsys):
     record = _write_record(tmp_path)
     before = record.read_text(encoding="utf-8")
