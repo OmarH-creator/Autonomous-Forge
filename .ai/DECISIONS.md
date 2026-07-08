@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-055 — 2026-07-08 — Audit aggregate saved executor observations before patch workflows
+
+Context: The repository can now run one exact local validation command, persist reviewed executor-run JSON through guarded validation-result semantics, and audit one saved validation-result observation. Future patch or diff workflows need a broader read-only checkpoint that reviews all direct saved run-history records before relying on persisted executor evidence.
+Decision: Add `executor_observation_audit` and expose it as `forge executor-observation-audit --root . --max-records 20 --format text|json`. The audit builds on the guarded run-history index, classifies each listed record as observed-clear, observed-blocked, missing-observation, needs-review, or refused, and reports a conservative aggregate status without mutating files or running validation.
+Alternatives considered: Rely only on single-record validation-result audit, trust the run-history list validation guard, immediately inspect diffs, poll workflows, verify commits, generate patches, or make the audit mutating.
+Consequences: Maintainers now have an aggregate saved-observation review surface before any patch-adjacent workflow is introduced, while validation execution, persistence, audit, patch generation, diff inspection, and policy enforcement remain separated.
+Human decision still required: No.
+
 ## DEC-054 — 2026-07-08 — Require regular files for run-history reads
 
 Context: Run-history readers already rejected paths outside the repository root, paths outside `.ai/run-history/`, non-JSON extensions, missing files, directories, and direct symlinks. A remaining edge case allowed non-regular filesystem entries with a `.json` suffix to reach the JSON read step.
@@ -14,14 +22,6 @@ Context: The repository already had a read-only validation-result audit helper f
 Decision: Add an installed `forge validation-result-audit --record ... --root ... --format text|json` command through a small CLI entry-point extension that delegates all existing commands to the established CLI implementation. Add deterministic CLI tests and CI smoke coverage that writes a validation result, audits it, JSON-validates the output, and asserts a consistent guard.
 Alternatives considered: Modify the large existing CLI file directly in the GitHub API-only environment, keep only programmatic usage, delay CLI exposure until patch generation, combine audit with validation-result writing, poll workflow status, infer success from saved fields, or make the audit mutating.
 Consequences: The installed CLI now exposes a narrow read-only guard over saved validation observations while preserving existing command behavior and keeping validation execution, result persistence, audit, and future patch workflows separate.
-Human decision still required: No.
-
-## DEC-052 — 2026-07-08 — Audit saved validation observations before patch workflows
-
-Context: The repository can now run one exact validation command, emit a persistence handoff, and persist reviewed executor output into a saved run-history record. Future patch or diff workflows need a read-only way to inspect whether those saved validation fields are internally consistent before relying on them.
-Decision: Add a package-level `validation_result_audit` helper that reads one path-validated `.ai/run-history/*.json` record, reports `validation_execution`, `validation_result`, and `validation_note`, and returns `consistent` or `needs-review` guard notes without mutating files or inferring success.
-Alternatives considered: Trust saved validation fields without a separate audit, rely only on run-history read/list output, expose a CLI before the package helper exists, poll workflow status, verify commits, inspect diffs, auto-approve records, or combine audit with patch generation.
-Consequences: Future CLI and patch-adjacent surfaces can review saved validation observations through a narrow deterministic helper, while validation execution, persistence, audit, and any future implementation workflow remain separate.
 Human decision still required: No.
 
 ## Historical note
