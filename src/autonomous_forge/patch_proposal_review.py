@@ -47,11 +47,16 @@ def _read_manifest(path: Path) -> dict[str, Any]:
         raise PatchProposalReviewError(f"manifest input is not a patch proposal manifest payload: {path}")
     if data.get("mode") != "read-only":
         raise PatchProposalReviewError(f"manifest input mode is not read-only: {path}")
+    objective = data.get("objective")
     requested = data.get("requested_paths")
     validations = data.get("validation_steps")
     blockers = data.get("proposal_blockers")
+    if not isinstance(objective, str) or not objective.strip():
+        raise PatchProposalReviewError(f"manifest input lacks valid objective: {path}")
     if not isinstance(requested, list) or not all(isinstance(item, str) for item in requested):
         raise PatchProposalReviewError(f"manifest input lacks valid requested_paths: {path}")
+    if len(requested) != len(set(requested)):
+        raise PatchProposalReviewError(f"manifest input contains duplicate requested paths: {path}")
     if not isinstance(validations, list) or not all(isinstance(item, str) for item in validations):
         raise PatchProposalReviewError(f"manifest input lacks valid validation_steps: {path}")
     if not isinstance(blockers, list) or not all(isinstance(item, str) for item in blockers):
