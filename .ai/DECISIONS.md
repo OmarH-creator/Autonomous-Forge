@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-082 — 2026-07-08 — Patch application needs a final readiness summary before applier design
+
+Context: Patch-application preflight can confirm reviewed patch-text evidence and explicit provenance metadata, and patch-application audit can verify that provenance remains internally consistent while actual application stays disallowed. Maintainers still need one compact checkpoint that confirms both evidence files agree before any future write-capable patch-applier design is considered.
+Decision: Add `forge patch-application-readiness` plus compatibility `forge-patch-application-readiness` as a read-only summary over supplied preflight and audit JSON. It requires read-only payloads, compares objectives, reviewed paths, validation steps, upstream blockers, and confirms both inputs keep `patch_application_allowed` false. The readiness command itself also keeps `patch_application_allowed` false.
+Alternatives considered: Move directly to a patch applier, make patch-application audit imply readiness, inspect git diffs, generate patch text, or document the handoff without a command surface.
+Consequences: Maintainers gain a final advisory evidence checkpoint before any future guarded patch-applier design. The command still does not read target contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, mutate history, commit, push, or change files.
+Human decision still required: No.
+
 ## DEC-080 — 2026-07-08 — Patch-application audit must be smoke-tested in the installed workflow
 
 Context: `forge patch-application-audit` and compatibility `forge-patch-application-audit` now provide the final read-only provenance audit before any future patch-application design, but the installed GitHub Actions smoke chain still stopped at patch-application preflight.
@@ -14,14 +22,6 @@ Context: Patch-application preflight can confirm ready patch-text review evidenc
 Decision: Add `forge patch-application-audit` plus compatibility `forge-patch-application-audit` as a read-only provenance audit. It consumes one patch-application preflight JSON payload, validates safe path/source metadata, checks count consistency, requires non-empty validation steps, carries forward preflight blockers, supports `--require-clear`, and always keeps `patch_application_allowed` false.
 Alternatives considered: Move directly to a patch applier, fold this audit into patch-application preflight, inspect git diffs, or rely on documentation-only provenance expectations.
 Consequences: Maintainers gain a clearer final advisory checkpoint before any future patch-application design. The command still does not read target file contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, approve implementation, mutate history, commit, push, or change files.
-Human decision still required: No.
-
-## DEC-077 — 2026-07-08 — Patch application preflight must prove provenance without allowing application
-
-Context: Patch text review now confirms ready preflight evidence and explicit per-path patch summaries, but moving directly from reviewed patch text toward any future patch-application design would require provenance checks that every reviewed path has an explicit source and matching expected summary.
-Decision: Add `forge patch-application-preflight` plus compatibility `forge-patch-application-preflight` as a read-only advisory preflight. It consumes ready patch-text review JSON plus explicit `--path`, `--patch-source`, and `--expected-summary` metadata, requires exact reviewed-path coverage, rejects extra provenance paths, and confirms expected summaries match reviewed summaries. `patch_application_allowed` remains hard-coded to `false` because no patch applier exists.
-Alternatives considered: Generate or apply patch text immediately, extend patch text review with application semantics, require a git diff first, or document the provenance expectation without a command gate.
-Consequences: Maintainers gain a safer pre-application evidence handoff without introducing write-capable patch behavior. The command still does not read target contents, inspect git diffs, generate patch text, apply patches, run commands, approve implementation, mutate history, commit, push, or change files.
 Human decision still required: No.
 
 ## Historical note
