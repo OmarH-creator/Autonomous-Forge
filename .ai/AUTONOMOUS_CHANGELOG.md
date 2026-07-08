@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-074
+
+- Task ID: AUTO-074 — Add patch text preflight gate
+- Summary: Shipped `forge patch-text-preflight`, a read-only gate that consumes draft-ready patch proposal JSON plus explicit per-path patch metadata and returns ready/blocked status before any future patch-text surface. It verifies draft readiness, exact metadata/target alignment, non-empty change summaries, validation-step evidence, and safe path labels without generating or applying patches.
+- Branch and PR assessment: Inspected repository metadata, README/state/changelog/decisions/roadmap records, CI workflow context, installed entry-point routing, tests, docs, recent issues, and recent PRs. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic core, CLI, and primary-router tests. CI smoke coverage is being extended to run `forge patch-text-preflight --require-ready` against ready draft evidence with explicit metadata. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: d0b4863a266dcf6654d7cc3ef2ca9b2785ccd8eb plus follow-up workflow/project-memory commits
+- Follow-up notes: Add a read-only patch text review surface that consumes ready preflight evidence plus supplied patch-text metadata without applying changes.
+
 ## 2026-07-08 — AUTO-073
 
 - Task ID: AUTO-073 — Add patch proposal draft preview
@@ -8,15 +17,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic core, standalone CLI, and primary-router tests. CI now smoke-tests the primary and compatibility draft commands, JSON-validates both outputs, and asserts exact equality for the same ready evidence. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: b5060f4a25346b31a3cbb72fed577298730ed9e8 plus follow-up documentation/state commits
 - Follow-up notes: Add a read-only patch text preflight gate that consumes draft-ready evidence plus explicit patch metadata without generating or applying patches.
-
-## 2026-07-08 — AUTO-072
-
-- Task ID: AUTO-072 — Add CI coverage for primary patch proposal review route
-- Summary: Hardened the GitHub Actions smoke chain so the installed primary `forge patch-proposal-review` route is tested directly, while the compatibility `forge-patch-proposal-review` console script remains covered and must produce identical JSON for the same ready evidence.
-- Branch and PR assessment: Inspected repository metadata, recent README/state/changelog/decisions/roadmap records, CI workflow context, installed entry-point routing, tests, recent commits, issues, branches, and recent PRs. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
-- Validation completed: Static review completed through the GitHub repository API. CI now runs `forge patch-proposal-review --help`, executes `forge patch-proposal-review --require-ready` in the end-to-end installed smoke path, executes the standalone compatibility command separately, JSON-validates both results, and asserts exact equality. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: ac4c16b49ab9ea85e795cb825e41a61a6a87a581 plus follow-up documentation/state commits
-- Follow-up notes: Add a read-only patch proposal draft preview that consumes ready proposal-review evidence without generating or applying patches.
 
 ## Historical note
 
