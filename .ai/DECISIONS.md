@@ -1,11 +1,11 @@
 # Autonomous Decisions
 
-## DEC-047 — 2026-07-08 — Treat executor launch failures as validation observations
+## DEC-047 — 2026-07-08 — Treat executor launch failures and handoffs as structured observations
 
-Context: `forge executor-run` handled completed and timed-out subprocesses, but OS-level startup failures such as a missing executable could still escape as unhandled CLI errors after the dry-run gate had approved the exact command.
-Decision: Catch `OSError` from the no-shell subprocess runner and report it as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output with bounded stderr context and no return code.
-Alternatives considered: Let startup errors crash the CLI, treat missing executables as blocked before execution despite occurring after gate approval, silently mark them not-run, or broaden command execution to recover automatically.
-Consequences: Executor output remains machine-readable and durable-history-ready even when local runtime setup is broken, while preserving the same narrow command allowlist and no-auto-persistence boundary.
+Context: `forge executor-run` handled completed and timed-out subprocesses, but OS-level startup failures such as a missing executable could still escape as unhandled CLI errors after the dry-run gate had approved the exact command. A concurrent executor-result persistence handoff also landed during the same maintenance window.
+Decision: Catch `OSError` from the no-shell subprocess runner and report it as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output with bounded stderr context and no return code. Preserve the concurrent persistence handoff as advisory output only: it may describe the exact `forge validation-result-write --confirm-write` command, but it must not write history automatically.
+Alternatives considered: Let startup errors crash the CLI, treat missing executables as blocked before execution despite occurring after gate approval, silently mark them not-run, revert the handoff, persist automatically, or broaden command execution to recover automatically.
+Consequences: Executor output remains machine-readable and durable-history-ready even when local runtime setup is broken, while preserving the same narrow command allowlist, no-shell execution, and no-auto-persistence boundary.
 Human decision still required: No.
 
 ## DEC-046 — 2026-07-08 — Permit one narrow opt-in local validation executor
