@@ -1,7 +1,13 @@
 import json
+import subprocess
 
 from autonomous_forge.cli_entry_patch import main as forge_main
-from autonomous_forge.commit_status_review import build_commit_status_review, build_commit_status_review_data
+from autonomous_forge.commit_status_review import (
+    CommitStatusReviewError,
+    build_commit_status_review,
+    build_commit_status_review_data,
+    collect_github_workflow_status_payload,
+)
 
 
 SUCCESS_STATUS = {
@@ -88,6 +94,61 @@ def test_build_commit_status_review_formats_text_output():
     assert "Safety boundary: Commit-status review reads supplied JSON status evidence only" in output
 
 
+def test_collect_github_workflow_status_payload_uses_git_and_gh(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_run(args, cwd, check, capture_output, text):
+        calls.append(args)
+        assert cwd == tmp_path
+        assert check is True
+        assert capture_output is True
+        assert text is True
+        if args[:3] == ["git", "rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(args, 0, stdout="abc1234\n", stderr="")
+        if args[:3] == ["gh", "run", "list"]:
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout=json.dumps(
+                    [
+                        {
+                            "databaseId": 42,
+                            "name": "Test",
+                            "workflowName": "CI",
+                            "status": "completed",
+                            "conclusion": "success",
+                            "event": "push",
+                            "displayTitle": "main validation",
+                            "headSha": "abc1234",
+                            "url": "https://example.invalid/actions/runs/42",
+                        }
+                    ]
+                ),
+                stderr="",
+            )
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    payload = collect_github_workflow_status_payload(root=tmp_path)
+
+    assert payload["sha"] == "abc1234"
+    assert payload["source"] == "gh run list"
+    assert payload["workflow_runs"][0]["name"] == "Test"
+    assert payload["workflow_runs"][0]["conclusion"] == "success"
+    assert calls[0] == ["git", "rev-parse", "HEAD"]
+    assert calls[1][:4] == ["gh", "run", "list", "--commit"]
+
+
+def test_collect_github_workflow_status_payload_rejects_bad_sha(tmp_path):
+    try:
+        collect_github_workflow_status_payload(root=tmp_path, commit_sha="not-a-sha")
+    except CommitStatusReviewError as exc:
+        assert "commit SHA" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("bad commit SHA was not refused")
+
+
 def test_commit_status_review_command_prints_json_and_honors_clear_gate(tmp_path, capsys):
     status = tmp_path / "status.json"
     status.write_text(json.dumps(SUCCESS_STATUS), encoding="utf-8")
@@ -102,6 +163,35 @@ def test_commit_status_review_command_prints_json_and_honors_clear_gate(tmp_path
 
     data = json.loads(capsys.readouterr().out)
     assert data["requires_attention"] is False
+
+
+def test_commit_status_review_command_collects_github_workflow_status(monkeypatch, tmp_path, capsys):
+    def fake_run(args, cwd, check, capture_output, text):
+        if args[:3] == ["gh", "run", "list"]:
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                stdout=json.dumps(
+                    [{"name": "CI", "status": "completed", "conclusion": "success", "url": "https://example.invalid"}]
+                ),
+                stderr="",
+            )
+        raise AssertionError(f"unexpected command: {args}")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert forge_main([
+        "commit-status-review",
+        "--root", str(tmp_path),
+        "--from-github",
+        "--commit-sha", "abc1234",
+        "--require-clear",
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["source"] == "gh run list"
+    assert data["review_status"] == "clear"
 
 
 def test_commit_status_review_command_fails_clear_gate_for_blockers(tmp_path, capsys):
