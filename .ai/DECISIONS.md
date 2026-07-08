@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-089 — 2026-07-09 — Patch-apply reports and fail-closed gating must be separate
+
+Context: `forge patch-apply` introduced a real write-capable local patch step, but the CLI returned exit code 2 whenever no file changed, even though its parser exposed `--require-applied` specifically for fail-closed automation. That made ordinary blocked review reports look like command failures and made the flag misleading.
+Decision: Honor `--require-applied` as the only CLI-level fail-closed gate for unchanged patch-apply results. Without the flag, the command returns a report with exit code 0 even when application is blocked; with the flag, it returns exit code 2 unless `file_changed` is true. All existing write guards remain unchanged.
+Alternatives considered: Keep all blocked reports as process failures, remove `--require-applied`, or automatically apply when evidence is ready even without confirmation.
+Consequences: Maintainers can inspect blocked patch-apply reports as normal command output, while automation can still require an actual write explicitly. A zero exit code without `--require-applied` means the report was produced, not that a file changed.
+Human decision still required: No.
+
 ## DEC-088 — 2026-07-09 — Patch application must be explicit, preview-matched, and single-file
 
 Context: The workflow could inspect supplied diffs, review supplied validation status, summarize change readiness, summarize patch-application readiness, and generate bounded patch preview text from explicit replacement content. It still could not perform the actual local file update, leaving the end-to-end workflow stuck before any real changed file could be validated.
