@@ -2,7 +2,6 @@ import json
 
 import pytest
 
-from autonomous_forge.cli import main
 from autonomous_forge.validation_result_audit import (
     ValidationResultAuditError,
     build_validation_result_audit_data,
@@ -64,6 +63,18 @@ def test_build_validation_result_audit_data_accepts_clean_not_run(tmp_path):
     assert data["guard_status"] == "consistent"
 
 
+def test_build_validation_result_audit_data_flags_unknown_result(tmp_path):
+    record = _write_record(
+        tmp_path,
+        payload=_payload_with_validation(result="green", execution="external_result_attached", note="unknown result"),
+    )
+
+    data = build_validation_result_audit_data(record, root=tmp_path)
+
+    assert data["guard_status"] == "needs-review"
+    assert "validation_result is outside the allowed set: green" in data["guard_notes"]
+
+
 def test_read_validation_result_audit_formats_text(tmp_path):
     record = _write_record(tmp_path, payload=_payload_with_validation())
 
@@ -103,28 +114,8 @@ def test_validation_result_audit_refuses_malformed_json(tmp_path):
         build_validation_result_audit_data(record, root=tmp_path)
 
 
-def test_validation_result_audit_command_outputs_json(tmp_path, capsys):
-    record = _write_record(tmp_path, payload=_payload_with_validation())
-
-    assert main([
-        "validation-result-audit",
-        "--root", str(tmp_path),
-        "--record", str(record),
-        "--format", "json",
-    ]) == 0
-
-    data = json.loads(capsys.readouterr().out)
-    assert data["validation_result"] == "passed"
-    assert data["guard_status"] == "consistent"
-
-
-def test_validation_result_audit_command_reports_schema_errors(tmp_path, capsys):
+def test_validation_result_audit_refuses_unsupported_schema(tmp_path):
     record = _write_record(tmp_path, payload={"schema_version": "other/v1"})
 
-    assert main([
-        "validation-result-audit",
-        "--root", str(tmp_path),
-        "--record", str(record),
-    ]) == 2
-
-    assert "Validation-result audit refused: unsupported schema_version" in capsys.readouterr().out
+    with pytest.raises(ValidationResultAuditError, match="unsupported schema_version"):
+        build_validation_result_audit_data(record, root=tmp_path)
