@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-054 — 2026-07-08 — Require regular files for run-history reads
+
+Context: Run-history readers already rejected paths outside the repository root, paths outside `.ai/run-history/`, non-JSON extensions, missing files, directories, and direct symlinks. A remaining edge case allowed non-regular filesystem entries with a `.json` suffix to reach the JSON read step.
+Decision: Require resolved run-history record paths to satisfy `Path.is_file()` after the existing symlink, directory, extension, existence, root, and history-directory checks. Add regression coverage for FIFO/non-regular record paths where the platform supports creating them.
+Alternatives considered: Rely on JSON read errors, only keep the existing directory guard, add this guard only to validation-result audit, broaden the reader to scan directories, or defer filesystem hardening until patch workflows exist.
+Consequences: Saved-record readers now have a clearer filesystem boundary before future executor-observation, patch, or diff workflows depend on durable run-history JSON records.
+Human decision still required: No.
+
 ## DEC-053 — 2026-07-08 — Expose validation-result audit as an installed command
 
 Context: The repository already had a read-only validation-result audit helper for saved run-history observations, but users and CI could not invoke it through the installed `forge` console command before future patch or diff workflows begin.
@@ -14,14 +22,6 @@ Context: The repository can now run one exact validation command, emit a persist
 Decision: Add a package-level `validation_result_audit` helper that reads one path-validated `.ai/run-history/*.json` record, reports `validation_execution`, `validation_result`, and `validation_note`, and returns `consistent` or `needs-review` guard notes without mutating files or inferring success.
 Alternatives considered: Trust saved validation fields without a separate audit, rely only on run-history read/list output, expose a CLI before the package helper exists, poll workflow status, verify commits, inspect diffs, auto-approve records, or combine audit with patch generation.
 Consequences: Future CLI and patch-adjacent surfaces can review saved validation observations through a narrow deterministic helper, while validation execution, persistence, audit, and any future implementation workflow remain separate.
-Human decision still required: No.
-
-## DEC-051 — 2026-07-08 — Exercise executor handoff persistence in CI
-
-Context: CI already ran `forge executor-run --format json`, but the resulting JSON was written under `/tmp`, while `forge executor-handoff-persist` intentionally accepts only repository-local JSON paths. That meant the installed-package smoke path did not verify the guarded handoff persistence command.
-Decision: Change the workflow to write executor output to repository-local `executor-run-output.json`, JSON-validate it, run `forge executor-handoff-persist --confirm-write --format json`, and assert that the executor handoff remains advisory/non-automatic while the persisted summary reports `external_result_attached` and `passed`.
-Alternatives considered: Keep only unit tests, write executor output under `/tmp` and skip persistence, weaken the executor-output path guard to accept external paths, auto-persist from executor-run, or add a separate workflow job with duplicated setup.
-Consequences: CI now exercises the complete installed executor-to-persistence handoff while preserving the repository-local path guard and the explicit separation between command execution and history mutation.
 Human decision still required: No.
 
 ## Historical note
