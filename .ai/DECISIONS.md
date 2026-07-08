@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-040C — 2026-07-08 — Smoke-test validation-result comparison before orchestration
+
+Context: The repository had installed-package CI smoke coverage for validation-result preview/write/read, and `forge run-history-compare` existed as a read-only memory-inspection surface, but CI did not exercise comparison against the before/after validation-result handoff.
+Decision: Extend the existing smoke workflow to preserve a before-validation temporary record, attach a supplied validation result with `--confirm-write`, read the updated record, compare the before/after records with `forge run-history-compare --format json`, JSON-validate the outputs, and assert that validation execution/result changed.
+Alternatives considered: Rely on unit tests only, add a separate workflow, start validation orchestration immediately, poll GitHub Actions, run validation commands through the product, infer success from commits, inspect diffs, generate patches, or broaden persistence behavior.
+Consequences: The installed CLI now proves the validation-result persistence and comparison handoff works together in CI while still avoiding product-level validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and tracked-file mutation by the CLI.
+Human decision still required: No.
+
 ## DEC-039 — 2026-07-08 — Emit machine-readable validation-result write summaries
 
 Context: `forge validation-result-write` could persist a supplied validation outcome, but automation had to scrape human-oriented text output to capture the written path and validation fields after the confirmed write.
