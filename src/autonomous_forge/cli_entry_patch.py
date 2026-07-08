@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from autonomous_forge import cli_entry
+from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
 from autonomous_forge.patch_proposal_draft_cli import main as _patch_proposal_draft_main
 from autonomous_forge.patch_proposal_review_cli import main as _patch_proposal_review_main
@@ -13,6 +14,7 @@ from autonomous_forge.patch_text_review_cli import main as _patch_text_review_ma
 
 
 _EXTENSION_COMMANDS = {
+    "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
     "patch-proposal-draft": _patch_proposal_draft_main,
     "patch-proposal-review": _patch_proposal_review_main,
