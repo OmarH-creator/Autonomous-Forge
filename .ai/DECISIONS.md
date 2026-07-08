@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-036C — 2026-07-08 — Expose validation-result writes through a confirmed CLI command
+
+Context: `validation_result_writer` could attach a supplied validation result through a guarded Python API, but maintainers could not use that persistence step through the installed `forge` command surface.
+Decision: Add `forge validation-result-write` with explicit `--confirm-write`, reuse the same allowed result values and `.ai/run-history/*.json` path boundary, and print the persisted validation execution/result/note after the write.
+Alternatives considered: Keep the writer as Python API only, run validation commands, poll GitHub workflow status, infer success from commits, write broader history indexes, generate patches, or move directly to a validation executor.
+Consequences: The product gains an end-user-accessible persistence handoff for externally observed validation outcomes while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, recursive scans, and broad file mutation.
+Human decision still required: No.
+
 ## DEC-036B — 2026-07-08 — Add a confirmed validation-result writer core before any executor
 
 Context: `forge validation-result-preview` can review a supplied validation result, and the run-history reader/list/latest/compare surfaces can inspect saved records, but there was no guarded persistence step for recording an externally observed validation outcome.
