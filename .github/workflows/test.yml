@@ -36,6 +36,7 @@ jobs:
           forge --version
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
+          forge patch-text-preflight --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
       - name: Validate repository planning inputs
@@ -123,6 +124,15 @@ jobs:
             --review autonomous-forge-patch-proposal-review.json \
             --require-draft-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-draft.json
+          forge patch-text-preflight \
+            --root /tmp \
+            --draft autonomous-forge-patch-proposal-draft.json \
+            --path README.md \
+            --change-summary "Document the smoke-tested workflow." \
+            --path src/autonomous_forge/content_audit.py \
+            --change-summary "Preserve content-audit implementation metadata." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-text-preflight.json
           forge-patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
@@ -149,6 +159,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-proposal-review-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft-compat.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-text-preflight.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -206,6 +217,13 @@ jobs:
 
           patch_draft_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-draft-compat.json').read_text(encoding='utf-8'))
           assert patch_draft_compat == patch_draft
+
+          patch_preflight = json.loads(Path('/tmp/autonomous-forge-patch-text-preflight.json').read_text(encoding='utf-8'))
+          assert patch_preflight['mode'] == 'read-only'
+          assert patch_preflight['preflight_status'] == 'ready'
+          assert patch_preflight['patch_text_preflight_allowed'] is True
+          assert patch_preflight['metadata_path_count'] == 2
+          assert patch_preflight['draft_target_paths'] == patch_draft['target_paths']
           PY
       - name: Smoke-test run-history persistence flow
         run: |
