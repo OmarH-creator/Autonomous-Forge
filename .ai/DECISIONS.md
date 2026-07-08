@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-035 — 2026-07-08 — Preview validation-result attachments before writing them
+
+Context: `forge run-history-read`, `forge run-history-list`, `forge run-history-latest`, and `forge run-history-compare` can inspect persisted run-history records, but maintainers still need a stable way to review a validation-result update before any command mutates saved history.
+Decision: Add `forge validation-result-preview` as a read-only command that accepts one explicit `.ai/run-history/*.json` record and one supplied validation result, then prints the proposed validation attachment fields without rewriting the record.
+Alternatives considered: Write the validation result immediately, run validation commands, poll GitHub workflow status, verify commits, infer success from record contents, inspect diffs, generate patches, or move directly to an executor.
+Consequences: Maintainers get a deterministic validation-result handoff while the product avoids record mutation, validation execution, workflow polling, commit verification, diff inspection, patch generation, and inferred success claims.
+Human decision still required: No.
+
 ## DEC-034 — 2026-07-08 — Compare explicit records before attaching validation results
 
 Context: `forge run-history-read`, `forge run-history-list`, and `forge run-history-latest` can inspect persisted history records, but maintainers still need a stable way to compare two selected records before any workflow infers progress, verifies commits, attaches validation results, or runs commands.
@@ -22,14 +30,6 @@ Context: `forge run-history-list` can inspect multiple saved records, but mainta
 Decision: Add `forge run-history-latest` as a read-only selector that scans direct `.ai/run-history/*.json` files, sorts by filename ascending, chooses the last readable record, and reports malformed or unsupported records as refused.
 Alternatives considered: Use filesystem modification time, write a durable index, verify commit recency, check GitHub workflow status, infer success from record contents, recursively scan directories, or move directly to record comparison.
 Consequences: Maintainers get a stable latest-record view while the product avoids timestamp ambiguity, extra writes, validation execution, commit verification, workflow checks, diff inspection, and inferred success claims.
-Human decision still required: No.
-
-## DEC-031 — 2026-07-08 — List saved history records before adding indexes
-
-Context: `forge run-history-read` can inspect one explicit persisted record, but maintainers need a safe view across saved records before any durable aggregate index, validation executor, or patch workflow exists.
-Decision: Add `forge run-history-list` as a read-only, non-recursive listing command for direct `.ai/run-history/*.json` files that reuses the single-record schema summary and marks malformed records as refused.
-Alternatives considered: Write an index file, recursively scan directories, infer latest records automatically, verify commits, run validation commands, or move directly to patch generation.
-Consequences: Maintainers can inspect multiple local run records while the product avoids extra writes, broad scans, validation execution, diff inspection, and inferred success claims.
 Human decision still required: No.
 
 ## Historical note
