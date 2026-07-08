@@ -68,8 +68,8 @@ def _read_manifest(path: Path) -> dict[str, Any]:
         _validate_review_path_label(item, path, kind="manifest")
     if len(requested) != len(set(requested)):
         raise PatchProposalReviewError(f"manifest input contains duplicate requested paths: {path}")
-    if not isinstance(validations, list) or not all(isinstance(item, str) for item in validations):
-        raise PatchProposalReviewError(f"manifest input lacks valid validation_steps: {path}")
+    if not isinstance(validations, list) or not validations or not all(isinstance(item, str) and item.strip() for item in validations):
+        raise PatchProposalReviewError(f"manifest input lacks non-empty validation_steps: {path}")
     if not isinstance(blockers, list) or not all(isinstance(item, str) for item in blockers):
         raise PatchProposalReviewError(f"manifest input lacks valid proposal_blockers: {path}")
     return data
