@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, package m
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, a read-only executor dry-run, a narrow opt-in local executor that can run one exact validation command without a shell, explicit executor-result persistence handoff, guarded executor-handoff persistence, validation-result audits, executor-observation audits with fail-closed gating, latest-limited history audit windows, content-audit, supplied git-diff review with binary/metadata-only hardening, supplied commit-status review, diff-source handoff, patch-intent review, patch-intent description, patch proposal manifests, patch proposal review, patch proposal draft previews from ready review evidence, patch text preflight checks from explicit per-path metadata, single-read evidence reuse for patch-text preflight CLI formatting and readiness gating, patch text review from ready preflight evidence plus explicit per-path patch summaries, patch application preflight from ready patch-text review evidence plus explicit provenance metadata, patch application provenance audit from ready preflight evidence, patch application readiness summary from ready preflight plus clear audit evidence, and CI smoke coverage for the primary/compatibility review routes. Product commands still do not enforce policy, generate patches, apply patches, execute arbitrary implementation plans, poll live workflow status, cryptographically verify commits, or commit changes.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, a read-only executor dry-run, a narrow opt-in local executor that can run one exact confirmed local validation command without a shell, explicit executor-result persistence handoff, guarded executor-handoff persistence, validation-result audits, executor-observation audits with fail-closed gating, latest-limited history audit windows, content-audit, supplied git-diff review with binary/metadata-only hardening, supplied commit-status review, diff-source handoff, patch-intent review, patch-intent description, patch proposal manifests, patch proposal review, patch proposal draft previews from ready review evidence, patch text preflight checks from explicit per-path metadata, single-read evidence reuse for patch-text preflight CLI formatting and readiness gating, patch text review from ready preflight evidence plus explicit per-path patch summaries, patch application preflight from ready patch-text review evidence plus explicit provenance metadata, patch application provenance audit from ready preflight evidence, patch application readiness summary from ready preflight plus clear audit evidence, and CI smoke coverage for the primary/compatibility review routes. Product commands still do not enforce policy, generate patches, apply patches, execute arbitrary implementation plans, poll live workflow status, cryptographically verify commits, or commit changes.
 
 ## Technical debt
 
@@ -24,8 +24,8 @@ The CLI can select work, describe policy boundaries, build reviewable plans and 
 
 ## Roadmap v1 — Completed foundation
 
-### AUTO-001 through AUTO-004 — Local CLI, roadmap parsing, task selection, and dry-run reports
-Priority: P1-P2
+### AUTO-001 — Local CLI, roadmap parsing, task selection, and dry-run reports through AUTO-004
+Priority: P1
 Status: DONE
 
 Goal: Establish an installable local CLI that can parse roadmap tasks, select the next eligible item deterministically, and report repository state without changing files.
@@ -39,8 +39,8 @@ Notes: Historical detailed task records remain available in repository history.
 
 ## Roadmap v2 — Completed safety and reporting surface
 
-### AUTO-005 through AUTO-017 — Policy, linting, inventory, and run-summary previews
-Priority: P1-P3
+### AUTO-005 — Policy, linting, inventory, and run-summary previews through AUTO-017
+Priority: P1
 Status: DONE
 
 Goal: Establish policy parsing, roadmap linting, contributor guidance, command contracts, repository inventory, and run-summary preview behavior.
@@ -54,7 +54,7 @@ Notes: Historical detailed task records remain available in repository history.
 
 ## Roadmap v3 — Policy-aware planning toward safe maintenance workflow
 
-### AUTO-018 through AUTO-056 — Planning, review, history, validation executor, and observation gates
+### AUTO-018 — Planning, review, history, validation executor, and observation gates through AUTO-056
 Priority: P1
 Status: DONE
 
@@ -67,7 +67,7 @@ Validation: Deterministic tests and static review were completed through the Git
 Risks or assumptions: These surfaces are advisory except for explicit local validation execution and explicit local persistence. They must not imply arbitrary command execution, patch generation, git-diff inspection, approval, automatic write persistence, or policy enforcement.
 Notes: Historical detailed task records remain available in repository history.
 
-### AUTO-057 through AUTO-082 — Content audit and patch-proposal evidence readiness
+### AUTO-057 — Content audit and patch-proposal evidence readiness through AUTO-082
 Priority: P1
 Status: DONE
 
@@ -99,7 +99,7 @@ Status: DONE
 
 Goal: Prevent allowed-path binary diffs and metadata-only file-mode changes from passing as ordinary clear text diffs.
 Why it matters: A future patch-applier workflow must not treat non-text or file-mode-only evidence as equivalent to reviewed textual hunks simply because the changed path matches an allowed policy path.
-Scope: Extend `forge git-diff-review` data with per-file `binary`, `mode_changes`, and `metadata_only` fields; add summary counts; make `--require-clear` fail closed on binary or metadata-only evidence; update tests, docs, README, and project memory.
+Scope: Extend `forge git-diff-review` data with per-file `binary`, `mode_changes`, and `metadata_only` fields; add summary counts; make `--require-clear` fail closed on binary or metadata-only evidence; update tests, docs, README, and `.ai` records.
 Expected files or areas: `src/autonomous_forge/git_diff_review.py`, `tests/test_git_diff_review.py`, `docs/GIT_DIFF_REVIEW.md`, README, and `.ai` records.
 Acceptance criteria: Binary diff markers and mode-only diffs are parsed, surfaced in text/JSON output, counted in summaries, and require attention even when their paths are otherwise allowed.
 Validation: Static source/test/documentation review completed through the GitHub repository API. Deterministic tests were added for binary diffs, metadata-only mode changes, text/JSON output fields, and fail-closed clear gating. Direct local checkout/test execution remained unavailable in this environment.
