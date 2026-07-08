@@ -12,7 +12,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, and one read-only latest-record selector.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, one read-only latest-record selector, and one read-only run-history comparison preview.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
@@ -20,6 +20,7 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - `forge run-history-read` for summarizing one saved `.ai/run-history/*.json` record without mutating files.
 - `forge run-history-list` for a deterministic, non-recursive preview of saved direct, non-symlink `.ai/run-history/*.json` records without writing an index.
 - `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files.
+- `forge run-history-compare` for comparing two explicit saved history records without mutating files or inferring success.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, and run-history persistence/list/latest flow after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
@@ -96,7 +97,7 @@ forge preflight-readiness \
   --format json
 ```
 
-## Opt-in local run-history write, read, list, and latest selection
+## Opt-in local run-history write, read, list, latest selection, and comparison
 
 `forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
 
@@ -136,9 +137,19 @@ forge run-history-latest \
   --format json
 ```
 
+`forge run-history-compare` compares two explicit `.ai/run-history/*.json` records and reports changed or unchanged task, review, preflight, validation, changed-files, commit, blocker, and safety-note fields.
+
+```bash
+forge run-history-compare \
+  --root . \
+  --before .ai/run-history/older.json \
+  --after .ai/run-history/latest.json \
+  --format json
+```
+
 These history commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`.
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, and `docs/COMMANDS.md` for focused contracts.
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
@@ -169,9 +180,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Hardened run-history list/latest scanning so direct `.json` candidates must be real non-symlink files under `.ai/run-history/`.
-- **What changed:** Updated `src/autonomous_forge/run_history_index.py` to skip symlinked JSON entries and verify resolved candidates remain inside the history directory, added regression coverage for symlink escapes, expanded CI smoke checks to exercise `run-history-list` and `run-history-latest`, and documented the boundary in README and `docs/RUN_HISTORY_LISTS.md`.
-- **Validation:** Static review completed through the GitHub repository API. Regression tests now cover symlinked JSON records, and CI will JSON-validate run-history preview, preflight, read, list, and latest outputs. Direct local checkout/test execution remains unavailable in this environment.
-- **Visual updates:** No new visual asset was needed; this was a narrow safety and CI hardening change for an existing CLI surface.
-- **Current limitations:** The run-history list/latest commands remain read-only inspection surfaces. They do not compare records, verify commits, check workflow status, inspect repository settings, run tests locally, infer success, mutate `.ai/run-history/`, persist aggregate state, generate patches, inspect diffs, or enforce policy decisions.
-- **Next autonomous objective:** Add a read-only run-history comparison surface before any validation executor, diff inspection, patch generation, index writer, or broader write behavior is considered.
+- **Latest run:** Added `forge run-history-compare`, a read-only command for comparing two explicit persisted `.ai/run-history/*.json` records.
+- **What changed:** Added `src/autonomous_forge/run_history_compare.py`, wired `run-history-compare --before ... --after ... --root . --format json` into the CLI, added deterministic comparison and CLI tests, and documented the command in README and `docs/RUN_HISTORY_COMPARISONS.md`.
+- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for changed fields, unchanged records, text output, JSON output, unsafe path refusal, malformed-record refusal, CLI JSON output, and CLI refusal output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
+- **Visual updates:** No new visual asset was needed; this change adds a narrow memory-comparison command rather than a new workflow diagram.
+- **Current limitations:** `forge run-history-compare` is read-only. It does not verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, enforce policy decisions, commit, push, call networks, or mutate files.
+- **Next autonomous objective:** Add a guarded validation-status reader or explicit validation-result attachment surface before any validation executor, diff inspection, patch generation, index writer, or broader write behavior is considered.
