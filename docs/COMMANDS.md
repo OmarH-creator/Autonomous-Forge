@@ -1,79 +1,17 @@
 # Command Output Contracts
 
-Autonomous Forge commands are currently read-only except for the explicitly confirmed `forge run-history-write` command. They inspect local files, print human-readable summaries or structured previews, and avoid repository mutation unless a command contract states otherwise.
+Autonomous Forge commands are currently read-only except for explicitly confirmed local persistence commands. They inspect local files, print human-readable summaries or structured previews, and do not modify repository files unless the command contract explicitly says so.
 
 These contracts describe implemented behavior only. They are intentionally plain so contributors and future automation can rely on stable command purposes without assuming enforcement or execution features that do not exist yet.
 
 ## General expectations
 
 - Commands write results to standard output.
-- Commands return exit code `0` when the requested inspection or explicit write succeeds.
-- Commands return exit code `2` for missing required input files or malformed roadmap/policy/history input.
-- Read-only commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions.
+- Commands return exit code `0` when the requested read-only inspection succeeds.
+- Commands return exit code `2` for missing required input files or malformed roadmap/policy input.
+- Commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions unless an explicit command contract narrowly allows a local file write.
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply execution or approval.
-
-## `forge run-history-latest`
-
-Purpose: select the latest readable direct local run-history JSON record without changing files.
-
-Inputs:
-
-- `--root`: repository root containing `.ai/run-history/`, defaulting to `.`.
-- `--format`: `text` or `json`, defaulting to `text`.
-
-Expected successful text output includes these stable lines:
-
-```text
-Autonomous Forge latest run-history record
-Mode: read-only
-History directory: <resolved path>
-History directory status: present|missing
-Ordering: filename ascending; latest is the last readable direct JSON record by filename
-Summary:
-- records found: <count>
-- readable: <count>
-- refused: <count>
-Latest record:
-- <path>: task=<AUTO-###> <title> | review=<status> | preflight=<status> | commit=<commit>
-Safety boundary: Run-history latest output only; no files are changed, no directories are scanned recursively, no validation commands are run, no diffs are inspected, no commits are verified, no workflow status is checked, no patches are generated, and policy is not enforced.
-```
-
-If no readable direct JSON record exists, successful output includes:
-
-```text
-Latest record:
-- none
-```
-
-Expected successful JSON output includes:
-
-```json
-{
-  "history_dir_status": "present",
-  "latest_record": {
-    "commit": "none",
-    "path": "/repo/.ai/run-history/2026-07-08.json",
-    "preflight_overall_status": "ready for opt-in persistence design",
-    "reason": "none",
-    "review_status": "ready for review",
-    "status": "readable",
-    "task": {"id": "AUTO-033", "title": "Add run-history latest selector"}
-  },
-  "mode": "read-only",
-  "ordering": "filename ascending; latest is the last readable direct JSON record by filename",
-  "refused_records": [],
-  "summary": {"readable": 1, "records_found": 1, "refused": 0},
-  "title": "Autonomous Forge latest run-history record"
-}
-```
-
-Exit codes:
-
-- `0` when latest selection completes, including missing directories or no readable records.
-- `2` when `.ai/run-history` exists but is not a directory.
-
-Safety limits: latest selection is a read-only memory-inspection surface. It does not write indexes, compare records, verify commits, check workflow status, inspect diffs, read changed-file contents, run validation, generate patches, infer success, enforce policy, call networks, read environment variables, commit, push, or change repository files.
 
 ## `forge`
 
@@ -241,7 +179,75 @@ Inputs:
 - `--root`: repository root used for documented-file presence signals, defaulting to `.`.
 - `--format`: `text` or `json`, defaulting to `text`.
 
-Expected successful output includes policy, selected task, task rationale, expected files, validation, risk, and safety-boundary fields. JSON output includes the same information as structured data.
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge implementation plan
+Mode: read-only
+State file: present|missing|not requested
+Documentation signals:
+- README.md: present|missing
+- CONTRIBUTING.md: present|missing
+- docs/POLICY.md: present|missing
+- docs/COMMANDS.md: present|missing
+Policy allowed paths:
+- <path>
+Policy prohibited paths:
+- <path>
+Human approval required:
+- <approval item>
+Selected task: AUTO-### [P#/TODO] <title>
+Reason: highest-priority eligible TODO task; ties preserve roadmap source order.
+Goal: <roadmap goal>
+Why it matters: <roadmap rationale>
+Scope: <roadmap scope>
+Expected files or areas: <roadmap files>
+Acceptance criteria: <roadmap criteria>
+Validation: <roadmap validation>
+Risks or assumptions: <roadmap risks>
+Safety boundary: Plan output only; no files are changed, commands are run, or policy decisions are enforced.
+```
+
+If no eligible TODO task exists, successful output includes:
+
+```text
+Selected task: none
+Reason: no eligible TODO task found.
+```
+
+Expected successful JSON output includes the same planning information as structured data:
+
+```json
+{
+  "documentation_signals": [
+    {"path": "README.md", "status": "present"}
+  ],
+  "mode": "read-only",
+  "policy": {
+    "allowed_paths": ["src/**"],
+    "human_approval_required": ["Adding network access."],
+    "prohibited_paths": ["private-config/**"],
+    "validation_expectations": ["Run tests."]
+  },
+  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
+  "safety_boundary": "Plan output only; no files are changed, commands are run, or policy decisions are enforced.",
+  "selected_task": {
+    "acceptance_criteria": "A plan is printed.",
+    "expected_files_or_areas": "`src/autonomous_forge/planner.py`, tests.",
+    "goal": "Build the next capability.",
+    "id": "AUTO-021",
+    "priority": "P1",
+    "risks_or_assumptions": "Policy remains readable.",
+    "scope": "Stay read-only.",
+    "status": "TODO",
+    "title": "Highest priority task",
+    "validation": "Run pytest.",
+    "why_it_matters": "It moves the product forward."
+  },
+  "state_file": "present",
+  "title": "Autonomous Forge implementation plan"
+}
+```
 
 Exit codes:
 
@@ -262,7 +268,75 @@ Inputs:
 - `--root`: repository root used for documented-file presence signals, defaulting to `.`.
 - `--format`: `text` or `json`, defaulting to `text`.
 
-Expected successful output includes selected task, planned file areas, planned operations, validation steps, policy boundaries, risks, blockers, and a safety boundary. JSON output includes the same proposal information as structured data.
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge change proposal
+Mode: read-only
+Source: forge plan structured data
+Selected task: AUTO-### [P#/TODO] <title>
+Reason: highest-priority eligible TODO task; ties preserve roadmap source order.
+Goal: <roadmap goal>
+Planned file areas:
+- <area from roadmap expected files>
+Planned operations:
+- Review and update <area> if needed for the selected task.
+Validation steps:
+- <policy validation expectation>
+Task validation: <roadmap validation>
+Policy allowed paths:
+- <path>
+Policy prohibited paths:
+- <path>
+Approval-required items:
+- <approval item>
+Risk notes:
+- <roadmap risk>
+Blocked items:
+- none
+Safety boundary: Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.
+```
+
+If no eligible TODO task exists, successful output includes:
+
+```text
+Selected task: none
+Reason: no eligible TODO task found.
+Blocked items:
+- No eligible TODO task was selected by the plan.
+```
+
+Expected successful JSON output includes the same proposal information as structured data:
+
+```json
+{
+  "approval_required_items": ["Adding network access."],
+  "blocked_items": ["none"],
+  "mode": "read-only",
+  "planned_file_areas": ["src/autonomous_forge/proposal.py", "tests"],
+  "planned_operations": [
+    "Review and update src/autonomous_forge/proposal.py if needed for the selected task."
+  ],
+  "policy": {
+    "allowed_paths": ["src/**"],
+    "human_approval_required": ["Adding network access."],
+    "prohibited_paths": ["private-config/**"],
+    "validation_expectations": ["Run tests."]
+  },
+  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
+  "risk_notes": ["Keep output read-only."],
+  "safety_boundary": "Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.",
+  "selected_task": {
+    "id": "AUTO-021",
+    "priority": "P1",
+    "status": "TODO",
+    "title": "Add structured proposal output"
+  },
+  "source": "forge plan structured data",
+  "task_validation": "Run pytest.",
+  "title": "Autonomous Forge change proposal"
+}
+```
 
 Exit codes:
 
@@ -328,6 +402,48 @@ Exit codes:
 - `2` when the plan file is missing, malformed, or contains an unsupported priority for selection.
 
 Safety limits: prints a preview only; it does not create history files, run validation, inspect diffs, commit, push, or change repository files.
+
+## `forge run-history-latest`
+
+Purpose: select the latest readable direct local run-history JSON record without changing files.
+
+Inputs:
+
+- `--root`: repository root containing `.ai/run-history/`, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge latest run-history record
+Mode: read-only
+History directory: <resolved path>
+History directory status: present|missing
+Ordering: filename ascending; latest is the last readable direct JSON record by filename
+Summary:
+- records found: <count>
+- readable: <count>
+- refused: <count>
+Latest record:
+- <path>: task=<AUTO-###> <title> | review=<status> | preflight=<status> | commit=<commit>
+Safety boundary: Run-history latest output only; no files are changed, no directories are scanned recursively, no validation commands are run, no diffs are inspected, no commits are verified, no workflow status is checked, no patches are generated, and policy is not enforced.
+```
+
+If no readable direct JSON record exists, successful output includes:
+
+```text
+Latest record:
+- none
+```
+
+Expected successful JSON output includes the same latest-record information as structured data, including `latest_record`, `refused_records`, `summary`, and the explicit ordering rule.
+
+Exit codes:
+
+- `0` when latest selection completes, including missing directories or no readable records.
+- `2` when `.ai/run-history` exists but is not a directory.
+
+Safety limits: latest selection is a read-only memory-inspection surface. It does not write indexes, compare records, verify commits, check workflow status, inspect diffs, read changed-file contents, run validation, generate patches, infer success, enforce policy, call networks, read environment variables, commit, push, or change repository files.
 
 ## `forge inventory`
 
