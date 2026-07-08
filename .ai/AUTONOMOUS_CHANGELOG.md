@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-091
+
+- Task ID: AUTO-091 — Live workflow-status collection for commit-status review
+- Summary: Enhanced `forge commit-status-review` with explicit `--from-github`, optional `--commit-sha`, and bounded `--limit` handling. The command can now collect workflow-run metadata for a commit through local `git` and GitHub CLI (`gh`), normalize that live evidence through the existing status-review model, and retain the existing `--require-clear` fail-closed gate. It does not rerun workflows, inspect logs, apply patches, write files, commit, or push.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, README/status, roadmap, state, changelog, decisions, commit-status implementation, CLI, tests, focused docs, and workflow-adjacent docs. Work stayed directly on `main`. PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for git/gh workflow status collection, workflow-run normalization, bad SHA refusal, primary CLI JSON output, and `--require-clear` gating. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a commit-readiness summary that consumes post-apply validation, final git-diff review, and live or supplied status evidence before any commit-oriented workflow is considered.
+
 ## 2026-07-09 — AUTO-090
 
 - Task ID: AUTO-090 — Post-apply validation handoff
