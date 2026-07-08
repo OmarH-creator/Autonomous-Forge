@@ -37,8 +37,10 @@ jobs:
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
+          forge patch-text-review --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
+          forge-patch-text-review --help
       - name: Validate repository planning inputs
         run: |
           forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
@@ -133,6 +135,15 @@ jobs:
             --change-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-text-preflight.json
+          forge patch-text-review \
+            --root /tmp \
+            --preflight autonomous-forge-patch-text-preflight.json \
+            --path README.md \
+            --patch-summary "Review the README patch text summary." \
+            --path src/autonomous_forge/content_audit.py \
+            --patch-summary "Review the content-audit patch text summary." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-text-review.json
           forge-patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
@@ -144,6 +155,15 @@ jobs:
             --review autonomous-forge-patch-proposal-review.json \
             --require-draft-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-draft-compat.json
+          forge-patch-text-review \
+            --root /tmp \
+            --preflight autonomous-forge-patch-text-preflight.json \
+            --path README.md \
+            --patch-summary "Review the README patch text summary." \
+            --path src/autonomous_forge/content_audit.py \
+            --patch-summary "Review the content-audit patch text summary." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-text-review-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -160,6 +180,8 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-preflight.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-text-review.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-text-review-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -224,6 +246,16 @@ jobs:
           assert patch_preflight['patch_text_preflight_allowed'] is True
           assert patch_preflight['metadata_path_count'] == 2
           assert patch_preflight['draft_target_paths'] == patch_draft['target_paths']
+
+          patch_text_review = json.loads(Path('/tmp/autonomous-forge-patch-text-review.json').read_text(encoding='utf-8'))
+          assert patch_text_review['mode'] == 'read-only'
+          assert patch_text_review['review_status'] == 'ready'
+          assert patch_text_review['patch_text_review_allowed'] is True
+          assert patch_text_review['reviewed_path_count'] == 2
+          assert patch_text_review['preflight_target_paths'] == patch_preflight['draft_target_paths']
+
+          patch_text_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-text-review-compat.json').read_text(encoding='utf-8'))
+          assert patch_text_review_compat == patch_text_review
           PY
       - name: Smoke-test run-history persistence flow
         run: |
