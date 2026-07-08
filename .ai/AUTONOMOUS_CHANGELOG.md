@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-042
+
+- Task ID: AUTO-042 — Smoke-test validation orchestration in CI
+- Summary: Hardened `.github/workflows/test.yml` so the installed-package workflow now runs `forge validation-orchestration --format json` against the live repository planning inputs and JSON-validates the generated orchestration artifact alongside `forge review-artifact`. This closes the CI coverage gap left after AUTO-041 exposed the orchestration command through the CLI.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README, workflow smoke coverage, CLI command surface, validation orchestration CLI tests, state, changelog, and decisions. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Installed-package CI smoke coverage was extended for validation orchestration JSON output. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 2ea7748fd9f069d64ab458f3cbce5281a4c705b8
+- Follow-up notes: Add a read-only command-execution handoff preview that consumes orchestration readiness and validation command candidates before any command execution, workflow polling, diff inspection, patch generation, or inferred validation success behavior.
+
 ## 2026-07-08 — AUTO-041
 
 - Task ID: AUTO-041 — Expose validation orchestration preview through `forge`
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for missing-history blockers, failed-history blockers, clear-history readiness, text output, and JSON output. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: c9b8b37b30f6d6db513e7182613e9ef0d295c94c
 - Follow-up notes: Expose the orchestration preview through `forge validation-orchestration --format text|json` before any validation executor, workflow polling, diff inspection, patch generation, or inferred validation success behavior.
-
-## 2026-07-08 — AUTO-040C
-
-- Task ID: AUTO-040C — Add CI smoke coverage for validation-result comparison handoff
-- Summary: Hardened `.github/workflows/test.yml` so the installed-package smoke workflow now preserves a before-validation CI run-history record, attaches a supplied validation result with explicit confirmation, reads the updated record, compares before/after records with `forge run-history-compare --format json`, JSON-validates all handoff outputs, and asserts that validation execution/result changed in the comparison output.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open PRs, branch search results, README, roadmap, state, changelog, decisions, workflow smoke coverage, CLI command surface, run-history reader/compare code, and comparison tests. No open PR required integration through the available connector view. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Installed-package CI smoke coverage was extended for validation-result preview/write/read/compare behavior. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: 421f75b77138cfdc58aed591737cd36aebdda44a
-- Follow-up notes: Add a read-only validation orchestration preview that consumes validation plan/candidate data and saved run-history validation guards before any command execution, workflow polling, or patch-generation behavior.
 
 ## Historical note
 
