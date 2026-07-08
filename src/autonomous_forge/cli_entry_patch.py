@@ -23,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including primary-surface extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
     if args and args[0] in _EXTENSION_COMMANDS:
-        return _EXTENSION_COMMANDS[args[1:])
+        return _EXTENSION_COMMANDS[args[0]](args[1:])
     return cli_entry.main(args)
 
 
