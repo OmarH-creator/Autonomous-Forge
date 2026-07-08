@@ -10,6 +10,10 @@ from autonomous_forge.command_execution_handoff import read_command_execution_ha
 from autonomous_forge.executor_contract import read_executor_contract
 from autonomous_forge.executor_dry_run import read_executor_dry_run
 from autonomous_forge.executor_gate import read_executor_precondition_gate
+from autonomous_forge.executor_handoff_persistence import (
+    ExecutorHandoffPersistenceError,
+    write_executor_handoff_persistence,
+)
 from autonomous_forge.executor_run import ExecutorRunError, read_executor_run
 from autonomous_forge.inventory import build_repository_inventory
 from autonomous_forge.path_review import read_path_review
@@ -126,6 +130,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="run one exact validation executor command after the dry-run gate passes",
     )
     _add_executor_command_args(executor_run_parser, action_name="executor run")
+
+    executor_handoff_parser = subparsers.add_parser(
+        "executor-handoff-persist",
+        help="persist reviewed executor-run JSON handoff output after explicit confirmation",
+    )
+    executor_handoff_parser.add_argument("--executor-output", required=True, help="reviewed executor-run JSON output file inside the repository root")
+    executor_handoff_parser.add_argument("--root", default=".", help="repository root used to constrain the executor output and record paths")
+    executor_handoff_parser.add_argument(
+        "--confirm-write",
+        action="store_true",
+        help="required acknowledgement that this command rewrites one local run-history JSON record",
+    )
+    executor_handoff_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="executor handoff persistence summary format: text (default) or JSON",
+    )
 
     run_history_write_parser = subparsers.add_parser(
         "run-history-write",
@@ -343,6 +365,31 @@ def _print_executor_run(args: argparse.Namespace) -> int:
     return 0 if "Execution status: completed" in output else 2
 
 
+def _persist_executor_handoff(args: argparse.Namespace) -> int:
+    try:
+        result = write_executor_handoff_persistence(
+            Path(args.executor_output),
+            root=Path(args.root),
+            confirm_write=args.confirm_write,
+        )
+    except FileNotFoundError as exc:
+        print(f"Executor handoff persistence input not found: {exc.filename}")
+        return 2
+    except ExecutorHandoffPersistenceError as exc:
+        print(f"Executor handoff persistence refused: {exc}")
+        return 2
+    if args.format == "json":
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
+    print(f"Executor handoff persisted: {result['path']}")
+    print(f"Source executor output: {result['source']}")
+    print(f"Validation execution: {result['validation_execution']}")
+    print(f"Validation result: {result['validation_result']}")
+    print(f"Validation note: {result['validation_note']}")
+    print(f"Safety boundary: {result['safety_boundary']}")
+    return 0
+
+
 def _print_path_review(policy_path: Path, root: Path, paths: list[str], output_format: str) -> int:
     try:
         print(read_path_review(policy_path, paths, root=root, output_format=output_format))
@@ -540,6 +587,8 @@ def main(argv: list[str] | None = None) -> int:
         return _print_executor_dry_run(args)
     if args.command == "executor-run":
         return _print_executor_run(args)
+    if args.command == "executor-handoff-persist":
+        return _persist_executor_handoff(args)
     if args.command == "run-history-write":
         return _write_run_history(Path(args.plan), Path(args.state), Path(args.policy), Path(args.root), Path(args.output), args.confirm_write)
     if args.command == "run-history-read":
