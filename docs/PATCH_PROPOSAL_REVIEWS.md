@@ -11,6 +11,7 @@ The command reports `review_status=ready` only when:
 
 - the manifest is a read-only patch proposal manifest;
 - the manifest status is `ready` and `proposal_allowed=true`;
+- the manifest includes at least one non-empty validation step;
 - every requested path has a safe repository-relative path label;
 - every fresh audited path has a safe repository-relative path label;
 - every requested path has fresh content-audit evidence;
@@ -44,4 +45,4 @@ forge patch-proposal-review \
 
 The command reads supplied manifest JSON and supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, apply patches, run commands, check workflow status, approve implementation, mutate saved history, commit, push, or change files.
 
-A ready review is not patch approval. It only means the supplied manifest is still supported by fresh clear content-audit evidence with safe path labels.
+A ready review is not patch approval. It only means the supplied manifest is still supported by fresh clear content-audit evidence with safe path labels and a non-empty validation plan.
