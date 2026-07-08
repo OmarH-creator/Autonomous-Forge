@@ -12,13 +12,14 @@ Autonomous Forge is pre-alpha. The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, and one read-only run-history list preview.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, and one read-only latest-record selector.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
 - `forge run-history-read` for summarizing one saved `.ai/run-history/*.json` record without mutating files.
 - `forge run-history-list` for a deterministic, non-recursive preview of saved `.ai/run-history/*.json` records without writing an index.
+- `forge run-history-latest` for selecting the latest readable direct history record by explicit filename ordering without mutating files.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
 - CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
@@ -95,7 +96,7 @@ forge preflight-readiness \
   --format json
 ```
 
-## Opt-in local run-history write, read, and list
+## Opt-in local run-history write, read, list, and latest selection
 
 `forge run-history-write` is the only current product command that writes a file. It writes exactly one JSON record under `.ai/run-history/`, requires `--confirm-write`, and refuses blocked preflight readiness.
 
@@ -124,6 +125,14 @@ forge run-history-read \
 forge run-history-list \
   --root . \
   --max-records 20 \
+  --format json
+```
+
+`forge run-history-latest` selects the latest readable direct `.json` record by ascending filename order, reports refused records, and does not mutate files.
+
+```bash
+forge run-history-latest \
+  --root . \
   --format json
 ```
 
@@ -160,9 +169,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge run-history-list`, a read-only command for summarizing direct `.ai/run-history/*.json` records.
-- **What changed:** Added `src/autonomous_forge/run_history_index.py`, wired `run-history-list --root . --max-records 20 --format json`, added deterministic index and CLI tests, documented the command in README and `docs/RUN_HISTORY_LISTS.md`, and corrected the roadmap continuation after AUTO-031.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for missing history directories, filename ordering, malformed-record refusal, max-record limits, text output, JSON output, CLI success, and CLI refusal paths. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
+- **Latest run:** Added `forge run-history-latest`, a read-only command for selecting the latest readable direct `.ai/run-history/*.json` record by explicit filename ordering.
+- **What changed:** Extended `src/autonomous_forge/run_history_index.py`, wired `run-history-latest --root . --format json` into the CLI, added deterministic latest-selector and CLI tests, and documented the command in README and `docs/RUN_HISTORY_LISTS.md`.
+- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for latest readable selection, malformed-record refusal, no-readable-record behavior, text output, JSON output, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
 - **Visual updates:** No new visual asset was needed; this change adds a narrow history-inspection command rather than a new workflow diagram.
-- **Current limitations:** `forge run-history-list` is a read-only index preview. It does not write an index, compare records, verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, enforce policy decisions, commit, push, or call networks.
-- **Next autonomous objective:** Add a read-only run-history comparison or latest-record selector before any validation executor, diff inspection, patch generation, or broader write behavior is considered.
+- **Current limitations:** `forge run-history-latest` is a read-only selector. It does not write an index, compare records, verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, enforce policy decisions, commit, push, or call networks.
+- **Next autonomous objective:** Add a read-only run-history comparison surface before any validation executor, diff inspection, patch generation, index writer, or broader write behavior is considered.
