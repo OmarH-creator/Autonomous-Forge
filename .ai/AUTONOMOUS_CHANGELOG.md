@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-078
+
+- Task ID: AUTO-078 — Expand CI smoke coverage for patch-application preflight
+- Summary: Fixed a CI coverage gap by adding primary `forge patch-application-preflight` and compatibility `forge-patch-application-preflight` checks to the installed CLI smoke tests and full repository planning-input validation chain.
+- Branch and PR assessment: Inspected repository metadata, README/status, state/changelog records, `pyproject.toml`, installed CLI router, patch-application preflight CLI, deterministic tests, and GitHub Actions workflow. No open branch or PR surfaced through the available repository API search that required integration in this run.
+- Validation completed: Static workflow review completed through the GitHub repository API. The workflow now validates patch-application preflight JSON for ready status, advisory-only application refusal, path alignment with patch-text review evidence, and exact primary/compatibility output parity. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: a49a44d7c6f0845f0b6315c88705409db062a896 plus follow-up documentation/state commits
+- Follow-up notes: Add a read-only patch provenance/audit chain that can compare future patch-application preflight evidence against saved review artifacts before any write-capable patch behavior exists.
+
 ## 2026-07-08 — AUTO-077
 
 - Task ID: AUTO-077 — Add patch application preflight gate
