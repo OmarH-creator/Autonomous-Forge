@@ -58,60 +58,49 @@ jobs:
       - name: Validate repository planning inputs
         run: |
           forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
-          forge review-artifact \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --format json > /tmp/autonomous-forge-review-artifact.json
-          forge validation-orchestration \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --format json > /tmp/autonomous-forge-validation-orchestration.json
-          forge command-execution-handoff \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --format json > /tmp/autonomous-forge-command-execution-handoff.json
-          forge executor-gate \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --format json > /tmp/autonomous-forge-executor-gate.json
-          forge executor-contract \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --format json > /tmp/autonomous-forge-executor-contract.json
-          forge executor-dry-run \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --command "python -m pytest" \
-            --confirm-executor-dry-run \
-            --format json > /tmp/autonomous-forge-executor-dry-run.json
-          forge content-audit \
-            --policy .forge/policy.md \
-            --root . \
-            --file README.md \
-            --file src/autonomous_forge/content_audit.py \
-            --format json > /tmp/autonomous-forge-content-audit.json
-          python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-executor-gate.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
+
+          from autonomous_forge.command_execution_handoff import read_command_execution_handoff_preview
+          from autonomous_forge.content_audit import read_content_audit
+          from autonomous_forge.executor_contract import read_executor_contract
+          from autonomous_forge.executor_dry_run import read_executor_dry_run
+          from autonomous_forge.executor_gate import read_executor_precondition_gate
+          from autonomous_forge.review_artifact import read_review_artifact
+          from autonomous_forge.validation_orchestration import read_validation_orchestration_preview
+
+          plan = Path('.ai/AUTONOMOUS_PLAN.md')
+          state = Path('.ai/AUTONOMOUS_STATE.md')
+          policy = Path('.forge/policy.md')
+          root = Path('.')
+
+          artifacts = {
+              Path('/tmp/autonomous-forge-review-artifact.json'): read_review_artifact(plan, policy, state, root, 'json'),
+              Path('/tmp/autonomous-forge-validation-orchestration.json'): read_validation_orchestration_preview(plan, policy, state, root, 'json'),
+              Path('/tmp/autonomous-forge-command-execution-handoff.json'): read_command_execution_handoff_preview(plan, policy, state, root, 'json'),
+              Path('/tmp/autonomous-forge-executor-gate.json'): read_executor_precondition_gate(plan, policy, state, root, 'json'),
+              Path('/tmp/autonomous-forge-executor-contract.json'): read_executor_contract(plan, policy, state, root, 'json'),
+              Path('/tmp/autonomous-forge-executor-dry-run.json'): read_executor_dry_run(
+                  plan,
+                  policy,
+                  state,
+                  root,
+                  requested_command='python -m pytest',
+                  confirm_executor_dry_run=True,
+                  output_format='json',
+              ),
+              Path('/tmp/autonomous-forge-content-audit.json'): read_content_audit(
+                  policy,
+                  ['README.md', 'src/autonomous_forge/content_audit.py'],
+                  root=root,
+                  output_format='json',
+              ),
+          }
+
+          for path, raw_json in artifacts.items():
+              parsed = json.loads(raw_json)
+              path.write_text(json.dumps(parsed, indent=2, sort_keys=True) + '\n', encoding='utf-8')
 
           content_audit = json.loads(Path('/tmp/autonomous-forge-content-audit.json').read_text(encoding='utf-8'))
           assert content_audit['mode'] == 'read-only'
