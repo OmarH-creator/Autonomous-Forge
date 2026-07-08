@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-059 — 2026-07-08 — Integrate the hidden dotfile parser fix directly on main
+
+Context: Open PR #7 documented a concrete failing case where roadmap expected-file tokens such as ``.env`.`` could be normalized as `.env`` with a dangling backtick, weakening the precision of policy-aware planned-file review for hidden paths.
+Decision: Integrate the useful parser hardening and regression test directly onto `main`, peeling surrounding backticks and trailing punctuation iteratively in `_split_expected_areas` while also covering trailing-comma list punctuation.
+Alternatives considered: Merge the PR branch, create a replacement PR, ignore the open PR, defer the fix until diff-source handoff work, or broaden roadmap grammar parsing beyond this bug.
+Consequences: Planned file areas now preserve hidden dotfile paths more reliably before proposal/review workflows rely on them. The change remains read-only and narrow, but broader roadmap grammar ambiguity is intentionally left for future work.
+Human decision still required: No.
+
 ## DEC-058 — 2026-07-08 — Assert content-audit semantics in installed CI smoke
 
 Context: `forge content-audit` is now installed and JSON-smoke-tested in CI, but a JSON-only check does not prove that the live repository audit is classifying expected paths as clear, allowed, readable, or attention-free.
@@ -14,14 +22,6 @@ Context: `forge run-history-list` and `forge executor-observation-audit` accept 
 Decision: Keep deterministic filename ordering, but apply the limit to the newest filename-sorted direct JSON records and display that limited window in ascending filename order. Expose the ordering in run-history-list output and document the audit behavior. Also add CI smoke coverage that runs installed `forge content-audit --format json` against explicit repository paths and validates JSON shape.
 Alternatives considered: Keep oldest-first limits, reverse all displayed output, remove `--max-records`, scan recursively, use filesystem modification time, rely only on `run-history-latest`, or defer content-audit smoke coverage until a later semantic assertion pass.
 Consequences: Limited run-history and executor-observation audit windows now better match maintainer expectations for recent evidence while preserving stable output and the existing direct-file safety boundary. The new content-audit CLI route is now exercised in GitHub Actions after installation, but semantic output assertions still need a follow-up.
-Human decision still required: No.
-
-## DEC-056 — 2026-07-08 — Make executor-observation audit usable as a fail-closed gate
-
-Context: `forge executor-observation-audit` can review aggregate saved executor observations, but before future patch-adjacent work it should also be usable as an explicit process gate rather than only an informational report.
-Decision: Add `--require-clear` to `forge executor-observation-audit`. The command still prints the same read-only text or JSON audit, but returns a failing exit code unless the aggregate status is `clear`.
-Alternatives considered: Keep the audit informational only, make all non-clear audits fail by default, persist gate decisions to history, poll workflow status, inspect diffs, verify commits, or infer validation success from saved fields.
-Consequences: Maintainers and CI can now fail closed on blocked, missing, refused, or needs-review saved executor evidence before future patch or diff workflows rely on it, while the command remains read-only and non-authoritative.
 Human decision still required: No.
 
 ## Historical note
