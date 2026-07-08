@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-036C
+
+- Task ID: AUTO-036 — Add explicit validation-result attachment writer
+- Summary: Wired the guarded validation-result writer into the CLI as `forge validation-result-write`. The command attaches one externally supplied validation result to one explicit real non-symlink `.ai/run-history/*.json` record only after `--confirm-write`, reports the persisted validation execution/result/note, and does not run validation or infer success.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README, roadmap, state, changelog, decisions, validation-result preview/write code, run-history safety boundaries, tests, and docs. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic CLI tests for successful validation-result writes and missing-confirmation refusal. Static review completed through the GitHub repository API; direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Add CI smoke coverage for validation-result preview/write/read handoff before adding validation orchestration, workflow polling, diff inspection, or broader persistence.
+
 ## 2026-07-08 — AUTO-036B
 
 - Task ID: AUTO-036 — Add explicit validation-result attachment writer core
