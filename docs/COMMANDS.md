@@ -7,8 +7,8 @@ These contracts describe implemented behavior only. They are intentionally plain
 ## General expectations
 
 - Commands write results to standard output.
-- Commands return exit code `0` when the requested read-only inspection succeeds.
-- Commands return exit code `2` for missing required input files or malformed roadmap/policy input.
+- Commands return exit code `0` when the requested read-only inspection or explicitly confirmed local persistence action succeeds.
+- Commands return exit code `2` for missing required input files, malformed roadmap/policy/history input, or refused write preconditions.
 - Commands should not create, edit, delete, commit, push, run external commands, call networks, read environment variables, scan secrets, or enforce policy decisions unless an explicit command contract narrowly allows a local file write.
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply execution or approval.
@@ -215,39 +215,7 @@ Selected task: none
 Reason: no eligible TODO task found.
 ```
 
-Expected successful JSON output includes the same planning information as structured data:
-
-```json
-{
-  "documentation_signals": [
-    {"path": "README.md", "status": "present"}
-  ],
-  "mode": "read-only",
-  "policy": {
-    "allowed_paths": ["src/**"],
-    "human_approval_required": ["Adding network access."],
-    "prohibited_paths": ["private-config/**"],
-    "validation_expectations": ["Run tests."]
-  },
-  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
-  "safety_boundary": "Plan output only; no files are changed, commands are run, or policy decisions are enforced.",
-  "selected_task": {
-    "acceptance_criteria": "A plan is printed.",
-    "expected_files_or_areas": "`src/autonomous_forge/planner.py`, tests.",
-    "goal": "Build the next capability.",
-    "id": "AUTO-021",
-    "priority": "P1",
-    "risks_or_assumptions": "Policy remains readable.",
-    "scope": "Stay read-only.",
-    "status": "TODO",
-    "title": "Highest priority task",
-    "validation": "Run pytest.",
-    "why_it_matters": "It moves the product forward."
-  },
-  "state_file": "present",
-  "title": "Autonomous Forge implementation plan"
-}
-```
+Expected successful JSON output includes the same planning information as structured data.
 
 Exit codes:
 
@@ -268,75 +236,7 @@ Inputs:
 - `--root`: repository root used for documented-file presence signals, defaulting to `.`.
 - `--format`: `text` or `json`, defaulting to `text`.
 
-Expected successful text output includes these stable lines:
-
-```text
-Autonomous Forge change proposal
-Mode: read-only
-Source: forge plan structured data
-Selected task: AUTO-### [P#/TODO] <title>
-Reason: highest-priority eligible TODO task; ties preserve roadmap source order.
-Goal: <roadmap goal>
-Planned file areas:
-- <area from roadmap expected files>
-Planned operations:
-- Review and update <area> if needed for the selected task.
-Validation steps:
-- <policy validation expectation>
-Task validation: <roadmap validation>
-Policy allowed paths:
-- <path>
-Policy prohibited paths:
-- <path>
-Approval-required items:
-- <approval item>
-Risk notes:
-- <roadmap risk>
-Blocked items:
-- none
-Safety boundary: Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.
-```
-
-If no eligible TODO task exists, successful output includes:
-
-```text
-Selected task: none
-Reason: no eligible TODO task found.
-Blocked items:
-- No eligible TODO task was selected by the plan.
-```
-
-Expected successful JSON output includes the same proposal information as structured data:
-
-```json
-{
-  "approval_required_items": ["Adding network access."],
-  "blocked_items": ["none"],
-  "mode": "read-only",
-  "planned_file_areas": ["src/autonomous_forge/proposal.py", "tests"],
-  "planned_operations": [
-    "Review and update src/autonomous_forge/proposal.py if needed for the selected task."
-  ],
-  "policy": {
-    "allowed_paths": ["src/**"],
-    "human_approval_required": ["Adding network access."],
-    "prohibited_paths": ["private-config/**"],
-    "validation_expectations": ["Run tests."]
-  },
-  "reason": "highest-priority eligible TODO task; ties preserve roadmap source order.",
-  "risk_notes": ["Keep output read-only."],
-  "safety_boundary": "Proposal output only; no files are changed, commands are run, patches are generated, approvals are granted, or policy decisions are enforced.",
-  "selected_task": {
-    "id": "AUTO-021",
-    "priority": "P1",
-    "status": "TODO",
-    "title": "Add structured proposal output"
-  },
-  "source": "forge plan structured data",
-  "task_validation": "Run pytest.",
-  "title": "Autonomous Forge change proposal"
-}
-```
+Expected successful text output includes selected task, planned file areas, planned operations, validation steps, policy boundaries, risk notes, blockers, and a read-only safety boundary.
 
 Exit codes:
 
@@ -344,6 +244,34 @@ Exit codes:
 - `2` when a required input file is missing, the roadmap is malformed, task selection fails, or the policy file is malformed.
 
 Safety limits: proposal output is a review surface only. It does not write proposal artifacts, generate patches, inspect diffs, run validation, execute implementation steps, approve exceptions, enforce policy decisions, call networks, read environment variables, scan credentials, or change repository files.
+
+## `forge validation-result-write`
+
+Purpose: attach one explicitly supplied validation result to one saved local run-history JSON record.
+
+Inputs:
+
+- `--root`: repository root containing `.ai/run-history/`, defaulting to `.`.
+- `--record`: required record path under `.ai/run-history/`.
+- `--result`: required value, one of `passed`, `failed`, `error`, `not_run`, or `skipped`.
+- `--note`: optional validation note to persist.
+- `--confirm-write`: required acknowledgement that the command rewrites one local run-history JSON record.
+
+Expected successful output:
+
+```text
+Validation-result attachment written: <path>
+Validation execution: external_result_attached|not_run
+Validation result: passed|failed|error|not_run|skipped
+Validation note: <note-or-none>
+```
+
+Exit codes:
+
+- `0` when the selected record is updated.
+- `2` when the target record is missing, malformed, outside `.ai/run-history/`, symlinked, uses an unsupported result value, or `--confirm-write` is omitted.
+
+Safety limits: this command mutates exactly one explicitly requested real non-symlink `.ai/run-history/*.json` record after confirmation. It records an externally supplied result only. It does not run validation commands, check workflow status, verify commits, inspect diffs, read changed-file contents, generate patches, infer success, enforce policy, call networks, commit, push, or scan history recursively.
 
 ## `forge policy`
 
