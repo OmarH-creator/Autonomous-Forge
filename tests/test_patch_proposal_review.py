@@ -125,6 +125,17 @@ def test_read_patch_proposal_review_refuses_blank_objective(tmp_path):
         read_patch_proposal_review(manifest, audit, root=tmp_path)
 
 
+@pytest.mark.parametrize("validation_steps", [[], [""], ["   "]])
+def test_read_patch_proposal_review_refuses_empty_validation_steps(tmp_path, validation_steps):
+    payload = _manifest(("README.md",))
+    payload["validation_steps"] = validation_steps
+    manifest = _write_json(tmp_path, "manifest.json", payload)
+    audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md",)))
+
+    with pytest.raises(PatchProposalReviewError, match="lacks non-empty validation_steps"):
+        read_patch_proposal_review(manifest, audit, root=tmp_path)
+
+
 def test_read_patch_proposal_review_refuses_duplicate_requested_paths(tmp_path):
     manifest = _write_json(tmp_path, "manifest.json", _manifest(("README.md", "README.md")))
     audit = _write_json(tmp_path, "audit.json", _content_audit(("README.md",)))
