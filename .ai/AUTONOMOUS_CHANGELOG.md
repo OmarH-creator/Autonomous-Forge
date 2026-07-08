@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-049
+
+- Task ID: AUTO-049 — Harden executor handoff input path validation
+- Summary: Hardened executor-handoff persistence so the reviewed executor-run JSON input must be a real `.json` file inside the repository root before it is read. The helper now refuses symlinked executor output, directories, missing files, non-JSON files, and external paths, while still delegating saved run-history record mutation to the guarded validation-result writer after explicit confirmation.
+- Branch and PR assessment: Inspected recent commits, latest commit status, open PRs, branch search, README, workflow smoke coverage, executor-handoff persistence implementation, validation-result writer path checks, run-history reader guards, and existing persistence-helper tests/docs. No open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic regression coverage was added for external executor-output refusal and symlinked executor-output refusal, alongside existing tests for payload building, missing confirmation refusal, failed-result persistence, unavailable handoff refusal, mismatched result refusal, and unsafe record path refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Expose the guarded executor-handoff persistence helper through a narrow CLI command with explicit `--confirm-write`, text/JSON summaries, deterministic CLI tests, and CI smoke coverage.
+
 ## 2026-07-08 — AUTO-048
 
 - Task ID: AUTO-048 — Guard reviewed executor handoff persistence
