@@ -79,5 +79,34 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-list.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-latest.json > /dev/null
+      - name: Smoke-test validation-result attachment flow
+        run: |
+          forge validation-result-preview \
+            --root . \
+            --record .ai/run-history/ci-smoke.json \
+            --result passed \
+            --note "CI smoke supplied result" \
+            --format json > /tmp/autonomous-forge-validation-result-preview.json
+          forge validation-result-write \
+            --root . \
+            --record .ai/run-history/ci-smoke.json \
+            --result passed \
+            --note "CI smoke supplied result" \
+            --confirm-write
+          forge run-history-read \
+            --root . \
+            --record .ai/run-history/ci-smoke.json \
+            --format json > /tmp/autonomous-forge-validation-result-read.json
+          python -m json.tool /tmp/autonomous-forge-validation-result-preview.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-validation-result-read.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/autonomous-forge-validation-result-read.json').read_text(encoding='utf-8'))
+          assert payload['record']['validation_execution'] == 'external_result_attached'
+          assert payload['record']['validation_result'] == 'passed'
+          assert payload['record']['validation_note'] == 'CI smoke supplied result'
+          PY
       - name: Run test suite
         run: python -m pytest -q
