@@ -34,6 +34,7 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           forge --version
+          forge patch-proposal-review --help
           forge-patch-proposal-review --help
       - name: Validate repository planning inputs
         run: |
@@ -109,12 +110,18 @@ jobs:
             --validation "python -m pytest" \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-manifest.json
-          forge-patch-proposal-review \
+          forge patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
             --content-audit autonomous-forge-content-audit.json \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-review.json
+          forge-patch-proposal-review \
+            --root /tmp \
+            --manifest autonomous-forge-patch-proposal-manifest.json \
+            --content-audit autonomous-forge-content-audit.json \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-proposal-review-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -127,6 +134,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-intent-description.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-manifest.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-review.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-proposal-review-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -171,6 +179,9 @@ jobs:
           assert patch_review['patch_proposal_allowed'] is True
           assert patch_review['requested_path_count'] == 2
           assert patch_review['fresh_audited_path_count'] == 2
+
+          patch_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-proposal-review-compat.json').read_text(encoding='utf-8'))
+          assert patch_review_compat == patch_review
           PY
       - name: Smoke-test run-history persistence flow
         run: |
