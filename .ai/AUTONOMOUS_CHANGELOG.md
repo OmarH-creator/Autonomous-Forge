@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-041
+
+- Task ID: AUTO-041 — Expose validation orchestration preview through `forge`
+- Summary: Added `forge validation-orchestration --format text|json`, wiring the existing read-only orchestration preview core into the installed CLI. The command combines validation-plan data, validation command-candidate counts, saved-history validation guards, latest-record guard, blockers, risk notes, and the explicit no-execution boundary without running commands or mutating files.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README, roadmap, state, changelog, decisions, validation orchestration code/docs/tests, and CLI command surface. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic CLI tests were added for text output, JSON output, and missing-input refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 31beb6f6bb761b658837c85e7f469e2b14245e29
+- Follow-up notes: Add a read-only command-execution handoff preview that consumes orchestration readiness and validation command candidates before any controlled executor, workflow polling, diff inspection, patch generation, or inferred validation success behavior.
+
 ## 2026-07-08 — AUTO-040
 
 - Task ID: AUTO-040 — Add validation orchestration preview gated by saved history status
@@ -16,15 +25,6 @@
 - Branch and PR assessment: Inspected repository metadata, recent commits, open PRs, branch search results, README, roadmap, state, changelog, decisions, workflow smoke coverage, CLI command surface, run-history reader/compare code, and comparison tests. No open PR required integration through the available connector view. The run stayed on `main`.
 - Validation completed: Static review completed through the GitHub repository API. Installed-package CI smoke coverage was extended for validation-result preview/write/read/compare behavior. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: 421f75b77138cfdc58aed591737cd36aebdda44a
-- Follow-up notes: Add a read-only validation orchestration preview that consumes validation plan/candidate data and saved run-history validation guards before any command execution, workflow polling, or patch-generation behavior.
-
-## 2026-07-08 — AUTO-039
-
-- Task ID: AUTO-039 — Add JSON validation-result write summaries
-- Summary: Added `--format json` to `forge validation-result-write` so automation can persist one explicitly supplied validation result and receive a stable machine-readable summary containing the record path, validation execution, validation result, and validation note. Text output remains the default, and the command still requires `--confirm-write`.
-- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, open issues, README, roadmap, state, changelog, decisions, validation-result write docs/tests, and current CLI command surface. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic CLI test coverage was added for JSON validation-result write output while preserving existing text-output and missing-confirmation refusal coverage. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: cc5843b2b329c74c7d680498917b8222a48f098c
 - Follow-up notes: Add a read-only validation orchestration preview that consumes validation plan/candidate data and saved run-history validation guards before any command execution, workflow polling, or patch-generation behavior.
 
 ## Historical note
