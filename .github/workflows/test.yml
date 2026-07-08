@@ -88,6 +88,11 @@ jobs:
             --after autonomous-forge-content-audit-after.json \
             --require-clear \
             --format json > /tmp/autonomous-forge-diff-source-handoff.json
+          forge patch-intent-review \
+            --root /tmp \
+            --diff-source autonomous-forge-diff-source-handoff.json \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-intent-review.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -96,6 +101,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-diff-source-handoff.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-intent-review.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -115,6 +121,12 @@ jobs:
           assert diff_source['summary']['counts']['unchanged'] == 2
           assert diff_source['requires_attention'] is False
           assert all(item['status'] == 'unchanged' for item in diff_source['comparisons'])
+
+          patch_intent = json.loads(Path('/tmp/autonomous-forge-patch-intent-review.json').read_text(encoding='utf-8'))
+          assert patch_intent['mode'] == 'read-only'
+          assert patch_intent['readiness'] == 'ready'
+          assert patch_intent['patch_intent_allowed'] is True
+          assert patch_intent['compared_path_count'] == 2
           PY
       - name: Smoke-test run-history persistence flow
         run: |
