@@ -11,6 +11,7 @@ from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
 from autonomous_forge.patch_application_readiness_cli import main as _patch_application_readiness_main
+from autonomous_forge.patch_apply_cli import main as _patch_apply_main
 from autonomous_forge.patch_generation_preview_cli import main as _patch_generation_preview_main
 from autonomous_forge.patch_proposal_draft_cli import main as _patch_proposal_draft_main
 from autonomous_forge.patch_proposal_review_cli import main as _patch_proposal_review_main
@@ -25,6 +26,7 @@ _EXTENSION_COMMANDS = {
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
     "patch-application-readiness": _patch_application_readiness_main,
+    "patch-apply": _patch_apply_main,
     "patch-generation-preview": _patch_generation_preview_main,
     "patch-proposal-draft": _patch_proposal_draft_main,
     "patch-proposal-review": _patch_proposal_review_main,
