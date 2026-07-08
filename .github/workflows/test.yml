@@ -42,5 +42,33 @@ jobs:
             --policy .forge/policy.md \
             --root . \
             --format json > /tmp/autonomous-forge-review-artifact.json
+      - name: Smoke-test run-history persistence flow
+        run: |
+          forge run-history-preview \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --format json > /tmp/autonomous-forge-run-history-preview.json
+          forge preflight-readiness \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --format json > /tmp/autonomous-forge-preflight-readiness.json
+          forge run-history-write \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --output .ai/run-history/ci-smoke.json \
+            --confirm-write
+          forge run-history-read \
+            --root . \
+            --record .ai/run-history/ci-smoke.json \
+            --format json > /tmp/autonomous-forge-run-history-read.json
+          python -m json.tool /tmp/autonomous-forge-run-history-preview.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-preflight-readiness.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
       - name: Run test suite
         run: python -m pytest -q
