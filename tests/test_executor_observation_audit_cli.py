@@ -33,6 +33,34 @@ def test_executor_observation_audit_cli_outputs_text(tmp_path, capsys):
     assert "overall status: needs-validation" in output
 
 
+def test_executor_observation_audit_cli_require_clear_passes_clear_records(tmp_path, capsys):
+    _write_record(tmp_path, "001.json", _payload(result="passed"))
+
+    assert main([
+        "executor-observation-audit",
+        "--root", str(tmp_path),
+        "--require-clear",
+    ]) == 0
+
+    output = capsys.readouterr().out
+    assert "overall status: clear" in output
+
+
+def test_executor_observation_audit_cli_require_clear_fails_missing_observations(tmp_path, capsys):
+    _write_record(tmp_path, "001.json", _payload(result="not_run", execution="not_run", note="none"))
+
+    assert main([
+        "executor-observation-audit",
+        "--root", str(tmp_path),
+        "--require-clear",
+        "--format", "json",
+    ]) == 2
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["summary"]["overall_status"] == "needs-validation"
+    assert data["summary"]["counts"]["missing-observation"] == 1
+
+
 def test_executor_observation_audit_cli_refuses_bad_limit(tmp_path, capsys):
     assert main([
         "executor-observation-audit",
