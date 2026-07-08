@@ -6,6 +6,7 @@ import sys
 
 from autonomous_forge import cli_entry
 from autonomous_forge.change_readiness_cli import main as _change_readiness_main
+from autonomous_forge.commit_readiness_cli import main as _commit_readiness_main
 from autonomous_forge.commit_status_review_cli import main as _commit_status_review_main
 from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
@@ -22,6 +23,7 @@ from autonomous_forge.post_apply_validation_cli import main as _post_apply_valid
 
 _EXTENSION_COMMANDS = {
     "change-readiness": _change_readiness_main,
+    "commit-readiness": _commit_readiness_main,
     "commit-status-review": _commit_status_review_main,
     "git-diff-review": _git_diff_review_main,
     "patch-application-audit": _patch_application_audit_main,
