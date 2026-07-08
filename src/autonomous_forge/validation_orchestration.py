@@ -92,7 +92,10 @@ def build_validation_orchestration_preview_data(
         "commands_allowed": False,
         "orchestration_status": _orchestration_status(blockers, counts),
         "command_candidate_summary": counts,
-        "history_validation_guard": history_index_data.get("validation_guard", {"overall_status": "unknown", "reason": "unknown"}),
+        "history_validation_guard": history_index_data.get(
+            "validation_guard",
+            {"overall_status": "unknown", "reason": "unknown"},
+        ),
         "latest_record_validation_guard": None
         if latest_history_data.get("latest_record") is None
         else latest_history_data["latest_record"].get("validation_guard", "unknown"),
@@ -100,7 +103,8 @@ def build_validation_orchestration_preview_data(
         if latest_history_data.get("latest_record") is None
         else latest_history_data["latest_record"].get("path"),
         "blockers": blockers,
-        "risk_notes": list(validation_plan_data.get("risk_notes", [])) + list(validation_preview_data.get("risk_notes", [])),
+        "risk_notes": list(validation_plan_data.get("risk_notes", []))
+        + list(validation_preview_data.get("risk_notes", [])),
         "safety_boundary": (
             "Validation orchestration preview only; no commands are run, no workflow status is checked, "
             "no commits are verified, no files are changed, no diffs are inspected, no patches are generated, "
@@ -141,12 +145,12 @@ def format_validation_orchestration_preview(data: dict[str, Any]) -> str:
             f"Latest record path: {data['latest_record_path'] or 'none'}",
             f"Latest record validation guard: {data['latest_record_validation_guard'] or 'none'}",
             "Blockers:",
-            *[f"- {blocker}" for blocker in data["blockers"]] if data["blockers"] else ["- none"],
-            "Risk notes:",
-            *[f"- {note}" for note in data["risk_notes"]] if data["risk_notes"] else ["- none"],
-            f"Safety boundary: {data['safety_boundary']}",
         ]
     )
+    lines.extend([f"- {blocker}" for blocker in data["blockers"]] or ["- none"])
+    lines.append("Risk notes:")
+    lines.extend([f"- {note}" for note in data["risk_notes"]] or ["- none"])
+    lines.append(f"Safety boundary: {data['safety_boundary']}")
     return "\n".join(lines)
 
 
