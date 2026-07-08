@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-034 — 2026-07-08 — Compare explicit records before attaching validation results
+
+Context: `forge run-history-read`, `forge run-history-list`, and `forge run-history-latest` can inspect persisted history records, but maintainers still need a stable way to compare two selected records before any workflow infers progress, verifies commits, attaches validation results, or runs commands.
+Decision: Add `forge run-history-compare` as a read-only command that accepts two explicit `.ai/run-history/*.json` paths, reuses the supported single-record reader summaries, and reports changed or unchanged task, review, preflight, validation, changed-files, commit, blocker, and safety-note fields.
+Alternatives considered: Automatically compare latest against previous, write a durable comparison artifact, infer success from commits, verify workflow status, run validation commands, inspect diffs, or move directly to validation-result mutation.
+Consequences: Maintainers get a deterministic comparison surface while the product avoids automatic selection beyond explicit inputs, extra writes, validation execution, commit verification, workflow polling, diff inspection, and inferred success claims.
+Human decision still required: No.
+
 ## DEC-033 — 2026-07-08 — Refuse symlinked history records before comparison
 
 Context: `forge run-history-list` and `forge run-history-latest` intentionally scan only direct `.ai/run-history/*.json` records, but symlinked JSON entries could still behave like files while resolving outside the documented history directory boundary.
@@ -22,22 +30,6 @@ Context: `forge run-history-read` can inspect one explicit persisted record, but
 Decision: Add `forge run-history-list` as a read-only, non-recursive listing command for direct `.ai/run-history/*.json` files that reuses the single-record schema summary and marks malformed records as refused.
 Alternatives considered: Write an index file, recursively scan directories, infer latest records automatically, verify commits, run validation commands, or move directly to patch generation.
 Consequences: Maintainers can inspect multiple local run records while the product avoids extra writes, broad scans, validation execution, diff inspection, and inferred success claims.
-Human decision still required: No.
-
-## DEC-030 — 2026-07-08 — Read one persisted history record before indexing
-
-Context: `forge run-history-write` can now persist exactly one local JSON record, but maintainers need a safe inspection surface before any multi-record index or executor exists.
-Decision: Add `forge run-history-read` as a read-only command that summarizes one explicit `.ai/run-history/*.json` record and validates the supported `run-history/v1` shape.
-Alternatives considered: Directory scanning, automatic index creation, validation execution, commit verification, or skipping the reader and moving directly to a history index.
-Consequences: Maintainers can inspect durable memory while the product avoids broad scans, extra writes, validation execution, and inferred success claims.
-Human decision still required: No.
-
-## DEC-029 — 2026-07-08 — Keep history persistence explicit and narrow
-
-Context: The preflight checklist can now show when existing review signals are ready for local persistence.
-Decision: Add `forge run-history-write` as an explicitly confirmed local writer that saves exactly one JSON record under `.ai/run-history/` after clean preflight readiness.
-Alternatives considered: Automatic writes, mutable indexes, broad output paths, or skipping confirmation.
-Consequences: Maintainers gain durable local memory while the write surface remains limited and reviewable.
 Human decision still required: No.
 
 ## Historical note
