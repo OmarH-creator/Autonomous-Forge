@@ -8,6 +8,7 @@ It consumes a reviewed executor-run JSON payload, validates the `persistence_han
 
 The helper accepts one executor-run JSON file and checks that:
 
+- the executor-output file is a real `.json` file inside the repository root, not a symlink, directory, missing file, or external path;
 - `persistence_handoff.available` is `true`;
 - `persistence_handoff.auto_persistence` is `false`;
 - `persistence_handoff.confirmation_required` is `--confirm-write`;
@@ -30,7 +31,7 @@ from pathlib import Path
 from autonomous_forge.executor_handoff_persistence import write_executor_handoff_persistence
 
 summary = write_executor_handoff_persistence(
-    Path("/tmp/autonomous-forge-executor-run.json"),
+    Path("executor-run-output.json"),
     root=Path("."),
     confirm_write=True,
 )
