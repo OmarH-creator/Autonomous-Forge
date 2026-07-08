@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-032 — 2026-07-08 — Select latest history records by filename before comparing records
+
+Context: `forge run-history-list` can inspect multiple saved records, but maintainers still need a deterministic way to focus on the most recent readable record before any comparison, validation executor, or patch workflow exists.
+Decision: Add `forge run-history-latest` as a read-only selector that scans direct `.ai/run-history/*.json` files, sorts by filename ascending, chooses the last readable record, and reports malformed or unsupported records as refused.
+Alternatives considered: Use filesystem modification time, write a durable index, verify commit recency, check GitHub workflow status, infer success from record contents, recursively scan directories, or move directly to record comparison.
+Consequences: Maintainers get a stable latest-record view while the product avoids timestamp ambiguity, extra writes, validation execution, commit verification, workflow checks, diff inspection, and inferred success claims.
+Human decision still required: No.
+
 ## DEC-031 — 2026-07-08 — List saved history records before adding indexes
 
 Context: `forge run-history-read` can inspect one explicit persisted record, but maintainers need a safe view across saved records before any durable aggregate index, validation executor, or patch workflow exists.
