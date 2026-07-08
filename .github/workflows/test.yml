@@ -35,11 +35,13 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           forge --version
+          forge patch-application-audit --help
           forge patch-application-preflight --help
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
           forge patch-text-review --help
+          forge-patch-application-audit --help
           forge-patch-application-preflight --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
@@ -158,6 +160,11 @@ jobs:
             --expected-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-application-preflight.json
+          forge patch-application-audit \
+            --root /tmp \
+            --preflight autonomous-forge-patch-application-preflight.json \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-patch-application-audit.json
           forge-patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
@@ -189,6 +196,11 @@ jobs:
             --expected-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-application-preflight-compat.json
+          forge-patch-application-audit \
+            --root /tmp \
+            --preflight autonomous-forge-patch-application-preflight.json \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-patch-application-audit-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -209,6 +221,8 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-text-review-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-application-preflight.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-application-preflight-compat.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-application-audit.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-application-audit-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -294,6 +308,19 @@ jobs:
 
           patch_application_preflight_compat = json.loads(Path('/tmp/autonomous-forge-patch-application-preflight-compat.json').read_text(encoding='utf-8'))
           assert patch_application_preflight_compat == patch_application_preflight
+
+          patch_application_audit = json.loads(Path('/tmp/autonomous-forge-patch-application-audit.json').read_text(encoding='utf-8'))
+          assert patch_application_audit['mode'] == 'read-only'
+          assert patch_application_audit['audit_status'] == 'clear'
+          assert patch_application_audit['patch_application_audit_allowed'] is True
+          assert patch_application_audit['patch_application_allowed'] is False
+          assert patch_application_audit['audit_blockers'] == []
+          assert patch_application_audit['reviewed_paths'] == patch_application_preflight['reviewed_paths']
+          assert [item['path'] for item in patch_application_audit['audited_provenance']] == patch_application_preflight['reviewed_paths']
+          assert patch_application_audit['validation_steps'] == ['python -m pytest']
+
+          patch_application_audit_compat = json.loads(Path('/tmp/autonomous-forge-patch-application-audit-compat.json').read_text(encoding='utf-8'))
+          assert patch_application_audit_compat == patch_application_audit
           PY
       - name: Smoke-test run-history persistence flow
         run: |
