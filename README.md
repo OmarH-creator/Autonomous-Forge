@@ -8,7 +8,7 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-041 exposed the validation orchestration readiness artifact through `forge validation-orchestration --format text|json`. The command reuses the existing plan/state/policy/root inputs, combines validation-plan data, command-candidate preview counts, saved run-history validation guards, and latest-record validation guard, and keeps the full surface read-only. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and deterministic CLI tests committed for the new command. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: add a safe read-only command-execution handoff preview that consumes the orchestration readiness output without running commands.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-042 hardened CI so the installed-package workflow now smoke-tests `forge validation-orchestration --format json` against the live repository planning inputs and JSON-validates the generated orchestration artifact. This closes the coverage gap left after AUTO-041 exposed the command through the CLI. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and CI workflow hardening committed to `main`. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: add a safe read-only command-execution handoff preview that consumes the orchestration readiness output without running commands.
 
 The repository now contains:
 
@@ -27,7 +27,7 @@ The repository now contains:
 - `forge validation-result-preview` for previewing a supplied validation result attachment to one saved history record without rewriting it.
 - `forge validation-result-write` for attaching one supplied validation result to one explicit saved history record after `--confirm-write`, with `--format json` for stable automation handoff output.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
-- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
+- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
 
 ## Install for local development
