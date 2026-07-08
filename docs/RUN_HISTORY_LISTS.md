@@ -6,7 +6,7 @@ These commands are read-only bridges between reading one explicit record and any
 
 ## Listing records
 
-The list command performs a non-recursive scan of `.ai/run-history/`, considers only direct `.json` files, sorts records by filename for deterministic output, and summarizes up to `--max-records` entries. It does not write an index, run validation commands, inspect diffs, read changed-file contents, generate patches, approve exceptions, enforce policy decisions, commit, push, call networks, or read environment variables.
+The list command performs a non-recursive scan of `.ai/run-history/`, considers only direct non-symlink `.json` files, sorts records by filename for deterministic output, and summarizes up to `--max-records` entries. It does not write an index, run validation commands, inspect diffs, read changed-file contents, generate patches, approve exceptions, enforce policy decisions, commit, push, call networks, or read environment variables.
 
 ```bash
 forge run-history-list --root .
@@ -23,7 +23,7 @@ forge run-history-list \
 
 ## Selecting the latest readable record
 
-The latest selector performs the same narrow direct-file scan but returns one selected record. Its ordering is explicit: records are considered by ascending filename, and the latest record is the last readable direct `.json` file by filename. Malformed or unsupported records are reported as refused and are not selected as latest.
+The latest selector performs the same narrow direct-file scan but returns one selected record. Its ordering is explicit: records are considered by ascending filename, and the latest record is the last readable direct non-symlink `.json` file by filename. Malformed or unsupported records are reported as refused and are not selected as latest.
 
 ```bash
 forge run-history-latest --root .
@@ -44,6 +44,7 @@ The history commands keep the surface narrow:
 - They only look in `.ai/run-history/` below the supplied repository root.
 - They scan only direct child files, not nested directories.
 - They ignore non-JSON files.
+- They ignore symlinked JSON paths so a directory entry cannot escape the direct history file boundary.
 - They reuse the single-record reader schema summary for each JSON record.
 - They mark malformed or unsupported JSON records as `refused` instead of failing the whole list or latest selection.
 - `run-history-list` refuses `--max-records` values lower than one.
