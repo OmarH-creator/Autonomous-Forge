@@ -8,19 +8,20 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-043 shipped `forge executor-gate --format text|json`, a read-only precondition gate that consumes the command-execution handoff and saved-history readiness before any validation executor exists. The gate reports `future_dry_run_eligible`, explicit allow reasons, block reasons, gated command candidates, required future confirmations, and the result-record target while keeping `command_execution_allowed=false`. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review, deterministic tests committed to `main`, and CI smoke coverage added for executor-gate JSON output. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: design the narrow opt-in validation executor contract only after the gate semantics and CI coverage are stable.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-044 shipped `forge executor-contract --format text|json`, a read-only validation-executor contract preview that consumes the executor gate and defines the future confirmation flag, allowed command classes, refusal cases, result-capture shape, timeout policy, required future inputs, non-goals, and safety boundary before any command runner exists. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review, deterministic tests committed to `main`, and CI smoke coverage added for executor-contract JSON output. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: harden the executor contract with live-input CI assertions and edge-case tests before considering any opt-in command runner.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
 - `forge command-execution-handoff` for a read-only pre-executor handoff that lists candidate validation commands, review blockers, confirmation requirements, and expected result-record fields without running commands.
 - `forge executor-gate` for a read-only precondition gate that reports whether a future dry-run executor path is eligible for explicit future confirmation, plus the allow/block reasons.
+- `forge executor-contract` for a read-only future executor contract that defines required flags, allowed/refused command classes, timeout policy, result-capture shape, and non-goals without running anything.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
-- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, executor-gate command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
+- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, executor-gate command, executor-contract command, run-history persistence/list/latest/compare flow, and validation-result preview/write/read handoff after installation.
 
 ## Install for local development
 
@@ -42,6 +43,7 @@ forge validation-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_ST
 forge validation-orchestration --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge command-execution-handoff --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge executor-gate --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge executor-contract --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge review-artifact --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge run-history-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
@@ -49,12 +51,12 @@ forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_S
 
 Every command above is local-first and read-only. The commands print review information only; they do not change repository files, run validation commands, inspect diffs, make approval decisions, or enforce policy decisions.
 
-## Combined review, orchestration, and executor gate workflow
+## Combined review, orchestration, gate, and contract workflow
 
-`forge review-artifact` is the current safest planning handoff. `forge validation-orchestration` summarizes validation readiness. `forge command-execution-handoff` turns that readiness into candidate command handoff data without running anything. `forge executor-gate` is the final read-only precondition check before a future opt-in executor can even be designed.
+`forge review-artifact` is the current safest planning handoff. `forge validation-orchestration` summarizes validation readiness. `forge command-execution-handoff` turns that readiness into candidate command handoff data without running anything. `forge executor-gate` checks future dry-run eligibility. `forge executor-contract` defines the minimal future executor contract without enabling execution.
 
 ```bash
-forge executor-gate \
+forge executor-contract \
   --plan .ai/AUTONOMOUS_PLAN.md \
   --state .ai/AUTONOMOUS_STATE.md \
   --policy .forge/policy.md \
@@ -62,14 +64,14 @@ forge executor-gate \
   --format json
 ```
 
-The executor gate reports:
+The executor contract reports:
 
-- upstream handoff status;
-- `future_dry_run_eligible`;
-- allow reasons and block reasons;
-- gated command candidates with `execution_status: not run`;
-- required future confirmation steps;
-- the saved run-history record that a later validation-result write would target.
+- upstream gate status and `future_dry_run_eligible`;
+- the required future confirmation flag, `--confirm-executor-dry-run`;
+- allowed command classes and exact candidate commands;
+- refusal cases a future executor must enforce;
+- result-capture fields and validation-result write handoff;
+- timeout policy, required future inputs, non-goals, and safety boundary.
 
 ## Opt-in local run-history write, read, list, latest selection, comparison, and validation-result preview/write
 
@@ -97,9 +99,9 @@ forge validation-result-write \
   --format json
 ```
 
-These history, handoff, and gate commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` mutates one explicitly requested saved record only when called with `--confirm-write`.
+These history, handoff, gate, and contract commands still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` mutates one explicitly requested saved record only when called with `--confirm-write`.
 
-See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, and `docs/COMMANDS.md` for focused contracts.
+See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, and `docs/COMMANDS.md` for focused contracts.
 
 ## Other read-only views
 
