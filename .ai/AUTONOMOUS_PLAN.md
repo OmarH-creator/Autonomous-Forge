@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, package m
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, a read-only executor dry-run, and a narrow opt-in local executor that can run one exact validation command without a shell. Product commands still do not enforce policy, read environment settings, call networks, generate patches, execute arbitrary plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, a read-only executor dry-run, a narrow opt-in local executor, and structured executor launch-failure reporting. Product commands still do not enforce policy, read environment settings, call networks, generate patches, execute arbitrary plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
 
 ## Technical debt
 
@@ -132,7 +132,20 @@ Validation: Static review completed through the GitHub repository API. Determini
 Risks or assumptions: Avoid workflow polling, network calls, commit verification, diff inspection, patch generation, policy enforcement, automatic history mutation, and broad arbitrary command execution.
 Notes: This remains a narrow validation executor, not a general automation runner.
 
-### AUTO-047 — Add executor-result persistence handoff
+### AUTO-047 — Harden executor launch-failure reporting
+Priority: P1
+Status: DONE
+
+Goal: Keep executor output structured when a dry-run-approved local command cannot be launched by the operating system.
+Why it matters: A missing executable or OS-level launch error should produce machine-readable failed validation data for review and later persistence, not an unhandled CLI crash.
+Scope: Catch `OSError` from the no-shell subprocess runner, report `execution_status=launch-failed`, preserve `validation_execution=local_command_observed`, map the observation to `validation_result=failed`, include bounded stderr context, and add regression coverage.
+Expected files or areas: `src/autonomous_forge/executor_run.py`, `tests/test_executor_run.py`, `docs/EXECUTOR_RUNS.md`, README, `.ai` records.
+Acceptance criteria: Launch failures do not crash the executor path, return no process return code, preserve the exact command safety boundary, and remain separate from blocked pre-execution refusals.
+Validation: Static review completed through the GitHub repository API. Deterministic regression coverage was added with a fake runner that raises `FileNotFoundError`. Direct local pytest execution remained unavailable in this environment.
+Risks or assumptions: Do not retry commands automatically, broaden the command allowlist, infer success, or mutate saved history.
+Notes: This hardens the executor before adding result-persistence handoff behavior.
+
+### AUTO-048 — Add executor-result persistence handoff
 Priority: P1
 Status: TODO
 
