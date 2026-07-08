@@ -2,12 +2,12 @@
 
 ## 2026-07-08 — AUTO-047
 
-- Task ID: AUTO-047 — Harden executor launch-failure reporting
-- Summary: Hardened `forge executor-run` so subprocess startup failures such as a missing executable are returned as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output instead of escaping as an unhandled CLI crash.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run implementation, executor dry-run/contract behavior, tests, and docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression coverage using a fake runner that raises `FileNotFoundError`, verifying launch-failure status, failed result mapping, no return code, and stderr context. Direct local checkout/test execution remained unavailable in this environment.
+- Task ID: AUTO-047 — Harden executor launch-failure reporting and reconcile persistence handoff
+- Summary: Hardened `forge executor-run` so subprocess startup failures such as a missing executable are returned as structured `execution_status=launch-failed`, `validation_execution=local_command_observed`, and `validation_result=failed` output instead of escaping as an unhandled CLI crash. A concurrent executor-result handoff also landed during the run; tests and docs were reconciled so observed results expose an advisory explicit `forge validation-result-write --confirm-write` command without automatic saved-history mutation.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run implementation, executor dry-run/contract behavior, tests, and docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`. A concurrent main-branch commit added executor result handoff behavior and was incorporated rather than reverted.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression coverage using a fake runner that raises `FileNotFoundError`, verifying launch-failure status, failed result mapping, no return code, stderr context, and failed-result persistence handoff data. Existing handoff tests cover successful write-command args, text output, and blocked non-handoff behavior. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
-- Follow-up notes: Add an executor-result persistence handoff that prepares the exact `forge validation-result-write --confirm-write` call from observed executor output without automatic history mutation.
+- Follow-up notes: Add CI assertions around `forge executor-run --format json` persistence-handoff fields while keeping persistence advisory and explicitly confirmed.
 
 ## 2026-07-08 — AUTO-046
 
