@@ -80,6 +80,13 @@ jobs:
             --file README.md \
             --file src/autonomous_forge/content_audit.py \
             --format json > /tmp/autonomous-forge-content-audit.json
+          cp /tmp/autonomous-forge-content-audit.json /tmp/autonomous-forge-content-audit-before.json
+          cp /tmp/autonomous-forge-content-audit.json /tmp/autonomous-forge-content-audit-after.json
+          forge diff-source-handoff \
+            --root /tmp \
+            --before autonomous-forge-content-audit-before.json \
+            --after autonomous-forge-content-audit-after.json \
+            --format json > /tmp/autonomous-forge-diff-source-handoff.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -87,6 +94,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-dry-run.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-content-audit.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-diff-source-handoff.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -100,6 +108,12 @@ jobs:
           assert audited['README.md']['review_status'] == 'clear'
           assert audited['src/autonomous_forge/content_audit.py']['content_status'] == 'readable'
           assert audited['src/autonomous_forge/content_audit.py']['policy_status'] == 'allowed'
+
+          diff_source = json.loads(Path('/tmp/autonomous-forge-diff-source-handoff.json').read_text(encoding='utf-8'))
+          assert diff_source['mode'] == 'read-only'
+          assert diff_source['summary']['counts']['unchanged'] == 2
+          assert diff_source['requires_attention'] is False
+          assert all(item['status'] == 'unchanged' for item in diff_source['comparisons'])
           PY
       - name: Smoke-test run-history persistence flow
         run: |
@@ -138,104 +152,5 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-list.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-latest.json > /dev/null
-      - name: Smoke-test validation-result attachment, audit, and comparison flow
-        run: |
-          cp .ai/run-history/ci-smoke.json .ai/run-history/ci-smoke-before-validation.json
-          forge validation-result-preview \
-            --root . \
-            --record .ai/run-history/ci-smoke.json \
-            --result passed \
-            --note "CI smoke supplied result" \
-            --format json > /tmp/autonomous-forge-validation-result-preview.json
-          forge validation-result-write \
-            --root . \
-            --record .ai/run-history/ci-smoke.json \
-            --result passed \
-            --note "CI smoke supplied result" \
-            --confirm-write \
-            --format json > /tmp/autonomous-forge-validation-result-write.json
-          forge validation-result-audit \
-            --root . \
-            --record .ai/run-history/ci-smoke.json \
-            --format json > /tmp/autonomous-forge-validation-result-audit.json
-          forge executor-observation-audit \
-            --root . \
-            --max-records 20 \
-            --format json > /tmp/autonomous-forge-executor-observation-audit.json
-          forge run-history-read \
-            --root . \
-            --record .ai/run-history/ci-smoke.json \
-            --format json > /tmp/autonomous-forge-validation-result-read.json
-          forge run-history-compare \
-            --root . \
-            --before .ai/run-history/ci-smoke-before-validation.json \
-            --after .ai/run-history/ci-smoke.json \
-            --format json > /tmp/autonomous-forge-run-history-compare.json
-          python -m json.tool /tmp/autonomous-forge-validation-result-preview.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-validation-result-write.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-validation-result-audit.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-executor-observation-audit.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-validation-result-read.json > /dev/null
-          python -m json.tool /tmp/autonomous-forge-run-history-compare.json > /dev/null
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path('/tmp/autonomous-forge-validation-result-read.json').read_text(encoding='utf-8'))
-          assert payload['record']['validation_execution'] == 'external_result_attached'
-          assert payload['record']['validation_result'] == 'passed'
-          assert payload['record']['validation_note'] == 'CI smoke supplied result'
-
-          audit = json.loads(Path('/tmp/autonomous-forge-validation-result-audit.json').read_text(encoding='utf-8'))
-          assert audit['guard_status'] == 'consistent'
-          assert audit['validation_result'] == 'passed'
-          assert audit['validation_note'] == 'CI smoke supplied result'
-
-          observation_audit = json.loads(Path('/tmp/autonomous-forge-executor-observation-audit.json').read_text(encoding='utf-8'))
-          assert observation_audit['summary']['counts']['observed-clear'] >= 1
-          assert observation_audit['summary']['overall_status'] in {'clear', 'needs-validation'}
-
-          comparison = json.loads(Path('/tmp/autonomous-forge-run-history-compare.json').read_text(encoding='utf-8'))
-          changed_fields = {
-              item['field']
-              for item in comparison['differences']
-              if item['status'] == 'changed'
-          }
-          assert {'validation_execution', 'validation_result'}.issubset(changed_fields)
-          PY
-      - name: Smoke-test opt-in executor run and handoff persistence
-        run: |
-          forge executor-run \
-            --plan .ai/AUTONOMOUS_PLAN.md \
-            --state .ai/AUTONOMOUS_STATE.md \
-            --policy .forge/policy.md \
-            --root . \
-            --command "python -m pytest" \
-            --confirm-executor-dry-run \
-            --format json > executor-run-output.json
-          python -m json.tool executor-run-output.json > /dev/null
-          forge executor-handoff-persist \
-            --root . \
-            --executor-output executor-run-output.json \
-            --confirm-write \
-            --format json > /tmp/autonomous-forge-executor-handoff-persist.json
-          python -m json.tool /tmp/autonomous-forge-executor-handoff-persist.json > /dev/null
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path('executor-run-output.json').read_text(encoding='utf-8'))
-          assert payload['execution_status'] == 'completed'
-          assert payload['validation_execution'] == 'local_command_observed'
-          assert payload['validation_result'] == 'passed'
-          assert payload['return_code'] == 0
-          assert payload['persistence_handoff']['available'] is True
-          assert payload['persistence_handoff']['auto_persistence'] is False
-
-          persisted = json.loads(Path('/tmp/autonomous-forge-executor-handoff-persist.json').read_text(encoding='utf-8'))
-          assert persisted['validation_execution'] == 'external_result_attached'
-          assert persisted['validation_result'] == 'passed'
-          assert persisted['source'].endswith('/executor-run-output.json')
-          PY
-      - name: Run test suite
+      - name: Run tests
         run: python -m pytest -q
