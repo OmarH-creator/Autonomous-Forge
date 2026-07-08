@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-079 — 2026-07-08 — Patch application needs a provenance audit before any write-capable design
+
+Context: Patch-application preflight can confirm ready patch-text review evidence and explicit per-path provenance metadata, but future patch-application design still needs a separate audit checkpoint that verifies the supplied preflight evidence remains internally consistent and keeps actual patch application disallowed.
+Decision: Add `forge patch-application-audit` plus compatibility `forge-patch-application-audit` as a read-only provenance audit. It consumes one patch-application preflight JSON payload, validates safe path/source metadata, checks count consistency, requires non-empty validation steps, carries forward preflight blockers, supports `--require-clear`, and always keeps `patch_application_allowed` false.
+Alternatives considered: Move directly to a patch applier, fold this audit into patch-application preflight, inspect git diffs, or rely on documentation-only provenance expectations.
+Consequences: Maintainers gain a clearer final advisory checkpoint before any future patch-application design. The command still does not read target file contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, approve implementation, mutate history, commit, push, or change files.
+Human decision still required: No.
+
 ## DEC-077 — 2026-07-08 — Patch application preflight must prove provenance without allowing application
 
 Context: Patch text review now confirms ready preflight evidence and explicit per-path patch summaries, but moving directly from reviewed patch text toward any future patch-application design would require provenance checks that every reviewed path has an explicit source and matching expected summary.
