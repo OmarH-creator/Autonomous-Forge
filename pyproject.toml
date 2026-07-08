@@ -24,6 +24,7 @@ dependencies = []
 
 [project.scripts]
 forge = "autonomous_forge.cli_entry_patch:main"
+forge-commit-status-review = "autonomous_forge.commit_status_review_cli:main"
 forge-git-diff-review = "autonomous_forge.git_diff_review_cli:main"
 forge-patch-application-audit = "autonomous_forge.patch_application_audit_cli:main"
 forge-patch-application-preflight = "autonomous_forge.patch_application_preflight_cli:main"
