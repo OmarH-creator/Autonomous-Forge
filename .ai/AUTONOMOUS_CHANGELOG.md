@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-058
+
+- Task ID: AUTO-058 — Assert content-audit smoke semantics
+- Summary: Added semantic CI assertions for installed `forge content-audit --format json` output. The workflow now checks that the live audit covers two expected paths, marks both as clear, requires no attention, and classifies `src/autonomous_forge/content_audit.py` as allowed and readable.
+- Branch and PR assessment: Inspected repository metadata, recent commits, open PRs/issues, README, roadmap/state/changelog/decisions, content-audit implementation, CLI wiring, tests, docs, and workflow smoke coverage. No open PR required integration. The run stayed on `main` and adapted to concurrent latest-limited audit updates by completing the next recorded blocker.
+- Validation completed: Static review completed through the GitHub repository API. Direct local checkout/test execution remained unavailable in this environment. The committed workflow now validates JSON shape and content-audit semantics for installed CLI output.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
+
 ## 2026-07-08 — AUTO-057
 
 - Task ID: AUTO-057 — Prioritize latest run-history records and smoke-test content audit
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic CLI tests for `--require-clear` passing on clear observations and failing on missing observations while preserving JSON output. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a read-only changed-content or diff-intent audit before patch generation, diff inspection, or implementation-execution behavior.
-
-## 2026-07-08 — AUTO-055
-
-- Task ID: AUTO-055 — Add executor-observation audit
-- Summary: Added `forge executor-observation-audit`, a read-only aggregate audit over direct `.ai/run-history/*.json` records. It classifies saved validation observations as observed-clear, observed-blocked, missing-observation, needs-review, or refused and reports a conservative overall status before future patch or diff workflow work relies on persisted executor evidence.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, README, roadmap, state, changelog, decisions, workflow smoke coverage, validation-result audit, run-history index/reader, executor handoff persistence, and relevant tests. Recent PRs were closed/merged or obsolete; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic tests for audit classification, JSON/text formatting, refused records, invalid limits, and CLI output/refusal. Extended installed-package CI smoke coverage to run `forge executor-observation-audit --format json` after a validation result is attached. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a read-only changed-content or diff-intent audit before any patch generation, diff inspection, or implementation-execution behavior.
 
 ## Historical note
 
