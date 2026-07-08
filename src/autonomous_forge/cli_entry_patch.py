@@ -7,11 +7,13 @@ import sys
 from autonomous_forge import cli_entry
 from autonomous_forge.patch_proposal_draft_cli import main as _patch_proposal_draft_main
 from autonomous_forge.patch_proposal_review_cli import main as _patch_proposal_review_main
+from autonomous_forge.patch_text_preflight_cli import main as _patch_text_preflight_main
 
 
 _EXTENSION_COMMANDS = {
     "patch-proposal-draft": _patch_proposal_draft_main,
     "patch-proposal-review": _patch_proposal_review_main,
+    "patch-text-preflight": _patch_text_preflight_main,
 }
 
 
