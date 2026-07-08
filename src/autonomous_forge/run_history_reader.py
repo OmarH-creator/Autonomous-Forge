@@ -28,6 +28,12 @@ def _resolve_inside(root: Path, path: Path | str) -> tuple[Path, Path]:
 
 def _validate_record_path(root: Path, record_path: Path | str) -> Path:
     """Validate a single local history record path before reading."""
+    resolved_root = root.resolve()
+    requested_path = Path(record_path)
+    candidate = requested_path if requested_path.is_absolute() else resolved_root / requested_path
+    if candidate.is_symlink():
+        raise RunHistoryReadError("record path must be a real file, not a symlink")
+
     resolved_root, resolved_record = _resolve_inside(root, record_path)
     history_dir = (resolved_root / ".ai" / "run-history").resolve()
     try:
