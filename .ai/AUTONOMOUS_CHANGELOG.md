@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-077
+
+- Task ID: AUTO-077 — Add patch application preflight gate
+- Summary: Shipped `forge patch-application-preflight` plus compatibility `forge-patch-application-preflight`, a read-only advisory gate that consumes ready patch-text review JSON plus explicit per-path patch provenance metadata before any future patch-application design relies on reviewed patch text.
+- Branch and PR assessment: Inspected repository metadata, README/state/changelog/decisions/roadmap records, CI workflow context, installed entry-point routing, patch text review implementation, tests, docs, recent commits, issues, and recent PRs. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic core and primary CLI route tests for ready, blocked, missing provenance, mismatched summaries, unsafe path labels, JSON output, and `--require-ready` behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 189b0658f4b8d245ef434fcf0d123d95518469d5 plus follow-up documentation/state commits
+- Follow-up notes: Add a read-only patch provenance/audit chain that can compare future patch-application preflight evidence against saved review artifacts before any write-capable patch behavior exists.
+
 ## 2026-07-08 — AUTO-076
 
 - Task ID: AUTO-076 — Add patch text review gate
@@ -8,15 +17,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic core, CLI, router, and CI smoke coverage for primary and compatibility patch text review routes. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: edc615231b63c1910729d543bfe741c8c8dd931e plus follow-up documentation/state commits
 - Follow-up notes: Add a guarded read-only patch-application preflight or patch-text provenance check before any write-capable patch behavior.
-
-## 2026-07-08 — AUTO-075
-
-- Task ID: AUTO-075 — Harden patch text preflight evidence reuse
-- Summary: Hardened `forge patch-text-preflight` so the CLI resolves, reads, validates, formats, and gates one shared in-memory preflight data object per invocation instead of re-reading the draft evidence for `--require-ready`. This prevents one invocation from printing one draft state while gating a later draft state if the input changes between reads.
-- Branch and PR assessment: Inspected repository metadata, README/state/changelog/decisions/roadmap records, CI workflow context, installed entry-point routing, patch text preflight implementation, tests, docs, recent commits, and recent PRs. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic coverage for the reusable preflight data helper used by CLI formatting and gate checks. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: d266597e525fcc45bac3cfc56563cf338dbf0fe9 plus follow-up documentation/state commits
-- Follow-up notes: Add a read-only patch text review surface that consumes ready preflight evidence plus supplied patch-text metadata without applying changes.
 
 ## Historical note
 
