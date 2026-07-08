@@ -3,6 +3,7 @@ import json
 from autonomous_forge import cli_entry
 from autonomous_forge.content_audit import build_content_audit_data
 from autonomous_forge.diff_source_handoff import build_diff_source_handoff_data
+from autonomous_forge.patch_intent_review import build_patch_intent_review_data
 
 
 POLICY = """## Allowed paths
@@ -209,3 +210,54 @@ def test_installed_entrypoint_patch_intent_review_require_ready_fails_changed_ev
     payload = json.loads(capsys.readouterr().out)
     assert payload["readiness"] == "blocked"
     assert payload["patch_intent_allowed"] is False
+
+
+def test_installed_entrypoint_patch_intent_describe_require_described_passes_ready_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    review = build_patch_intent_review_data(build_diff_source_handoff_data(audit, audit))
+    review_path = tmp_path / "patch-review.json"
+    review_path.write_text(json.dumps(review), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-intent-describe",
+        "--root",
+        str(tmp_path),
+        "--patch-review",
+        str(review_path),
+        "--require-described",
+        "--format",
+        "json",
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["intent_status"] == "described"
+    assert payload["patch_description_allowed"] is True
+    assert payload["candidate_paths"] == ["README.md"]
+
+
+def test_installed_entrypoint_patch_intent_describe_require_described_fails_blocked_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    before_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    readme.write_text("# Example\n\nChanged\n", encoding="utf-8")
+    after_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    review = build_patch_intent_review_data(build_diff_source_handoff_data(before_audit, after_audit))
+    review_path = tmp_path / "patch-review.json"
+    review_path.write_text(json.dumps(review), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-intent-describe",
+        "--root",
+        str(tmp_path),
+        "--patch-review",
+        str(review_path),
+        "--require-described",
+        "--format",
+        "json",
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["intent_status"] == "blocked"
+    assert payload["patch_description_allowed"] is False
