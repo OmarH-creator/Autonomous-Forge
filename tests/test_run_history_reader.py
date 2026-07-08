@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -99,6 +100,20 @@ def test_read_run_history_record_refuses_symlinked_history_file(tmp_path):
 
     with pytest.raises(RunHistoryReadError, match="not a symlink"):
         read_run_history_record(link, root=tmp_path)
+
+
+def test_read_run_history_record_refuses_non_regular_history_path(tmp_path):
+    record = tmp_path / ".ai" / "run-history" / "fifo.json"
+    record.parent.mkdir(parents=True, exist_ok=True)
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO creation is unavailable on this platform")
+    try:
+        os.mkfifo(record)
+    except OSError as exc:
+        pytest.skip(f"FIFO creation is unavailable: {exc}")
+
+    with pytest.raises(RunHistoryReadError, match="regular file"):
+        read_run_history_record(record, root=tmp_path)
 
 
 def test_read_run_history_record_refuses_malformed_json(tmp_path):
