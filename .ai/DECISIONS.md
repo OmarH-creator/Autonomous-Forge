@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-045 — 2026-07-08 — Dry-run executor candidates before real execution
+
+Context: `forge executor-contract` defined future executor requirements, but there was no user-facing way to test one requested command against that contract before implementing command execution.
+Decision: Add `forge executor-dry-run --format text|json` as a read-only dry-run preview. It accepts one exact command candidate, requires `--confirm-executor-dry-run`, blocks shell-control syntax and unknown commands, and emits simulated execution/result-record metadata while keeping `command_execution_allowed=false`.
+Alternatives considered: Move directly to a subprocess executor, run arbitrary commands, rely only on the contract document, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, or mutate history automatically.
+Consequences: Maintainers can now review whether a specific validation command would pass the gate/contract chain before any real execution behavior exists. The command remains advisory and does not run validations, prove success, or approve execution.
+Human decision still required: No.
+
 ## DEC-044 — 2026-07-08 — Define executor contract before command execution
 
 Context: `forge executor-gate` exposed whether a future dry-run executor path was eligible for explicit future confirmation, but the exact contract for a later executor was still implicit.
@@ -14,14 +22,6 @@ Context: `forge command-execution-handoff` exposed candidate commands, blockers,
 Decision: Add `forge executor-gate --format text|json` as a read-only gate that consumes command-execution handoff data and saved-history readiness. The gate reports `future_dry_run_eligible`, allow reasons, block reasons, gated command candidates, required confirmations, and the target record for a later validation-result write while keeping command execution disabled.
 Alternatives considered: Move directly to a validation executor, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, mutate history automatically, or keep executor gating as an undocumented internal convention.
 Consequences: Maintainers can now see exactly why a future dry-run executor path would be blocked or eligible before any command-running implementation exists. The command remains advisory and does not grant approval or prove validation success.
-Human decision still required: No.
-
-## DEC-042 — 2026-07-08 — Add command-execution handoff before any executor
-
-Context: `forge validation-orchestration` exposed readiness signals and command-candidate counts, but maintainers still lacked a single review artifact that showed the exact eligible commands, commands requiring review, blockers, confirmations, and expected validation-result record fields before any command runner exists.
-Decision: Add `forge command-execution-handoff --format text|json` as a read-only pre-executor surface built from validation orchestration readiness and validation command candidates. Extend deterministic tests, README usage, focused docs, roadmap/state/changelog records, and installed-package CI smoke coverage for JSON output.
-Alternatives considered: Move directly to a validation executor, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, mutate history automatically, or keep the handoff as an internal Python-only builder.
-Consequences: Maintainers can now review concrete command-execution inputs before any command execution behavior is introduced. The new command remains advisory and does not prove validation success or approve execution.
 Human decision still required: No.
 
 ## Historical note
