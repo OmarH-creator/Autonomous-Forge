@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-031 — 2026-07-08 — List saved history records before adding indexes
+
+Context: `forge run-history-read` can inspect one explicit persisted record, but maintainers need a safe view across saved records before any durable aggregate index, validation executor, or patch workflow exists.
+Decision: Add `forge run-history-list` as a read-only, non-recursive listing command for direct `.ai/run-history/*.json` files that reuses the single-record schema summary and marks malformed records as refused.
+Alternatives considered: Write an index file, recursively scan directories, infer latest records automatically, verify commits, run validation commands, or move directly to patch generation.
+Consequences: Maintainers can inspect multiple local run records while the product avoids extra writes, broad scans, validation execution, diff inspection, and inferred success claims.
+Human decision still required: No.
+
 ## DEC-030 — 2026-07-08 — Read one persisted history record before indexing
 
 Context: `forge run-history-write` can now persist exactly one local JSON record, but maintainers need a safe inspection surface before any multi-record index or executor exists.
@@ -14,14 +22,6 @@ Context: The preflight checklist can now show when existing review signals are r
 Decision: Add `forge run-history-write` as an explicitly confirmed local writer that saves exactly one JSON record under `.ai/run-history/` after clean preflight readiness.
 Alternatives considered: Automatic writes, mutable indexes, broad output paths, or skipping confirmation.
 Consequences: Maintainers gain durable local memory while the write surface remains limited and reviewable.
-Human decision still required: No.
-
-## DEC-028 — 2026-07-08 — Require typed inventory presence
-
-Context: `forge inventory` reported required paths with `exists()`, which could mark a directory as a present required file or a plain file as a present required directory.
-Decision: Treat required paths ending in `/` as directories and all other required paths as files when reporting inventory presence.
-Alternatives considered: Keep existence-only checks, add a full audit, or execute workflow validation.
-Consequences: Inventory readiness is less likely to report false positives while remaining local, deterministic, and read-only.
 Human decision still required: No.
 
 ## Historical note
