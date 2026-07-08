@@ -86,6 +86,7 @@ jobs:
             --root /tmp \
             --before autonomous-forge-content-audit-before.json \
             --after autonomous-forge-content-audit-after.json \
+            --require-clear \
             --format json > /tmp/autonomous-forge-diff-source-handoff.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
