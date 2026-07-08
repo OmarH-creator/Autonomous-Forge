@@ -18,10 +18,10 @@ Autonomous Forge is pre-alpha. The repository now contains:
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
 - `forge run-history-read` for summarizing one saved `.ai/run-history/*.json` record without mutating files.
-- `forge run-history-list` for a deterministic, non-recursive preview of saved `.ai/run-history/*.json` records without writing an index.
-- `forge run-history-latest` for selecting the latest readable direct history record by explicit filename ordering without mutating files.
+- `forge run-history-list` for a deterministic, non-recursive preview of saved direct, non-symlink `.ai/run-history/*.json` records without writing an index.
+- `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files.
 - Smoke and deterministic coverage for the CLI’s current local workflows.
-- CI smoke coverage that validates the live repository roadmap, policy, state, and combined review-artifact command after installation.
+- CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, and run-history persistence/list/latest flow after installation.
 - Repository health inventory coverage for the primary GitHub Actions workflow file.
 
 ## Install for local development
@@ -119,7 +119,7 @@ forge run-history-read \
   --format json
 ```
 
-`forge run-history-list` performs a deterministic, non-recursive read-only scan of direct `.json` files under `.ai/run-history/` and summarizes readable or refused records without writing an index.
+`forge run-history-list` performs a deterministic, non-recursive read-only scan of direct non-symlink `.json` files under `.ai/run-history/` and summarizes readable or refused records without writing an index.
 
 ```bash
 forge run-history-list \
@@ -128,7 +128,7 @@ forge run-history-list \
   --format json
 ```
 
-`forge run-history-latest` selects the latest readable direct `.json` record by ascending filename order, reports refused records, and does not mutate files.
+`forge run-history-latest` selects the latest readable direct non-symlink `.json` record by ascending filename order, reports refused records, and does not mutate files.
 
 ```bash
 forge run-history-latest \
@@ -169,9 +169,9 @@ Contributions should stay small, local-first, and reviewable. Do not add network
 
 ## Current Autonomous Status
 
-- **Latest run:** Added `forge run-history-latest`, a read-only command for selecting the latest readable direct `.ai/run-history/*.json` record by explicit filename ordering.
-- **What changed:** Extended `src/autonomous_forge/run_history_index.py`, wired `run-history-latest --root . --format json` into the CLI, added deterministic latest-selector and CLI tests, and documented the command in README and `docs/RUN_HISTORY_LISTS.md`.
-- **Validation:** Static review completed through the GitHub repository API. Deterministic tests were added for latest readable selection, malformed-record refusal, no-readable-record behavior, text output, JSON output, and CLI JSON output. Direct local checkout/test execution remains unavailable in this environment; final GitHub status checks were inspected after push.
-- **Visual updates:** No new visual asset was needed; this change adds a narrow history-inspection command rather than a new workflow diagram.
-- **Current limitations:** `forge run-history-latest` is a read-only selector. It does not write an index, compare records, verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, enforce policy decisions, commit, push, or call networks.
+- **Latest run:** Hardened run-history list/latest scanning so direct `.json` candidates must be real non-symlink files under `.ai/run-history/`.
+- **What changed:** Updated `src/autonomous_forge/run_history_index.py` to skip symlinked JSON entries and verify resolved candidates remain inside the history directory, added regression coverage for symlink escapes, expanded CI smoke checks to exercise `run-history-list` and `run-history-latest`, and documented the boundary in README and `docs/RUN_HISTORY_LISTS.md`.
+- **Validation:** Static review completed through the GitHub repository API. Regression tests now cover symlinked JSON records, and CI will JSON-validate run-history preview, preflight, read, list, and latest outputs. Direct local checkout/test execution remains unavailable in this environment.
+- **Visual updates:** No new visual asset was needed; this was a narrow safety and CI hardening change for an existing CLI surface.
+- **Current limitations:** The run-history list/latest commands remain read-only inspection surfaces. They do not compare records, verify commits, check workflow status, inspect repository settings, run tests locally, infer success, mutate `.ai/run-history/`, persist aggregate state, generate patches, inspect diffs, or enforce policy decisions.
 - **Next autonomous objective:** Add a read-only run-history comparison surface before any validation executor, diff inspection, patch generation, index writer, or broader write behavior is considered.
