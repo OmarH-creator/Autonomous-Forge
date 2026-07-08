@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-062 — 2026-07-08 — Make diff-source evidence fail closed when requested
+
+Context: `forge diff-source-handoff` exposes whether content-audit comparison evidence requires attention, but future patch-adjacent workflows need an explicit process-level gate instead of parsing output manually.
+Decision: Add `--require-clear` to `forge diff-source-handoff`. The command remains read-only and continues to print the same text or JSON output, but returns exit code `2` whenever the comparison's `requires_attention` value is true.
+Alternatives considered: Add a separate gate command, make all diff-source handoffs fail when attention is required, infer patch approval from clear evidence, or postpone gating until patch generation exists.
+Consequences: Future local scripts can fail closed on changed or non-clear content-audit evidence while preserving the existing review output and safety boundary. Clear evidence still does not approve patches or prove correctness.
+Human decision still required: No.
+
 ## DEC-061 — 2026-07-08 — Add a diff-source handoff before patch work
 
 Context: `forge content-audit` can produce bounded, read-only file-content observations, but future patch-adjacent workflows need a safe way to compare two reviewed content-audit outputs before relying on those observations.
@@ -14,14 +22,6 @@ Context: GitHub Actions exercises `forge content-audit` through the installed pa
 Decision: Add deterministic regression coverage for the installed entrypoint path, including JSON success for an allowed readable file and a missing-policy refusal case.
 Alternatives considered: Rely only on workflow smoke coverage, duplicate the command entirely in the base CLI, add broader extension-command tests in one larger sweep, or defer coverage until diff-source handoff work.
 Consequences: The installed package route used by CI is now protected by fast deterministic tests without changing content-audit runtime behavior. Future entrypoint extensions should receive similar targeted coverage.
-Human decision still required: No.
-
-## DEC-059 — 2026-07-08 — Integrate the hidden dotfile parser fix directly on main
-
-Context: Open PR #7 documented a concrete failing case where roadmap expected-file tokens such as ``.env`.`` could be normalized as `.env`` with a dangling backtick, weakening the precision of policy-aware planned-file review for hidden paths.
-Decision: Integrate the useful parser hardening and regression test directly onto `main`, peeling surrounding backticks and trailing punctuation iteratively in `_split_expected_areas` while also covering trailing-comma list punctuation.
-Alternatives considered: Merge the PR branch, create a replacement PR, ignore the open PR, defer the fix until diff-source handoff work, or broaden roadmap grammar parsing beyond this bug.
-Consequences: Planned file areas now preserve hidden dotfile paths more reliably before proposal/review workflows rely on them. The change remains read-only and narrow, but broader roadmap grammar ambiguity is intentionally left for future work.
 Human decision still required: No.
 
 ## Historical note
