@@ -24,8 +24,22 @@ def _history_dir(root: Path) -> Path:
 
 
 def _json_candidates(directory: Path) -> list[Path]:
-    """Return direct JSON child files in deterministic filename order."""
-    return sorted(path for path in directory.iterdir() if path.is_file() and path.suffix == ".json")
+    """Return direct non-symlink JSON child files in deterministic filename order."""
+    resolved_directory = directory.resolve()
+    candidates = []
+    for path in directory.iterdir():
+        if path.suffix != ".json":
+            continue
+        if path.is_symlink():
+            continue
+        if not path.is_file():
+            continue
+        try:
+            path.resolve().relative_to(resolved_directory)
+        except ValueError:
+            continue
+        candidates.append(path)
+    return sorted(candidates)
 
 
 def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
