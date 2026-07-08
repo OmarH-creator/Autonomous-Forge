@@ -13,6 +13,43 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge diff-source-handoff`
+
+Purpose: compare two explicit `forge content-audit --format json` outputs before future patch or git-diff workflows rely on content-audit evidence.
+
+Inputs:
+
+- `--before`: earlier content-audit JSON output inside the configured root.
+- `--after`: later content-audit JSON output inside the configured root.
+- `--root`: root used to constrain audit-output paths, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge diff-source handoff
+Mode: read-only
+Source: explicit content-audit JSON outputs
+Compared paths:
+- ...: status=added|removed|changed|unchanged; changed_fields=...; before_review=...; after_review=...
+Summary:
+- added: ...
+- removed: ...
+- changed: ...
+- unchanged: ...
+Requires attention: true|false
+Safety boundary: Diff-source handoff reads supplied content-audit JSON only; ...
+```
+
+Expected JSON output includes `mode`, `source`, `before`, `after`, `comparisons`, `summary`, `requires_attention`, `reason`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the handoff is produced.
+- `2` when an input is outside the configured root, missing, not a `.json` regular file, a symlink, malformed JSON, not a content-audit payload, not read-only, has invalid audited entries, has duplicate audited paths, or an unsupported output format is requested.
+
+Safety limits: diff-source-handoff reads supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, run commands, check workflow status, infer correctness, approve implementation, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+
 ## `forge content-audit`
 
 Purpose: audit explicit repository-relative file contents before future patch or diff workflows without printing file content or changing files.
@@ -188,4 +225,4 @@ Safety limits: executor-contract output is a contract preview only. It does not 
 
 ## Other implemented command contracts
 
-Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/CONTENT_AUDITS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
+Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/CONTENT_AUDITS.md`, `docs/DIFF_SOURCE_HANDOFFS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
