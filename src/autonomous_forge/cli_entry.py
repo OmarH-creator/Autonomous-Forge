@@ -88,14 +88,24 @@ def _print_content_audit(args: argparse.Namespace) -> int:
 def _print_diff_source_handoff(args: argparse.Namespace) -> int:
     """Print a read-only comparison of two content-audit JSON outputs."""
     try:
-        print(
-            read_diff_source_handoff(
-                Path(args.before),
-                Path(args.after),
-                root=Path(args.root),
-                output_format=args.format,
-            )
+        output = read_diff_source_handoff(
+            Path(args.before),
+            Path(args.after),
+            root=Path(args.root),
+            output_format=args.format,
         )
+        print(output)
+        if args.require_clear:
+            gate_data = json.loads(
+                read_diff_source_handoff(
+                    Path(args.before),
+                    Path(args.after),
+                    root=Path(args.root),
+                    output_format="json",
+                )
+            )
+            if gate_data["requires_attention"]:
+                return 2
     except FileNotFoundError as exc:
         print(f"Diff-source handoff input not found: {exc.filename}")
         return 2
@@ -174,6 +184,11 @@ def _build_diff_source_handoff_parser() -> argparse.ArgumentParser:
     parser.add_argument("--before", required=True, help="earlier content-audit JSON output inside the repository root")
     parser.add_argument("--after", required=True, help="later content-audit JSON output inside the repository root")
     parser.add_argument("--root", default=".", help="repository root used to constrain audit-output paths")
+    parser.add_argument(
+        "--require-clear",
+        action="store_true",
+        help="return a failing exit code unless the comparison requires no attention",
+    )
     parser.add_argument(
         "--format",
         choices=("text", "json"),
