@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-053 — 2026-07-08 — Expose validation-result audit as an installed command
+
+Context: The repository already had a read-only validation-result audit helper for saved run-history observations, but users and CI could not invoke it through the installed `forge` console command before future patch or diff workflows begin.
+Decision: Add an installed `forge validation-result-audit --record ... --root ... --format text|json` command through a small CLI entry-point extension that delegates all existing commands to the established CLI implementation. Add deterministic CLI tests and CI smoke coverage that writes a validation result, audits it, JSON-validates the output, and asserts a consistent guard.
+Alternatives considered: Modify the large existing CLI file directly in the GitHub API-only environment, keep only programmatic usage, delay CLI exposure until patch generation, combine audit with validation-result writing, poll workflow status, infer success from saved fields, or make the audit mutating.
+Consequences: The installed CLI now exposes a narrow read-only guard over saved validation observations while preserving existing command behavior and keeping validation execution, result persistence, audit, and future patch workflows separate.
+Human decision still required: No.
+
 ## DEC-052 — 2026-07-08 — Audit saved validation observations before patch workflows
 
 Context: The repository can now run one exact validation command, emit a persistence handoff, and persist reviewed executor output into a saved run-history record. Future patch or diff workflows need a read-only way to inspect whether those saved validation fields are internally consistent before relying on them.
@@ -14,30 +22,6 @@ Context: CI already ran `forge executor-run --format json`, but the resulting JS
 Decision: Change the workflow to write executor output to repository-local `executor-run-output.json`, JSON-validate it, run `forge executor-handoff-persist --confirm-write --format json`, and assert that the executor handoff remains advisory/non-automatic while the persisted summary reports `external_result_attached` and `passed`.
 Alternatives considered: Keep only unit tests, write executor output under `/tmp` and skip persistence, weaken the executor-output path guard to accept external paths, auto-persist from executor-run, or add a separate workflow job with duplicated setup.
 Consequences: CI now exercises the complete installed executor-to-persistence handoff while preserving the repository-local path guard and the explicit separation between command execution and history mutation.
-Human decision still required: No.
-
-## DEC-050 — 2026-07-08 — Preview executor handoff persistence before writing
-
-Context: `forge executor-handoff-persist` can now write reviewed executor-run JSON into durable run history after explicit confirmation, but callers still need a read-only way to summarize the exact pending persistence action before mutating the saved record.
-Decision: Add `read_executor_handoff_persistence_preview()` as a package-level read-only preview that validates the same `persistence_handoff`, derives the same validation-result writer payload, and reports the target record, validation execution value, result, note, required confirmation, derived write command, and safety boundary in text or JSON.
-Alternatives considered: Add only another docs example, require callers to inspect the raw executor JSON manually, expose a CLI preview before the package API exists, automatically write from executor-run, or merge preview and write into one command.
-Consequences: Maintainers and future CLI surfaces can review the exact handoff-to-history mutation before calling the confirmed writer, while preserving the separation between execution, preview, and persistence.
-Human decision still required: No.
-
-## DEC-049 — 2026-07-08 — Keep executor handoff persistence as a separate confirmed CLI step
-
-Context: The repository already had a guarded package-level helper for persisting reviewed `forge executor-run --format json` output, but users still had to call Python directly or manually copy handoff fields into `forge validation-result-write`.
-Decision: Add `forge executor-handoff-persist` as a narrow CLI wrapper around the guarded helper. It accepts one repository-local executor JSON file, requires `--confirm-write`, validates the embedded `persistence_handoff`, preserves observed failed results, and delegates the actual saved-record mutation to validation-result writer semantics.
-Alternatives considered: Automatically persist from `forge executor-run`, make `executor-run` accept a persistence flag, keep manual field copying only, trust arbitrary JSON, or duplicate validation-result writer path logic inside the CLI.
-Consequences: Maintainers get a usable command-line bridge from observed local validation execution to durable history, while the execution step and persistence step remain reviewable, explicit, and independently gated.
-Human decision still required: No.
-
-## DEC-048 — 2026-07-08 — Persist reviewed executor handoffs only through guarded validation-result semantics
-
-Context: `forge executor-run` now emits an advisory `persistence_handoff` describing how an observed local executor result can be saved with `forge validation-result-write --confirm-write`, but copying record/result/note fields by hand is error-prone and could lose failed-result context.
-Decision: Add a package-level executor-handoff persistence helper that consumes reviewed executor-run JSON, validates the handoff shape, requires `auto_persistence=false` and `confirmation_required=--confirm-write`, refuses unavailable or mismatched handoffs, preserves failed results, and delegates the actual write to the existing validation-result writer. Keep this as a helper first rather than combining execution and persistence or adding a broad writer.
-Alternatives considered: Automatically persist from executor-run, silently ignore failed results, trust any JSON shape, duplicate the validation-result writer path checks, introduce a broad arbitrary history writer, or skip the bridge and keep manual copy/paste only.
-Consequences: The product gains a safer bridge from local validation execution to durable history while retaining explicit confirmation, existing `.ai/run-history/` path guards, and a strict separation between running validation and persisting its observed result.
 Human decision still required: No.
 
 ## Historical note
