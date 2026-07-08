@@ -115,4 +115,4 @@ def test_validation_result_preview_command_refuses_malformed_record(tmp_path, ca
         "--result", "passed",
     ]) == 2
 
-    assert "Validation-result preview refused: run-history reader returned invalid JSON" in capsys.readouterr().out
+    assert "Validation-result preview refused: record JSON is malformed" in capsys.readouterr().out
