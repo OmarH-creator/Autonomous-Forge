@@ -8,20 +8,20 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-037 extended the installed GitHub Actions smoke workflow so the temporary CI run-history record now flows through `forge validation-result-preview`, `forge validation-result-write --confirm-write`, and `forge run-history-read`, with JSON parsing and field assertions for the persisted validation execution/result/note. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and workflow hardening. No visual updates were needed because this was a CI safety/checks improvement rather than a new workflow diagram. Next objective: add a read-only validation-result history/status summary before broader validation orchestration, workflow polling, diff inspection, or patch-generation behavior.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-038 strengthened `forge run-history-list` and `forge run-history-latest` with saved validation-result visibility and conservative advisory guards. The list view now counts `passed`, `failed`, `skipped`, `not_run`, and `unknown` validation results, reports an aggregate validation guard, and includes per-record validation execution/result/guard fields; the latest selector shows the same per-record guard for the selected record. This is a read-only history-inspection improvement and does not run validation commands, poll workflows, inspect diffs, infer success, or mutate history. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and deterministic test additions. No visual updates were needed because the workflow diagram remains unchanged. Next objective: add a read-only validation orchestration preview that consumes the validation guard before any command execution or workflow polling.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview, one read-only latest-record selector, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
 - `forge run-history-read` for summarizing one saved real non-symlink `.ai/run-history/*.json` record without mutating files.
-- `forge run-history-list` for a deterministic, non-recursive preview of saved direct, non-symlink `.ai/run-history/*.json` records without writing an index.
-- `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files.
+- `forge run-history-list` for a deterministic, non-recursive preview of saved direct, non-symlink `.ai/run-history/*.json` records, saved validation-result counts, and advisory validation guards without writing an index.
+- `forge run-history-latest` for selecting the latest readable direct, non-symlink history record by explicit filename ordering without mutating files, while showing the selected record's saved validation-result guard.
 - `forge run-history-compare` for comparing two explicit saved history records without mutating files or inferring success.
 - `forge validation-result-preview` for previewing a supplied validation result attachment to one saved history record without rewriting it.
 - `forge validation-result-write` for attaching one supplied validation result to one explicit saved history record after `--confirm-write`.
@@ -124,7 +124,7 @@ forge run-history-read \
   --format json
 ```
 
-`forge run-history-list` performs a deterministic, non-recursive read-only scan of direct non-symlink `.json` files under `.ai/run-history/` and summarizes readable or refused records without writing an index.
+`forge run-history-list` performs a deterministic, non-recursive read-only scan of direct non-symlink `.json` files under `.ai/run-history/` and summarizes readable or refused records, saved validation-result counts, and an advisory validation guard without writing an index.
 
 ```bash
 forge run-history-list \
@@ -133,7 +133,7 @@ forge run-history-list \
   --format json
 ```
 
-`forge run-history-latest` selects the latest readable direct non-symlink `.json` record by ascending filename order, reports refused records, and does not mutate files.
+`forge run-history-latest` selects the latest readable direct non-symlink `.json` record by ascending filename order, reports refused records, and does not mutate files. The selected record includes saved validation execution/result/guard fields.
 
 ```bash
 forge run-history-latest \
