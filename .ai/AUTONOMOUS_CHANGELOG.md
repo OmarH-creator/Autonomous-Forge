@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-033B
+
+- Task ID: AUTO-033B — Harden run-history direct-file boundary
+- Summary: Hardened `forge run-history-list` and `forge run-history-latest` so direct `.json` candidates must be real non-symlink files that resolve inside `.ai/run-history/`. This prevents symlinked JSON entries from escaping the documented history directory boundary.
+- Branch and PR assessment: Inspected repository metadata, recent commits, README, workflow, run-history index source, run-history tests, docs, state, changelog, and decisions. No open PR required integration. The run stayed on `main`.
+- Validation completed: Added deterministic regression coverage for symlinked JSON records and expanded GitHub Actions smoke coverage to run and JSON-validate `run-history-list` and `run-history-latest` after the CI history-write flow. Static review completed through the GitHub repository API; direct local test execution remained unavailable in this environment.
+- Commit hash: Recorded in Git history for this direct-main run.
+- Follow-up notes: Add a read-only run-history comparison surface before adding validation execution, diff inspection, patch generation, index writers, or broader write behavior.
+
 ## 2026-07-08 — AUTO-033
 
 - Task ID: AUTO-033 — Add run-history latest selector
