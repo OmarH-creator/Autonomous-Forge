@@ -2,6 +2,7 @@ import json
 
 from autonomous_forge import cli_entry
 from autonomous_forge.content_audit import build_content_audit_data
+from autonomous_forge.diff_source_handoff import build_diff_source_handoff_data
 
 
 POLICY = """## Allowed paths
@@ -158,3 +159,53 @@ def test_installed_entrypoint_diff_source_handoff_refuses_bad_input(tmp_path, ca
     ]) == 2
 
     assert "Diff-source handoff refused:" in capsys.readouterr().out
+
+
+def test_installed_entrypoint_patch_intent_review_require_ready_passes_clear_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    diff_source = build_diff_source_handoff_data(audit, audit)
+    diff_source_path = tmp_path / "diff-source.json"
+    diff_source_path.write_text(json.dumps(diff_source), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-intent-review",
+        "--root",
+        str(tmp_path),
+        "--diff-source",
+        str(diff_source_path),
+        "--require-ready",
+        "--format",
+        "json",
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["readiness"] == "ready"
+    assert payload["patch_intent_allowed"] is True
+
+
+def test_installed_entrypoint_patch_intent_review_require_ready_fails_changed_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    before_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    readme.write_text("# Example\n\nChanged\n", encoding="utf-8")
+    after_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    diff_source = build_diff_source_handoff_data(before_audit, after_audit)
+    diff_source_path = tmp_path / "diff-source.json"
+    diff_source_path.write_text(json.dumps(diff_source), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-intent-review",
+        "--root",
+        str(tmp_path),
+        "--diff-source",
+        str(diff_source_path),
+        "--require-ready",
+        "--format",
+        "json",
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["readiness"] == "blocked"
+    assert payload["patch_intent_allowed"] is False
