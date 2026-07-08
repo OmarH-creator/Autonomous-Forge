@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-036 — 2026-07-08 — Refuse symlinked explicit history reads
+
+Context: `forge run-history-list` and `forge run-history-latest` already avoid symlinked direct history candidates, but `forge run-history-read` accepted one explicit record path and only validated the resolved target boundary before reading it.
+Decision: Require the explicit `run-history-read` path to be a real non-symlink `.json` file under `.ai/run-history/` before reading and summarizing the record.
+Alternatives considered: Continue following symlinks that resolve inside the history directory, rely on list/latest filtering only, recursively inspect link targets, or defer the hardening until a validation-result writer exists.
+Consequences: One-record history reads now match the stricter direct-file boundary used by listing/latest selection and avoid ambiguity about whether the requested record is an actual saved history artifact.
+Human decision still required: No.
+
 ## DEC-035 — 2026-07-08 — Preview validation-result attachments before writing them
 
 Context: `forge run-history-read`, `forge run-history-list`, `forge run-history-latest`, and `forge run-history-compare` can inspect persisted run-history records, but maintainers still need a stable way to review a validation-result update before any command mutates saved history.
@@ -22,14 +30,6 @@ Context: `forge run-history-list` and `forge run-history-latest` intentionally s
 Decision: Treat direct history candidates as real non-symlink `.json` files only, and verify each candidate resolves under `.ai/run-history/` before it can be read, listed, or selected as latest.
 Alternatives considered: Follow symlinks and rely on the record reader, mark symlinked entries as refused records, recursively resolve nested directories, write an index, or defer the hardening until record comparison exists.
 Consequences: History inspection stays narrower and avoids unintended reads outside the direct history directory. Symlinked JSON records are ignored rather than selected as valid or refused records, keeping summary counts focused on candidate files the command is allowed to inspect.
-Human decision still required: No.
-
-## DEC-032 — 2026-07-08 — Select latest history records by filename before comparing records
-
-Context: `forge run-history-list` can inspect multiple saved records, but maintainers still need a deterministic way to focus on the most recent readable record before any comparison, validation executor, or patch workflow exists.
-Decision: Add `forge run-history-latest` as a read-only selector that scans direct `.ai/run-history/*.json` files, sorts by filename ascending, chooses the last readable record, and reports malformed or unsupported records as refused.
-Alternatives considered: Use filesystem modification time, write a durable index, verify commit recency, check GitHub workflow status, infer success from record contents, recursively scan directories, or move directly to record comparison.
-Consequences: Maintainers get a stable latest-record view while the product avoids timestamp ambiguity, extra writes, validation execution, commit verification, workflow checks, diff inspection, and inferred success claims.
 Human decision still required: No.
 
 ## Historical note
