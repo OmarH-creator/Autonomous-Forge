@@ -87,7 +87,7 @@ def _extract_available_handoff(executor_output: dict[str, Any]) -> dict[str, Any
     if executor_output.get("validation_result") != result:
         raise ExecutorHandoffPersistenceError("executor output validation_result must match persistence handoff")
     if executor_output.get("result_record_path") not in (None, record):
-        raise ExecutorHandoffPersistenceError("executor output result_record_path must match persistence handoff record")
+        raise ExecutorHandoffPersistenceError("executor output result-record path must match persistence handoff record")
 
     return handoff
 
@@ -115,6 +115,50 @@ def build_executor_handoff_persistence_payload(
         }
     except ValidationResultWriteError as exc:
         raise ExecutorHandoffPersistenceError(str(exc)) from exc
+
+
+def read_executor_handoff_persistence_preview(
+    executor_output_path: Path | str,
+    *,
+    root: Path = Path("."),
+    output_format: str = "text",
+) -> str:
+    """Summarize the executor handoff persistence payload without mutating files."""
+    payload = build_executor_handoff_persistence_payload(executor_output_path, root=root)
+    summary = {
+        "mode": "read-only",
+        "executor_output_path": payload["executor_output_path"],
+        "record": payload["record"],
+        "validation_execution": payload["write_payload"]["record"]["validation_execution"],
+        "validation_result": payload["validation_result"],
+        "validation_note": payload["validation_note"],
+        "confirmation_required": "--confirm-write",
+        "write_command": (
+            "forge executor-handoff-persist "
+            f"--root {root} --executor-output {executor_output_path} --confirm-write"
+        ),
+        "safety_boundary": (
+            "preview only; does not run validation, infer success, or rewrite the target run-history record"
+        ),
+    }
+    if output_format == "json":
+        return json.dumps(summary, indent=2, sort_keys=True)
+    if output_format != "text":
+        raise ExecutorHandoffPersistenceError("output format must be text or json")
+    return "\n".join(
+        [
+            "Executor handoff persistence preview",
+            f"Mode: {summary['mode']}",
+            f"Executor output: {summary['executor_output_path']}",
+            f"Target record: {summary['record']}",
+            f"Validation execution: {summary['validation_execution']}",
+            f"Validation result: {summary['validation_result']}",
+            f"Validation note: {summary['validation_note']}",
+            f"Confirmation required: {summary['confirmation_required']}",
+            f"Write command: {summary['write_command']}",
+            f"Safety boundary: {summary['safety_boundary']}",
+        ]
+    )
 
 
 def write_executor_handoff_persistence(
