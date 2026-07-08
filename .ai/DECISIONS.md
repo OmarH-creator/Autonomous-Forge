@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-049 — 2026-07-08 — Keep executor handoff persistence as a separate confirmed CLI step
+
+Context: The repository already had a guarded package-level helper for persisting reviewed `forge executor-run --format json` output, but users still had to call Python directly or manually copy handoff fields into `forge validation-result-write`.
+Decision: Add `forge executor-handoff-persist` as a narrow CLI wrapper around the guarded helper. It accepts one repository-local executor JSON file, requires `--confirm-write`, validates the embedded `persistence_handoff`, preserves observed failed results, and delegates the actual saved-record mutation to validation-result writer semantics.
+Alternatives considered: Automatically persist from `forge executor-run`, make `executor-run` accept a persistence flag, keep manual field copying only, trust arbitrary JSON, or duplicate validation-result writer path logic inside the CLI.
+Consequences: Maintainers get a usable command-line bridge from observed local validation execution to durable history, while the execution step and persistence step remain reviewable, explicit, and independently gated.
+Human decision still required: No.
+
 ## DEC-048 — 2026-07-08 — Persist reviewed executor handoffs only through guarded validation-result semantics
 
 Context: `forge executor-run` now emits an advisory `persistence_handoff` describing how an observed local executor result can be saved with `forge validation-result-write --confirm-write`, but copying record/result/note fields by hand is error-prone and could lose failed-result context.
