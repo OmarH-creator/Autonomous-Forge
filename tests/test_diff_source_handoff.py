@@ -141,6 +141,16 @@ def test_read_diff_source_handoff_refuses_paths_outside_root(tmp_path):
         read_diff_source_handoff(outside, inside, root=tmp_path)
 
 
+def test_read_diff_source_handoff_refuses_symlink_input(tmp_path):
+    target = tmp_path / "target.json"
+    link = tmp_path / "link.json"
+    target.write_text(json.dumps({"title": "Autonomous Forge changed-content audit", "mode": "read-only", "audited_paths": []}), encoding="utf-8")
+    link.symlink_to(target)
+
+    with pytest.raises(DiffSourceHandoffError, match="must not be a symlink"):
+        read_diff_source_handoff(link, target, root=tmp_path)
+
+
 def test_read_diff_source_handoff_refuses_duplicate_audited_path(tmp_path):
     payload = {
         "title": "Autonomous Forge changed-content audit",
