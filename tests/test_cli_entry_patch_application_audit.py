@@ -1,6 +1,7 @@
 import json
 
 from autonomous_forge.cli_entry_patch import main
+from autonomous_forge.patch_application_audit_cli import main as compatibility_main
 
 
 def _preflight():
@@ -42,6 +43,29 @@ def test_primary_patch_application_audit_route_outputs_json(tmp_path, capsys):
     assert output["audit_status"] == "clear"
     assert output["patch_application_audit_allowed"] is True
     assert output["patch_application_allowed"] is False
+
+
+def test_compatibility_patch_application_audit_route_matches_primary(tmp_path, capsys):
+    preflight_path = tmp_path / "preflight.json"
+    preflight_path.write_text(json.dumps(_preflight()), encoding="utf-8")
+    args = [
+        "--root",
+        str(tmp_path),
+        "--preflight",
+        str(preflight_path),
+        "--require-clear",
+        "--format",
+        "json",
+    ]
+
+    primary_code = main(["patch-application-audit", *args])
+    primary_output = json.loads(capsys.readouterr().out)
+    compatibility_code = compatibility_main(args)
+    compatibility_output = json.loads(capsys.readouterr().out)
+
+    assert primary_code == 0
+    assert compatibility_code == 0
+    assert compatibility_output == primary_output
 
 
 def test_primary_patch_application_audit_route_fails_require_clear_for_blocked(tmp_path, capsys):
