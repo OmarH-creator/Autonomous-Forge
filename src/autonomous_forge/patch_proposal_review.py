@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -27,6 +27,15 @@ def _resolve_json_input(root: Path, raw_path: Path, *, kind: str) -> Path:
     if not resolved.is_file():
         raise PatchProposalReviewError(f"{kind} input must be a regular file: {raw_path}")
     return resolved
+
+
+def _validate_review_path_label(label: str, source: Path, *, kind: str) -> None:
+    """Refuse unsafe repository path labels from supplied review evidence."""
+    if label != label.strip() or not label or "\\" in label:
+        raise PatchProposalReviewError(f"{kind} input has unsafe path label: {source}")
+    path = PurePosixPath(label)
+    if path.is_absolute() or label in {".", ".."} or any(part in {"", ".", ".."} for part in path.parts):
+        raise PatchProposalReviewError(f"{kind} input has unsafe path label: {source}")
 
 
 def _read_json(path: Path, *, kind: str) -> dict[str, Any]:
@@ -55,6 +64,8 @@ def _read_manifest(path: Path) -> dict[str, Any]:
         raise PatchProposalReviewError(f"manifest input lacks valid objective: {path}")
     if not isinstance(requested, list) or not all(isinstance(item, str) for item in requested):
         raise PatchProposalReviewError(f"manifest input lacks valid requested_paths: {path}")
+    for item in requested:
+        _validate_review_path_label(item, path, kind="manifest")
     if len(requested) != len(set(requested)):
         raise PatchProposalReviewError(f"manifest input contains duplicate requested paths: {path}")
     if not isinstance(validations, list) or not all(isinstance(item, str) for item in validations):
@@ -78,6 +89,7 @@ def _read_content_audit(path: Path) -> dict[str, Any]:
     for item in audited:
         if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not isinstance(item.get("review_status"), str):
             raise PatchProposalReviewError(f"content-audit input contains invalid audited path entries: {path}")
+        _validate_review_path_label(item["path"], path, kind="content-audit")
         if item["path"] in paths:
             raise PatchProposalReviewError(f"content-audit input contains duplicate audited path: {item['path']}")
         paths.append(item["path"])
