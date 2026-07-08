@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(data, indent=2, sort_keys=True))
     else:
         print(format_patch_apply(data))
-    if not data["file_changed"]:
+    if args.require_applied and not data["file_changed"]:
         return 2
     return 0
 
