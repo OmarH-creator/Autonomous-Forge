@@ -2,23 +2,23 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, and record what happened.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, run tightly scoped local validation, and record what happened.
 
 ## Product scope and non-goals
 
-The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, and keeps durable project memory. It is not a hosted platform, dashboard, deployment system, permission-management tool, or uncontrolled autonomous executor.
+The first product remains a local Python command-line tool. It reads repository files, reports safe next actions, runs only explicitly confirmed allowlisted local validation commands, and keeps durable project memory. It is not a hosted platform, dashboard, deployment system, permission-management tool, or uncontrolled autonomous executor.
 
 ## Current architecture
 
-The repository contains a Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, focused command documentation under `docs/`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes planning, proposal, validation, validation-preview, validation-orchestration, command-execution-handoff, executor-gate, executor-contract, executor-dry-run, validation-result-preview, validation-result-write, changed-file review, review-artifact, run-history-preview, opt-in run-history-write, run-history-read, run-history-list, run-history-latest, run-history-compare, preflight-readiness, inventory, policy, report, run-summary, and roadmap task commands. All commands remain local-first and use zero runtime dependencies; only `forge run-history-write` and `forge validation-result-write` write local history files, and both require explicit confirmation.
+The repository contains a Python package under `src/autonomous_forge`, package metadata in `pyproject.toml`, tests under `tests/`, policy documentation under `docs/`, a visual orientation document at `docs/OVERVIEW.md`, command output contracts under `docs/COMMANDS.md`, focused command documentation under `docs/`, an example policy under `.forge/`, and contributor guidance in `CONTRIBUTING.md`. The CLI exposes planning, proposal, validation, validation-preview, validation-orchestration, command-execution-handoff, executor-gate, executor-contract, executor-dry-run, executor-run, validation-result-preview, validation-result-write, changed-file review, review-artifact, run-history-preview, opt-in run-history-write, run-history-read, run-history-list, run-history-latest, run-history-compare, preflight-readiness, inventory, policy, report, run-summary, and roadmap task commands. All commands remain local-first and use zero runtime dependencies; only `forge executor-run` runs one exact confirmed local validation command, `forge run-history-write` writes a local history file, and `forge validation-result-write` rewrites one saved history file, with explicit confirmation required for each mutating or executing path.
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, and a read-only executor dry-run that validates one exact command candidate without creating a subprocess. Product commands still do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow through implementation plans, proposals, validation previews, review artifacts, run-history records, validation-result handoff, orchestration readiness, command-execution handoff, executor gates, executor contracts, a read-only executor dry-run, and a narrow opt-in local executor that can run one exact validation command without a shell. Product commands still do not enforce policy, read environment settings, call networks, generate patches, execute arbitrary plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, combine review signals, preview and inspect durable run-history records, attach externally supplied validation results, expose orchestration readiness, expose command-execution handoff data, expose executor precondition gates, define an executor contract, and dry-run one exact executor candidate command without execution. It does not yet append to a long-lived history index, inspect git diffs, read changed-file contents, generate patches, run validation commands, verify commits, check workflow status, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+The CLI can select work, describe policy boundaries, build reviewable plans and proposals, describe validation intent, preview validation command candidates, review explicit paths, combine review signals, preview and inspect durable run-history records, attach externally supplied validation results, expose orchestration readiness, expose command-execution handoff data, expose executor precondition gates, define an executor contract, dry-run one exact executor candidate command, and run one exact confirmed local validation command without a shell. It does not yet append to a long-lived history index, inspect git diffs, read changed-file contents, generate patches, verify commits, check workflow status, or execute approved implementation plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
@@ -121,16 +121,29 @@ Notes: This chain is the final review surface before a narrow opt-in local valid
 
 ### AUTO-046 — Implement narrow opt-in local validation executor
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Execute one exact executor-contract candidate locally only after the dry-run chain passes and explicit confirmation is supplied.
 Why it matters: The product needs to move from review-only validation planning toward a controlled end-to-end maintenance workflow, while preserving strict command allowlists, timeouts, and result-record handoff.
-Scope: Add a minimal executor that accepts only exact gated validation commands, refuses shell syntax, uses a fixed timeout, captures exit code/stdout/stderr summary safely, and requires explicit confirmation.
+Scope: Added `forge executor-run --format text|json`, a no-shell local validation executor that accepts only exact gated validation commands, refuses shell syntax, uses a fixed timeout, captures bounded stdout/stderr summaries, and requires explicit confirmation.
 Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.github/workflows/test.yml`, `.ai` records.
 Acceptance criteria: The executor only runs allowlisted local validation commands after `--confirm-executor-dry-run`, never uses a shell, never mutates files directly, reports observed exit status, and leaves result persistence to the explicit validation-result writer.
-Validation: Run `python -m pytest` and the installed-package GitHub Actions workflow in a checkout-capable environment.
+Validation: Static review completed through the GitHub repository API. Deterministic tests cover blocked/unconfirmed execution, exact candidate execution with a fake no-shell runner, failed return-code mapping, unknown/shell command blocking, and CLI JSON refusal behavior. CI smoke coverage was added to run `forge executor-run --command "python -m pytest" --confirm-executor-dry-run --format json` in a checkout-capable environment. Direct local pytest execution remained unavailable in this environment.
 Risks or assumptions: Avoid workflow polling, network calls, commit verification, diff inspection, patch generation, policy enforcement, automatic history mutation, and broad arbitrary command execution.
-Notes: This should remain a narrow validation executor, not a general automation runner.
+Notes: This remains a narrow validation executor, not a general automation runner.
+
+### AUTO-047 — Add executor-result persistence handoff
+Priority: P1
+Status: TODO
+
+Goal: Make it easy to review and persist the observed executor result through the existing explicit validation-result writer without automatic history mutation.
+Why it matters: A controlled maintenance workflow needs a clear bridge from local validation execution to durable history while preserving explicit confirmation and reviewability.
+Scope: Add a reviewable handoff summary or helper command that turns executor output into the exact `forge validation-result-write --confirm-write` call a maintainer may run.
+Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.github/workflows/test.yml`, `.ai` records.
+Acceptance criteria: The handoff is deterministic, does not auto-write, preserves the observed return code/result/note, refuses missing executor output, and documents the confirmation boundary.
+Validation: Add deterministic tests and installed-package smoke coverage where practical.
+Risks or assumptions: Do not hide failed validation, rewrite saved history automatically, poll workflows, inspect diffs, generate patches, or infer success beyond executor output.
+Notes: This should continue the same execution milestone rather than starting a documentation-only task.
 
 ## Future Ideas
 
