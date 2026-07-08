@@ -22,6 +22,16 @@ _HISTORY_BLOCKER_REASONS = {
 }
 
 
+def _real_blockers(items: list[Any]) -> list[str]:
+    """Return actual blocker labels, ignoring the legacy ``none`` sentinel."""
+    blockers: list[str] = []
+    for item in items:
+        text = str(item).strip()
+        if text and text.lower() != "none":
+            blockers.append(text)
+    return blockers
+
+
 def _candidate_counts(candidates: list[dict[str, str]]) -> dict[str, int]:
     """Return deterministic validation command-candidate counts."""
     counts = {"eligible_preview": 0, "blocked": 0, "unknown": 0, "not_recognized": 0}
@@ -78,7 +88,7 @@ def build_validation_orchestration_preview_data(
     """Build a read-only validation orchestration readiness artifact."""
     candidates = list(validation_preview_data.get("command_candidates", []))
     counts = _candidate_counts(candidates)
-    blockers = list(validation_plan_data.get("blocked_items", []))
+    blockers = _real_blockers(list(validation_plan_data.get("blocked_items", [])))
     if validation_plan_data.get("selected_task") is None:
         blockers.append("no eligible selected task is available")
     blockers.extend(_history_blockers(history_index_data, latest_history_data))
