@@ -97,6 +97,8 @@ def build_patch_proposal_manifest_data(
     if not clean_objective:
         raise PatchProposalManifestError("objective is required")
     paths = _dedupe_labels(requested_paths, field="requested")
+    if not paths:
+        raise PatchProposalManifestError("at least one requested path is required")
     validations = _clean_nonempty_items(validation_steps, field="validation step")
     candidate_paths = list(description["candidate_paths"])
     blockers = list(description["description_blockers"])
