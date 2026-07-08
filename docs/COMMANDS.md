@@ -13,6 +13,38 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge content-audit`
+
+Purpose: audit explicit repository-relative file contents before future patch or diff workflows without printing file content or changing files.
+
+Inputs:
+
+- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
+- `--root`: repository root used to constrain audited paths, defaulting to `.`.
+- `--file`: repository-relative path to audit; repeat for multiple paths.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge changed-content audit
+Mode: read-only
+Audited paths:
+- ...: policy=allowed|prohibited|unknown; content=readable|missing|directory|not-regular-file|non-utf8|too-large|invalid-path; lines=...; bytes=...; review=clear|blocked|needs-policy-review|needs-content-review|needs-secret-review
+Summary:
+- clear: ...
+Safety boundary: Changed-content audit output only; ...
+```
+
+Expected JSON output includes `mode`, `source`, `audited_paths`, `summary`, `requires_attention`, `reason`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the audit is produced.
+- `2` when policy input is missing or malformed, output format is unsupported, or the audit is refused.
+
+Safety limits: content-audit is a pre-patch review surface only. It reads file contents only to compute bounded metadata and configured secret-marker signals, never prints file contents, and does not inspect git diffs, generate patches, run commands, check workflow status, infer correctness, approve implementation, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+
 ## `forge executor-observation-audit`
 
 Purpose: audit aggregate saved executor observations across direct `.ai/run-history/*.json` records without changing files.
@@ -156,4 +188,4 @@ Safety limits: executor-contract output is a contract preview only. It does not 
 
 ## Other implemented command contracts
 
-Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
+Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/CONTENT_AUDITS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
