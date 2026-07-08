@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 
 from autonomous_forge import cli_entry
+from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
 from autonomous_forge.patch_application_readiness_cli import main as _patch_application_readiness_main
@@ -15,6 +16,7 @@ from autonomous_forge.patch_text_review_cli import main as _patch_text_review_ma
 
 
 _EXTENSION_COMMANDS = {
+    "git-diff-review": _git_diff_review_main,
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
     "patch-application-readiness": _patch_application_readiness_main,
