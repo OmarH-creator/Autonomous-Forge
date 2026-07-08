@@ -35,6 +35,7 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           forge --version
+          forge commit-status-review --help
           forge git-diff-review --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
@@ -43,6 +44,7 @@ jobs:
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
           forge patch-text-review --help
+          forge-commit-status-review --help
           forge-git-diff-review --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
@@ -118,6 +120,44 @@ jobs:
           assert audited['README.md']['review_status'] == 'clear'
           assert audited['src/autonomous_forge/content_audit.py']['content_status'] == 'readable'
           assert audited['src/autonomous_forge/content_audit.py']['policy_status'] == 'allowed'
+          PY
+      - name: Smoke-test commit status review
+        run: |
+          cat > /tmp/autonomous-forge-status.json <<'JSON'
+          {
+            "sha": "ci-smoke",
+            "statuses": [
+              {"context": "ci/test", "state": "success", "description": "passed"}
+            ],
+            "workflow_runs": [
+              {"name": "Test", "status": "completed", "conclusion": "success"}
+            ]
+          }
+          JSON
+          forge commit-status-review \
+            --root /tmp \
+            --status /tmp/autonomous-forge-status.json \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-status-review.json
+          forge-commit-status-review \
+            --root /tmp \
+            --status /tmp/autonomous-forge-status.json \
+            --require-clear \
+            --format json > /tmp/autonomous-forge-status-review-compat.json
+          python -m json.tool /tmp/autonomous-forge-status-review.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-status-review-compat.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          primary = json.loads(Path('/tmp/autonomous-forge-status-review.json').read_text(encoding='utf-8'))
+          compat = json.loads(Path('/tmp/autonomous-forge-status-review-compat.json').read_text(encoding='utf-8'))
+          assert primary == compat
+          assert primary['mode'] == 'read-only'
+          assert primary['review_status'] == 'clear'
+          assert primary['summary']['total'] == 2
+          assert primary['summary']['success'] == 2
+          assert primary['requires_attention'] is False
           PY
       - name: Smoke-test binary diff fail-closed gate
         run: |
