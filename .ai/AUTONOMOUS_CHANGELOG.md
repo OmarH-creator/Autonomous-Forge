@@ -2,12 +2,12 @@
 
 ## 2026-07-08 — AUTO-049
 
-- Task ID: AUTO-049 — Harden executor handoff input path validation
-- Summary: Hardened executor-handoff persistence so the reviewed executor-run JSON input must be a real `.json` file inside the repository root before it is read. The helper now refuses symlinked executor output, directories, missing files, non-JSON files, and external paths, while still delegating saved run-history record mutation to the guarded validation-result writer after explicit confirmation.
-- Branch and PR assessment: Inspected recent commits, latest commit status, open PRs, branch search, README, workflow smoke coverage, executor-handoff persistence implementation, validation-result writer path checks, run-history reader guards, and existing persistence-helper tests/docs. No open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic regression coverage was added for external executor-output refusal and symlinked executor-output refusal, alongside existing tests for payload building, missing confirmation refusal, failed-result persistence, unavailable handoff refusal, mismatched result refusal, and unsafe record path refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Task ID: AUTO-049 — Expose guarded executor-handoff persistence through CLI
+- Summary: Added `forge executor-handoff-persist --executor-output ... --confirm-write --format text|json`, a narrow CLI bridge that consumes reviewed executor-run JSON, validates the advisory `persistence_handoff`, preserves passed or failed observed results, and delegates the write through existing validation-result writer semantics. The command keeps execution and persistence separate while reducing manual field-copying risk.
+- Branch and PR assessment: Inspected recent commits, latest commit status, open PRs, branch search, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, executor-run output, executor-handoff persistence helper, existing helper tests, and docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic CLI tests were added for missing confirmation refusal, confirmed JSON-summary persistence, saved-record mutation, and unavailable handoff refusal. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
-- Follow-up notes: Expose the guarded executor-handoff persistence helper through a narrow CLI command with explicit `--confirm-write`, text/JSON summaries, deterministic CLI tests, and CI smoke coverage.
+- Follow-up notes: Add a read-only validation-result audit view that summarizes persisted executor observations and guard status before any patch, diff-inspection, or implementation-execution workflow.
 
 ## 2026-07-08 — AUTO-048
 
