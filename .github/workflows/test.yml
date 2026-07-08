@@ -45,6 +45,7 @@ jobs:
           forge-patch-application-preflight --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
+          forge-patch-text-preflight --help
           forge-patch-text-review --help
       - name: Validate repository planning inputs
         run: |
@@ -140,6 +141,15 @@ jobs:
             --change-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-text-preflight.json
+          forge-patch-text-preflight \
+            --root /tmp \
+            --draft autonomous-forge-patch-proposal-draft.json \
+            --path README.md \
+            --change-summary "Document the smoke-tested workflow." \
+            --path src/autonomous_forge/content_audit.py \
+            --change-summary "Preserve content-audit implementation metadata." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-text-preflight-compat.json
           forge patch-text-review \
             --root /tmp \
             --preflight autonomous-forge-patch-text-preflight.json \
@@ -217,6 +227,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-draft-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-preflight.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-text-preflight-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-review-compat.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-application-preflight.json > /dev/null
@@ -287,6 +298,9 @@ jobs:
           assert patch_preflight['patch_text_preflight_allowed'] is True
           assert patch_preflight['metadata_path_count'] == 2
           assert patch_preflight['draft_target_paths'] == patch_draft['target_paths']
+
+          patch_preflight_compat = json.loads(Path('/tmp/autonomous-forge-patch-text-preflight-compat.json').read_text(encoding='utf-8'))
+          assert patch_preflight_compat == patch_preflight
 
           patch_text_review = json.loads(Path('/tmp/autonomous-forge-patch-text-review.json').read_text(encoding='utf-8'))
           assert patch_text_review['mode'] == 'read-only'
