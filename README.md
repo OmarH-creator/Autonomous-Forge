@@ -8,14 +8,15 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-040 added a read-only validation orchestration preview core that combines the selected validation plan, validation command-candidate preview, saved run-history validation guards, and latest-record guard into one conservative readiness artifact. The new layer reports command-candidate counts, saved-history blockers, latest-record validation guard, orchestration status, risk notes, and an explicit no-execution boundary. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and deterministic tests committed for the new preview core. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: expose this orchestration preview through the `forge` CLI once the command surface can be updated safely without regressing existing commands.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-041 exposed the validation orchestration readiness artifact through `forge validation-orchestration --format text|json`. The command reuses the existing plan/state/policy/root inputs, combines validation-plan data, command-candidate preview counts, saved run-history validation guards, and latest-record validation guard, and keeps the full surface read-only. Product behavior remains local-first: the CLI still does not run validation commands, poll workflows, infer success, inspect diffs, generate patches, commit, push, or enforce policy. Direct local checkout/test execution was not available in this environment, so validation was limited to static GitHub API review and deterministic CLI tests committed for the new command. No visual updates were needed because the workflow diagram remains conceptually unchanged. Next objective: add a safe read-only command-execution handoff preview that consumes the orchestration readiness output without running commands.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
 - A minimal Python package with a `forge` console script.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, one guarded validation-result writer command with text or JSON summaries, and one validation orchestration preview core.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, changed-file reviews, combined review artifacts, run-history previews, preflight readiness checks, one explicit local run-history write command, one read-only run-history record reader, one read-only run-history list preview with validation-result guards, one read-only latest-record selector with validation-result guard visibility, one read-only run-history comparison preview, one validation-result attachment preview, and one guarded validation-result writer command with text or JSON summaries.
 - `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
+- `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
 - `forge run-history-preview` for a deterministic, read-only preview of the future durable run record before any history file is written.
 - `forge preflight-readiness` for a conservative checklist before any opt-in persistence write.
 - `forge run-history-write` for writing exactly one local JSON record under `.ai/run-history/` only after `--confirm-write` and clean preflight readiness.
@@ -46,6 +47,7 @@ forge plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --polic
 forge propose --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validate-plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validation-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
+forge validation-orchestration --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge review-artifact --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge run-history-preview --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge preflight-readiness --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
@@ -77,9 +79,20 @@ forge review-artifact \
   --format json
 ```
 
-## Run-history and preflight previews
+## Run-history, preflight, and orchestration previews
 
-`forge run-history-preview` is the current bridge from review artifacts to durable project memory. It prints a deterministic record shape with selected task, review status, intent summaries, validation status, changed-file and commit placeholders, blockers, and safety notes while keeping persistence disabled.
+`forge validation-orchestration` is the current bridge from validation planning to a future controlled execution handoff. It combines validation plans, validation command-candidate counts, saved run-history validation guards, latest-record status, blockers, and risk notes while keeping command execution disabled.
+
+```bash
+forge validation-orchestration \
+  --plan .ai/AUTONOMOUS_PLAN.md \
+  --state .ai/AUTONOMOUS_STATE.md \
+  --policy .forge/policy.md \
+  --root . \
+  --format json
+```
+
+`forge run-history-preview` prints a deterministic record shape with selected task, review status, intent summaries, validation status, changed-file and commit placeholders, blockers, and safety notes while keeping persistence disabled.
 
 ```bash
 forge run-history-preview \
@@ -175,8 +188,6 @@ forge validation-result-write \
 ```
 
 These history commands and APIs still do not run validation commands, inspect diffs, read changed-file contents, generate patches, make approval decisions, enforce policy decisions, commit, push, call networks, or read local settings. Only `forge run-history-write` mutates one explicitly requested local JSON record under `.ai/run-history/`; `forge validation-result-write` mutates one explicitly requested saved record only when called with `--confirm-write`.
-
-The validation orchestration preview core is documented in `docs/VALIDATION_ORCHESTRATION.md`. It is currently a Python API surface that combines validation plans, validation command candidates, saved-history validation guards, and latest-record status without running commands or polling workflows.
 
 See `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/CHANGED_FILE_REVIEW.md`, `docs/RUN_HISTORY_PREVIEWS.md`, `docs/PREFLIGHT_READINESS.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_LISTS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, `docs/VALIDATION_RESULT_PREVIEWS.md`, `docs/VALIDATION_RESULT_WRITES.md`, `docs/VALIDATION_ORCHESTRATION.md`, and `docs/COMMANDS.md` for focused contracts.
 
