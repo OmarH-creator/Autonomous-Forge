@@ -22,6 +22,7 @@ Inputs:
 - `--before`: earlier content-audit JSON output inside the configured root.
 - `--after`: later content-audit JSON output inside the configured root.
 - `--root`: root used to constrain audit-output paths, defaulting to `.`.
+- `--require-clear`: optional fail-closed gate; when present, the command returns exit code `2` unless the comparison requires no attention.
 - `--format`: `text` or `json`, defaulting to `text`.
 
 Expected successful text output includes these stable lines:
@@ -45,10 +46,12 @@ Expected JSON output includes `mode`, `source`, `before`, `after`, `comparisons`
 
 Exit codes:
 
-- `0` when the handoff is produced.
+- `0` when the handoff is produced and `--require-clear` is not requested.
+- `0` when `--require-clear` is requested and `requires_attention` is `false`.
+- `2` when `--require-clear` is requested and `requires_attention` is `true`.
 - `2` when an input is outside the configured root, missing, not a `.json` regular file, a symlink, malformed JSON, not a content-audit payload, not read-only, has invalid audited entries, has duplicate audited paths, or an unsupported output format is requested.
 
-Safety limits: diff-source-handoff reads supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, run commands, check workflow status, infer correctness, approve implementation, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
+Safety limits: diff-source-handoff reads supplied content-audit JSON only. It does not read repository file contents, inspect git diffs, generate patches, run commands, check workflow status, infer correctness, approve implementation, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files. `--require-clear` changes only the process exit code.
 
 ## `forge content-audit`
 
@@ -218,11 +221,7 @@ Expected successful JSON output includes the same contract information as struct
 
 Exit codes:
 
-- `0` when the contract preview is built.
-- `2` when a required input file is missing, the roadmap is malformed, task selection fails, or the policy file is malformed.
+- `0` when the contract preview is produced.
+- `2` when inputs are missing or malformed.
 
-Safety limits: executor-contract output is a contract preview only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
-
-## Other implemented command contracts
-
-Historical command contract sections remain available in repository history. Focused documentation for the current review surfaces lives in `docs/REVIEW_ARTIFACTS.md`, `docs/VALIDATION_PREVIEWS.md`, `docs/VALIDATION_ORCHESTRATION.md`, `docs/COMMAND_EXECUTION_HANDOFFS.md`, `docs/EXECUTOR_GATES.md`, `docs/EXECUTOR_CONTRACTS.md`, `docs/EXECUTOR_DRY_RUNS.md`, `docs/EXECUTOR_RUNS.md`, `docs/CONTENT_AUDITS.md`, `docs/DIFF_SOURCE_HANDOFFS.md`, `docs/EXECUTOR_OBSERVATION_AUDITS.md`, and the run-history/validation-result documents under `docs/`.
+Safety limits: executor-contract is read-only and advisory. It does not run commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
