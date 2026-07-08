@@ -13,6 +13,46 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge change-readiness`
+
+Purpose: combine clear supplied git-diff review JSON and clear supplied commit-status review JSON into one advisory change-readiness summary before any future patch-application workflow relies on the change.
+
+Inputs:
+
+- `--diff-review`: required repository-local `.json` file produced by `forge git-diff-review --format json`.
+- `--status-review`: required repository-local `.json` file produced by `forge commit-status-review --format json`.
+- `--root`: root used to constrain both supplied review input paths, defaulting to `.`.
+- `--require-ready`: optional fail-closed gate; when present, the command returns exit code `2` unless the combined summary is `ready`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge change readiness summary
+Mode: read-only
+Source: supplied git-diff review and commit-status review JSON
+Readiness: ready|blocked
+Change application allowed: false
+Commit: ...
+Reviewed paths:
+Status contexts:
+Summary:
+Review checks:
+Review blockers:
+Safety boundary: Change-readiness reads supplied git-diff review JSON and commit-status review JSON only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `readiness`, `change_application_allowed`, `commit_sha`, `reviewed_paths`, `status_contexts`, `summary`, `review_checks`, `review_blockers`, `next_step`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the summary is produced and `--require-ready` is not requested.
+- `0` when `--require-ready` is requested and readiness is `ready`.
+- `2` when `--require-ready` is requested and readiness is `blocked`.
+- `2` when an input is outside the configured root, missing, not a `.json` regular file, a symlink, malformed JSON, not a JSON object, too large, or an unsupported output format is requested.
+
+Safety limits: change-readiness reads supplied git-diff review JSON and commit-status review JSON only. It does not call networks, poll GitHub, run workflows, run commands, read repository file contents, inspect raw diffs, generate patches, apply patches, approve implementation, enforce policy decisions, mutate saved history, read environment variables, commit, push, or change repository files. `--require-ready` changes only the process exit code.
+
 ## `forge commit-status-review`
 
 Purpose: review supplied commit-status, check-run, or workflow-run JSON evidence before future patch application or change-readiness workflows rely on validation status.
@@ -218,40 +258,4 @@ Summary:
 - missing observation: ...
 - needs review: ...
 - overall status: clear|blocked|needs-review|needs-validation|no-records
-Safety boundary: Executor-observation audit output only; ...
 ```
-
-Expected JSON output includes `mode`, `history_dir`, `history_dir_status`, `summary`, `records`, `index_validation_guard`, and `safety_boundary`.
-
-Exit codes:
-
-- `0` when the audit is produced and `--require-clear` is not requested.
-- `0` when `--require-clear` is requested and the aggregate status is `clear`.
-- `2` when the audit is refused, input is unsafe, `--max-records` is invalid, or `--require-clear` is requested and the aggregate status is anything other than `clear`.
-
-Safety limits: executor-observation-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files. `--require-clear` changes only the process exit code.
-
-## `forge validation-result-audit`
-
-Purpose: audit one saved `.ai/run-history/*.json` validation observation without changing files.
-
-Inputs:
-
-- `--record`: required run-history record path under `.ai/run-history/`.
-- `--root`: repository root used to constrain the record path, defaulting to `.`.
-- `--format`: `text` or `json`, defaulting to `text`.
-
-Expected successful text output includes these stable lines:
-
-```text
-Autonomous Forge validation-result audit
-Mode: read-only
-Validation execution: ...
-Validation result: passed|failed|skipped|not_run
-Guard status: consistent|needs-review
-Safety boundary: Validation-result audit output only; ...
-```
-
-Expected successful JSON output includes `mode`, `source_path`, `schema_version`, `task`, `validation_execution`, `validation_result`, `validation_note`, `guard_status`, `guard_notes`, `allowed_results`, `persistence`, and `safety_boundary`.
-
-Exit codes:
