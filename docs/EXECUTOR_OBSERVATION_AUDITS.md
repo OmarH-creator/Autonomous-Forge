@@ -13,7 +13,17 @@ forge executor-observation-audit \
   --format json
 ```
 
-The command scans only direct JSON files under `.ai/run-history/`. It does not recurse into subdirectories, does not follow symlinks, and inherits the run-history index safeguards for malformed or refused records.
+Use `--require-clear` when the audit should act as a fail-closed gate before patch-adjacent work:
+
+```bash
+forge executor-observation-audit \
+  --root . \
+  --max-records 20 \
+  --require-clear \
+  --format json
+```
+
+The command scans only direct JSON files under `.ai/run-history/`. It does not recurse into subdirectories, does not follow symlinks, and inherits the run-history index safeguards for malformed or refused records. Without `--require-clear`, the command exits successfully after printing the read-only audit unless the audit itself is malformed or refused. With `--require-clear`, it returns a failing exit code unless the aggregate executor-observation status is `clear`.
 
 ## Output
 
@@ -37,4 +47,4 @@ Executor-observation statuses are intentionally conservative:
 
 ## Safety boundary
 
-This command does not change files, run validation commands, check workflow status, inspect diffs, generate patches, verify commits, grant approvals, or enforce policy. It only summarizes saved local record fields so a later workflow can decide whether executor evidence is strong enough to proceed.
+This command does not change files, run validation commands, check workflow status, inspect diffs, generate patches, verify commits, grant approvals, or enforce policy. It only summarizes saved local record fields so a later workflow can decide whether executor evidence is strong enough to proceed. `--require-clear` changes only the process exit code; it still does not mutate files or approve work.
