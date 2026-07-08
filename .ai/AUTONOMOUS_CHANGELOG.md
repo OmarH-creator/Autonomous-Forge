@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-056
+
+- Task ID: AUTO-056 — Add fail-closed executor-observation audit gate
+- Summary: Added `forge executor-observation-audit --require-clear`, allowing the aggregate saved executor-observation audit to return a failing exit code unless all listed readable run-history observations are clear. This makes the existing read-only audit usable as a conservative gate before any future patch-adjacent workflow relies on saved executor evidence.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, open issues, README, roadmap, state, changelog, executor-observation audit implementation, CLI entry point, docs, and tests. Recent PRs were closed/merged or obsolete; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic CLI tests for `--require-clear` passing on clear observations and failing on missing observations while preserving JSON output. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a read-only changed-content or diff-intent audit before patch generation, diff inspection, or implementation-execution behavior.
+
 ## 2026-07-08 — AUTO-055
 
 - Task ID: AUTO-055 — Add executor-observation audit
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic regression coverage that creates a FIFO when supported and asserts a `RunHistoryReadError` regular-file refusal. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before patch, diff-inspection, or implementation-execution workflow work begins.
-
-## 2026-07-08 — AUTO-053
-
-- Task ID: AUTO-053 — Expose validation-result audit through CLI
-- Summary: Exposed the saved validation-result audit as `forge validation-result-audit --format text|json`, routed the installed console script through a small extension entry point that delegates all existing commands unchanged, added deterministic CLI tests, documented the command contract, and extended installed-package CI smoke coverage so a saved validation result is audited after it is written.
-- Branch and PR assessment: Inspected repository metadata, branch search, recent open/closed PRs, open issues, README, roadmap, state, changelog, decisions, workflow smoke coverage, validation-result audit helper, existing CLI, package entry point, and relevant tests/docs. Recent PRs were closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for JSON/text audit CLI output, unsafe record refusal, and entry-point delegation to existing commands. CI smoke coverage now writes a validation result, audits it with `forge validation-result-audit --format json`, JSON-validates the audit output, and asserts `guard_status=consistent`. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before any patch, diff-inspection, or implementation-execution workflow.
 
 ## Historical note
 
