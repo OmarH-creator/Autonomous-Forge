@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-039 — 2026-07-08 — Emit machine-readable validation-result write summaries
+
+Context: `forge validation-result-write` could persist a supplied validation outcome, but automation had to scrape human-oriented text output to capture the written path and validation fields after the confirmed write.
+Decision: Add `--format json` to `forge validation-result-write` and return only a narrow stable summary: `path`, `validation_execution`, `validation_result`, and `validation_note`.
+Alternatives considered: Expose the entire saved payload by default, change the writer schema, add workflow polling, run validation commands, infer success from commits, inspect diffs, generate patches, or move directly to validation orchestration.
+Consequences: Automation can consume confirmed validation-result writes safely and deterministically while the command still requires `--confirm-write`, mutates only one explicit saved run-history record, and avoids validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, and broad file mutation.
+Human decision still required: No.
+
 ## DEC-038 — 2026-07-08 — Summarize saved validation results before orchestration
 
 Context: `forge validation-result-write` can attach supplied validation outcomes to saved run-history records, and CI now smoke-tests that handoff, but `run-history-list` and `run-history-latest` did not surface validation-result status clearly enough for future orchestration previews.
@@ -22,14 +30,6 @@ Context: `validation_result_writer` could attach a supplied validation result th
 Decision: Add `forge validation-result-write` with explicit `--confirm-write`, reuse the same allowed result values and `.ai/run-history/*.json` path boundary, and print the persisted validation execution/result/note after the write.
 Alternatives considered: Keep the writer as Python API only, run validation commands, poll GitHub workflow status, infer success from commits, write broader history indexes, generate patches, or move directly to a validation executor.
 Consequences: The product gains an end-user-accessible persistence handoff for externally observed validation outcomes while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, recursive scans, and broad file mutation.
-Human decision still required: No.
-
-## DEC-036B — 2026-07-08 — Add a confirmed validation-result writer core before any executor
-
-Context: `forge validation-result-preview` can review a supplied validation result, and the run-history reader/list/latest/compare surfaces can inspect saved records, but there was no guarded persistence step for recording an externally observed validation outcome.
-Decision: Add `validation_result_writer` as a narrow local writer that requires `confirm_write=True`, reuses the preview contract and real-file run-history path guard, and updates only the selected saved record's validation fields plus persistence/safety notes.
-Alternatives considered: Wire the CLI first without a tested core, run validation commands, poll GitHub workflow status, verify commits, infer success from record contents, write a history index, inspect diffs, generate patches, or move directly to a broader executor.
-Consequences: The product gains the next persistence primitive while still avoiding validation execution, workflow polling, commit verification, diff inspection, patch generation, inferred success, policy enforcement, recursive scans, and broad file mutation.
 Human decision still required: No.
 
 ## Historical note
