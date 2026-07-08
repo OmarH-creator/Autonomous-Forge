@@ -13,6 +13,44 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge patch-text-review`
+
+Purpose: review ready `forge patch-text-preflight --format json` output plus explicit per-path patch summaries before any future patch-text generation or apply workflow relies on that evidence.
+
+Inputs:
+
+- `--preflight`: patch-text preflight JSON output inside the configured root.
+- `--root`: root used to constrain the review input path, defaulting to `.`.
+- `--path`: reviewed repository-relative path label; repeat once per preflight target path.
+- `--patch-summary`: explicit patch text summary for the matching `--path`; repeat once per reviewed path.
+- `--require-ready`: optional fail-closed gate; when present, the command returns exit code `2` unless review status is `ready`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge patch text review
+Mode: read-only
+Preflight source: ...
+Review status: ready|blocked
+Patch text review allowed: true|false
+Objective: ...
+Reviewed patch summaries:
+Review blockers:
+Safety boundary: Patch text review reads supplied patch-text-preflight JSON and explicit summary metadata only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `preflight_source`, `review_status`, `patch_text_review_allowed`, `objective`, `preflight_target_count`, `reviewed_path_count`, `preflight_target_paths`, `reviewed_patch_summaries`, `validation_steps`, `review_checks`, `review_blockers`, `next_step`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the review is produced and `--require-ready` is not requested.
+- `0` when `--require-ready` is requested and review status is `ready`.
+- `2` when `--require-ready` is requested and review status is `blocked`.
+- `2` when an input is outside the configured root, missing, not a `.json` regular file, a symlink, malformed JSON, not a patch-text preflight payload, not read-only, has invalid preflight entries, contains unsafe path labels, or an unsupported output format is requested.
+
+Safety limits: patch-text-review reads supplied patch-text-preflight JSON and explicit summary metadata only. It does not read repository file contents, inspect git diffs, generate patch text, apply patches, run commands, check workflow status, infer correctness, approve implementation, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files. `--require-ready` changes only the process exit code.
+
 ## `forge patch-intent-review`
 
 Purpose: review one clear `forge diff-source-handoff --format json` output before future patch-intent or git-diff workflows rely on that evidence.
@@ -218,46 +256,3 @@ Expected successful JSON output includes the same information as structured data
 Exit codes:
 
 - `0` when the executor run is allowed and the local command completes, even if the observed validation result is `failed`.
-- `2` when required inputs are missing, roadmap/policy input is malformed, the command is not an exact contract candidate, confirmation is missing, shell syntax is present, or the subprocess times out/refuses before completion.
-
-Safety limits: executor-run is a narrow local validation runner only. It uses `subprocess.run` with `shell=false`, accepts only exact executor-contract candidates, applies a fixed timeout, captures bounded output, and does not poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer repository success beyond the observed exit code, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
-
-## `forge executor-contract`
-
-Purpose: preview the future validation executor contract without running commands.
-
-Inputs:
-
-- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
-- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
-- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
-- `--root`: repository root used for review signals, defaulting to `.`.
-- `--format`: `text` or `json`, defaulting to `text`.
-
-Expected successful text output includes these stable lines:
-
-```text
-Autonomous Forge validation executor contract preview
-Mode: read-only
-Validation execution: not run
-Contract status: defined|blocked-no-gated-commands
-Future confirmation flag: --confirm-executor-dry-run
-Executor dry-run allowed now: false
-Allowed command classes:
-Candidate commands:
-Refusal cases:
-Result capture shape:
-Timeout policy:
-Required future inputs:
-Non-goals:
-Safety boundary: Validation executor contract preview only; ...
-```
-
-Expected successful JSON output includes the same contract information as structured data, including `future_confirmation_flag`, `executor_dry_run_allowed_now`, `allowed_command_classes`, `candidate_commands`, `refusal_cases`, `result_capture_shape`, `timeout_policy`, `required_future_inputs`, and `non_goals`.
-
-Exit codes:
-
-- `0` when the contract preview is produced.
-- `2` when inputs are missing or malformed.
-
-Safety limits: executor-contract is read-only and advisory. It does not run commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
