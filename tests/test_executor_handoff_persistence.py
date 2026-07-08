@@ -5,6 +5,7 @@ import pytest
 from autonomous_forge.executor_handoff_persistence import (
     ExecutorHandoffPersistenceError,
     build_executor_handoff_persistence_payload,
+    read_executor_handoff_persistence_preview,
     write_executor_handoff_persistence,
 )
 from tests.test_run_history_reader import VALID_PAYLOAD
@@ -51,6 +52,44 @@ def test_build_executor_handoff_persistence_payload_uses_validation_writer_shape
     assert payload["write_payload"]["record"]["validation_execution"] == "external_result_attached"
     assert payload["write_payload"]["record"]["validation_result"] == "passed"
     assert payload["write_payload"]["record"]["validation_note"].startswith("executor-run completed")
+
+
+def test_read_executor_handoff_persistence_preview_is_read_only_json(tmp_path):
+    record = _write_record(tmp_path)
+    executor_output = _write_executor_output(tmp_path)
+    before = record.read_text(encoding="utf-8")
+
+    output = read_executor_handoff_persistence_preview(executor_output, root=tmp_path, output_format="json")
+    preview = json.loads(output)
+
+    assert preview["mode"] == "read-only"
+    assert preview["record"] == ".ai/run-history/latest.json"
+    assert preview["validation_execution"] == "external_result_attached"
+    assert preview["validation_result"] == "passed"
+    assert preview["confirmation_required"] == "--confirm-write"
+    assert "executor-handoff-persist" in preview["write_command"]
+    assert record.read_text(encoding="utf-8") == before
+
+
+def test_read_executor_handoff_persistence_preview_text_names_write_boundary(tmp_path):
+    _write_record(tmp_path)
+    executor_output = _write_executor_output(tmp_path)
+
+    output = read_executor_handoff_persistence_preview(executor_output, root=tmp_path)
+
+    assert "Executor handoff persistence preview" in output
+    assert "Mode: read-only" in output
+    assert "Validation execution: external_result_attached" in output
+    assert "Confirmation required: --confirm-write" in output
+    assert "does not run validation" in output
+
+
+def test_read_executor_handoff_persistence_preview_refuses_unknown_format(tmp_path):
+    _write_record(tmp_path)
+    executor_output = _write_executor_output(tmp_path)
+
+    with pytest.raises(ExecutorHandoffPersistenceError, match="text or json"):
+        read_executor_handoff_persistence_preview(executor_output, root=tmp_path, output_format="yaml")
 
 
 def test_write_executor_handoff_persistence_requires_confirmation(tmp_path):
