@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-057 — 2026-07-08 — Prefer latest saved evidence in limited run-history audits
+
+Context: `forge run-history-list` and `forge executor-observation-audit` accept `--max-records`, but the previous implementation applied that limit to the first filename-sorted records. In a growing run-history directory, a small limit could therefore audit old records while omitting the newest saved validation evidence.
+Decision: Keep deterministic filename ordering, but apply the limit to the newest filename-sorted direct JSON records and display that limited window in ascending filename order. Expose the ordering in run-history-list output and document the audit behavior.
+Alternatives considered: Keep oldest-first limits, reverse all displayed output, remove `--max-records`, scan recursively, use filesystem modification time, or rely only on `run-history-latest`.
+Consequences: Limited run-history and executor-observation audit windows now better match maintainer expectations for recent evidence while preserving stable output and the existing direct-file safety boundary.
+Human decision still required: No.
+
 ## DEC-056 — 2026-07-08 — Make executor-observation audit usable as a fail-closed gate
 
 Context: `forge executor-observation-audit` can review aggregate saved executor observations, but before future patch-adjacent work it should also be usable as an explicit process gate rather than only an informational report.
@@ -14,14 +22,6 @@ Context: The repository can now run one exact local validation command, persist 
 Decision: Add `executor_observation_audit` and expose it as `forge executor-observation-audit --root . --max-records 20 --format text|json`. The audit builds on the guarded run-history index, classifies each listed record as observed-clear, observed-blocked, missing-observation, needs-review, or refused, and reports a conservative aggregate status without mutating files or running validation.
 Alternatives considered: Rely only on single-record validation-result audit, trust the run-history list validation guard, immediately inspect diffs, poll workflows, verify commits, generate patches, or make the audit mutating.
 Consequences: Maintainers now have an aggregate saved-observation review surface before any patch-adjacent workflow is introduced, while validation execution, persistence, audit, patch generation, diff inspection, and policy enforcement remain separated.
-Human decision still required: No.
-
-## DEC-054 — 2026-07-08 — Require regular files for run-history reads
-
-Context: Run-history readers already rejected paths outside the repository root, paths outside `.ai/run-history/`, non-JSON extensions, missing files, directories, and direct symlinks. A remaining edge case allowed non-regular filesystem entries with a `.json` suffix to reach the JSON read step.
-Decision: Require resolved run-history record paths to satisfy `Path.is_file()` after the existing symlink, directory, extension, existence, root, and history-directory checks. Add regression coverage for FIFO/non-regular record paths where the platform supports creating them.
-Alternatives considered: Rely on JSON read errors, only keep the existing directory guard, add this guard only to validation-result audit, broaden the reader to scan directories, or defer filesystem hardening until patch workflows exist.
-Consequences: Saved-record readers now have a clearer filesystem boundary before future executor-observation, patch, or diff workflows depend on durable run-history JSON records.
 Human decision still required: No.
 
 ## Historical note
