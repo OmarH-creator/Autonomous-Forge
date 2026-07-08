@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-086 — 2026-07-09 — Diff and status evidence need one guarded readiness checkpoint
+
+Context: `forge git-diff-review` can inspect supplied unified diff metadata and `forge commit-status-review` can inspect supplied validation-status evidence, but the workflow still required maintainers or future automation to manually connect those separate outputs before considering any patch-application design. A safe end-to-end maintenance workflow needs one combined checkpoint that can fail closed when either upstream review is unclear.
+Decision: Add `forge change-readiness` plus compatibility `forge-change-readiness` as a local read-only command over repository-local git-diff review JSON and commit-status review JSON. It validates that both payloads are recognized read-only review outputs, requires clear diff evidence and clear status evidence, reports reviewed paths, status contexts, summary counts, blockers, and readiness checks, supports deterministic JSON/text output, and makes `--require-ready` fail closed unless both evidence sources are ready. Even when ready, it keeps `change_application_allowed` false.
+Alternatives considered: Move directly to patch generation, fold status evidence into git-diff review, rely on documentation-only guidance, poll GitHub directly, or keep separate commands without a combined checkpoint.
+Consequences: Maintainers now get one advisory change-readiness artifact tying reviewed diff evidence to supplied validation-status evidence without adding network access, workflow execution, patch generation, patch application, commits, pushes, or write behavior. Supplied evidence can still be stale, incomplete, or unrelated, so the summary does not prove correctness or replace human review.
+Human decision still required: No.
+
 ## DEC-085 — 2026-07-09 — Reviewed diffs need supplied validation-status evidence before patch application
 
 Context: `forge git-diff-review` now inspects supplied unified diffs, including binary and metadata-only hardening, but a clear diff review still does not say whether validation passed for the relevant commit or workflow run. Moving toward a safe end-to-end maintenance workflow requires an explicit status-evidence checkpoint before any future write-capable patch applier is considered.
@@ -26,4 +34,4 @@ Human decision still required: No.
 
 ## Historical note
 
-Older autonomous decision entries remain available in repository history. This compact decision log prioritizes the latest direct mainline stewardship decisions so the current state remains easy to review.
+Older autonomous decision entries remain available in repository history.
