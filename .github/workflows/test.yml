@@ -60,10 +60,17 @@ jobs:
             --policy .forge/policy.md \
             --root . \
             --format json > /tmp/autonomous-forge-executor-gate.json
+          forge executor-contract \
+            --plan .ai/AUTONOMOUS_PLAN.md \
+            --state .ai/AUTONOMOUS_STATE.md \
+            --policy .forge/policy.md \
+            --root . \
+            --format json > /tmp/autonomous-forge-executor-contract.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-executor-gate.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-executor-contract.json > /dev/null
       - name: Smoke-test run-history persistence flow
         run: |
           forge run-history-preview \
