@@ -10,6 +10,7 @@ from autonomous_forge.command_execution_handoff import read_command_execution_ha
 from autonomous_forge.executor_contract import read_executor_contract
 from autonomous_forge.executor_dry_run import read_executor_dry_run
 from autonomous_forge.executor_gate import read_executor_precondition_gate
+from autonomous_forge.executor_run import ExecutorRunError, read_executor_run
 from autonomous_forge.inventory import build_repository_inventory
 from autonomous_forge.path_review import read_path_review
 from autonomous_forge.plan import (
@@ -66,6 +67,16 @@ def _add_history_root_format(parser: argparse.ArgumentParser, *, format_help: st
     parser.add_argument("--format", choices=("text", "json"), default="text", help=format_help)
 
 
+def _add_executor_command_args(parser: argparse.ArgumentParser, *, action_name: str) -> None:
+    _add_plan_state_policy_root_format(parser, format_help=f"{action_name} format: text (default) or JSON")
+    parser.add_argument("--command", required=True, help="exact executor-contract candidate command")
+    parser.add_argument(
+        "--confirm-executor-dry-run",
+        action="store_true",
+        help="required acknowledgement for the gated executor path",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the Forge command parser."""
     parser = argparse.ArgumentParser(
@@ -107,13 +118,14 @@ def build_parser() -> argparse.ArgumentParser:
         "executor-dry-run",
         help="dry-run one exact validation executor command without running it",
     )
-    _add_plan_state_policy_root_format(executor_dry_run_parser, format_help="executor dry-run format: text (default) or JSON")
-    executor_dry_run_parser.add_argument("--command", required=True, help="exact executor-contract candidate command to dry-run")
-    executor_dry_run_parser.add_argument(
-        "--confirm-executor-dry-run",
-        action="store_true",
-        help="required acknowledgement for the dry-run executor path; the command is still not executed",
+    _add_executor_command_args(executor_dry_run_parser, action_name="executor dry-run")
+    executor_dry_run_parser._actions[-1].help = "required acknowledgement for the dry-run executor path; the command is still not executed"
+
+    executor_run_parser = subparsers.add_parser(
+        "executor-run",
+        help="run one exact validation executor command after the dry-run gate passes",
     )
+    _add_executor_command_args(executor_run_parser, action_name="executor run")
 
     run_history_write_parser = subparsers.add_parser(
         "run-history-write",
@@ -299,6 +311,36 @@ def _print_executor_dry_run(args: argparse.Namespace) -> int:
         print(f"Policy error: {exc}")
         return 2
     return 0
+
+
+def _print_executor_run(args: argparse.Namespace) -> int:
+    try:
+        output = read_executor_run(
+            Path(args.plan),
+            Path(args.policy),
+            Path(args.state),
+            Path(args.root),
+            requested_command=args.command,
+            confirm_executor_dry_run=args.confirm_executor_dry_run,
+            output_format=args.format,
+        )
+    except FileNotFoundError as exc:
+        print(f"Required file not found: {exc.filename}")
+        return 2
+    except (PlanParseError, PlanSelectionError) as exc:
+        print(f"Plan error: {exc}")
+        return 2
+    except PolicyParseError as exc:
+        print(f"Policy error: {exc}")
+        return 2
+    except ExecutorRunError as exc:
+        print(f"Executor run refused: {exc}")
+        return 2
+    print(output)
+    if args.format == "json":
+        data = json.loads(output)
+        return 0 if data.get("execution_status") == "completed" else 2
+    return 0 if "Execution status: completed" in output else 2
 
 
 def _print_path_review(policy_path: Path, root: Path, paths: list[str], output_format: str) -> int:
@@ -496,6 +538,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.command == "executor-dry-run":
         return _print_executor_dry_run(args)
+    if args.command == "executor-run":
+        return _print_executor_run(args)
     if args.command == "run-history-write":
         return _write_run_history(Path(args.plan), Path(args.state), Path(args.policy), Path(args.root), Path(args.output), args.confirm_write)
     if args.command == "run-history-read":
