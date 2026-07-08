@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-092 — 2026-07-09 — Commit readiness remains advisory and non-committing
+
+Context: The workflow can now apply one explicitly confirmed replacement, record post-apply validation evidence, and review supplied or live-collected workflow status. Before any commit-oriented workflow exists, the product needed one deterministic checkpoint that combines validation, final diff, and status evidence without granting commit authority.
+Decision: Add `forge commit-readiness` plus compatibility `forge-commit-readiness`. The command consumes post-apply-validation JSON, final git-diff-review JSON, and commit-status-review JSON. It reports `ready` only when post-apply validation is validated, the final diff review is clear and contains the validated target path, and status evidence is clear. It keeps `commit_allowed` and `commit_workflow_allowed` false.
+Alternatives considered: Move directly to a commit command, add commit readiness inside post-apply validation, rely on README guidance, automatically collect live workflow status inside commit-readiness, or trust change-readiness evidence from before patch application.
+Consequences: Maintainers get one advisory final evidence bundle before human commit consideration or a future guarded commit-proposal workflow. The command trusts supplied upstream evidence and does not prove validation execution, workflow freshness, or commit authenticity.
+Human decision still required: No.
+
 ## DEC-091 — 2026-07-09 — Commit-status review may explicitly collect live GitHub workflow status
 
 Context: The workflow had moved beyond passive review into guarded patch preview, explicit patch application, and post-apply validation handoff, but `forge commit-status-review` still depended only on supplied JSON evidence. That meant status evidence could be stale unless a separate external step collected fresh workflow runs.
@@ -14,22 +22,6 @@ Context: `forge patch-apply` introduced a real local write step, but after a suc
 Decision: Add `forge post-apply-validation` plus compatibility `forge-post-apply-validation`. The command consumes one patch-apply JSON report, an explicit supplied validation result, and repeated `--executed-step` values. It reports `validated` only when the patch-apply evidence shows an applied file change, `patch_application_allowed` is closed back to false, the supplied result is `passed`, and every required validation step appears in the executed-step list. It keeps `commit_allowed` false and supports `--require-validated` for fail-closed automation.
 Alternatives considered: Run validation automatically inside `patch-apply`, move directly to commits, rely on README guidance only, poll GitHub workflows, or attach validation only to run-history records without tying it to applied patch evidence.
 Consequences: The workflow now has an explicit post-write validation checkpoint while preserving local-first boundaries. The command trusts supplied metadata and does not prove commands were actually executed, so a separate commit-readiness step should still connect final diff/status evidence before any commit workflow.
-Human decision still required: No.
-
-## DEC-089 — 2026-07-09 — Patch-apply reports and fail-closed gating must be separate
-
-Context: `forge patch-apply` introduced a real write-capable local patch step, but the CLI returned exit code 2 whenever no file changed, even though its parser exposed `--require-applied` specifically for fail-closed automation. That made ordinary blocked review reports look like command failures and made the flag misleading.
-Decision: Honor `--require-applied` as the only CLI-level fail-closed gate for unchanged patch-apply results. Without the flag, the command returns a report with exit code 0 even when application is blocked; with the flag, it returns exit code 2 unless `file_changed` is true. All existing write guards remain unchanged.
-Alternatives considered: Keep all blocked reports as process failures, remove `--require-applied`, or automatically apply when evidence is ready even without confirmation.
-Consequences: Maintainers can inspect blocked patch-apply reports as normal command output, while automation can still require an actual write explicitly. A zero exit code without `--require-applied` means the report was produced, not that a file changed.
-Human decision still required: No.
-
-## DEC-088 — 2026-07-09 — Patch application must be explicit, preview-matched, and single-file
-
-Context: The workflow could inspect supplied diffs, review supplied validation status, summarize change readiness, summarize patch-application readiness, and generate bounded patch preview text from explicit replacement content. It still could not perform the actual local file update, leaving the end-to-end workflow stuck before any real changed file could be validated.
-Decision: Add `forge patch-apply` plus compatibility `forge-patch-apply`. The command consumes generated patch-preview JSON, ready change-readiness JSON, one reviewed target path, and one explicit replacement-text file; requires `--confirm-apply`; verifies the current target and replacement exactly reproduce the supplied preview; writes only the requested target file; and reports deterministic text/JSON. After a successful write it sets `patch_application_allowed` back to false so the report is evidence of what happened, not continuing permission.
-Alternatives considered: Continue with preview-only behavior, apply arbitrary unified diffs, apply without change-readiness evidence, run validation automatically inside the applier, or move directly to commits.
-Consequences: Maintainers now have a real local patch-application step while preserving a small auditable safety boundary. The command can change one file when explicitly confirmed, but it does not validate correctness, run commands, commit, push, poll workflows, or perform complete secret scanning.
 Human decision still required: No.
 
 ## Historical note
