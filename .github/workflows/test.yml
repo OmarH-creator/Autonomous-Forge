@@ -36,25 +36,33 @@ jobs:
         run: |
           forge --version
           forge change-readiness --help
+          forge commit-readiness --help
           forge commit-status-review --help
           forge git-diff-review --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
           forge patch-application-readiness --help
+          forge patch-apply --help
+          forge patch-generation-preview --help
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
           forge patch-text-review --help
+          forge post-apply-validation --help
           forge-change-readiness --help
+          forge-commit-readiness --help
           forge-commit-status-review --help
           forge-git-diff-review --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
           forge-patch-application-readiness --help
+          forge-patch-apply --help
+          forge-patch-generation-preview --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
           forge-patch-text-preflight --help
           forge-patch-text-review --help
+          forge-post-apply-validation --help
       - name: Validate repository planning inputs
         run: forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
       - name: Run tests
