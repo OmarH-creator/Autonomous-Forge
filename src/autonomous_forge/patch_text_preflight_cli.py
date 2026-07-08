@@ -7,7 +7,11 @@ import json
 import sys
 from pathlib import Path
 
-from autonomous_forge.patch_text_preflight import PatchTextPreflightError, read_patch_text_preflight
+from autonomous_forge.patch_text_preflight import (
+    PatchTextPreflightError,
+    format_patch_text_preflight,
+    read_patch_text_preflight_data,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -49,26 +53,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
     try:
-        output = read_patch_text_preflight(
+        data = read_patch_text_preflight_data(
             Path(args.draft),
             root=Path(args.root),
             declared_paths=list(args.path),
             change_summaries=list(args.change_summary),
-            output_format=args.format,
         )
-        print(output)
-        if args.require_ready:
-            gate_data = json.loads(
-                read_patch_text_preflight(
-                    Path(args.draft),
-                    root=Path(args.root),
-                    declared_paths=list(args.path),
-                    change_summaries=list(args.change_summary),
-                    output_format="json",
-                )
-            )
-            if gate_data["preflight_status"] != "ready":
-                return 2
+        if args.format == "json":
+            print(json.dumps(data, indent=2, sort_keys=True))
+        else:
+            print(format_patch_text_preflight(data))
+        if args.require_ready and data["preflight_status"] != "ready":
+            return 2
     except FileNotFoundError as exc:
         print(f"Patch text preflight input not found: {exc.filename}")
         return 2
