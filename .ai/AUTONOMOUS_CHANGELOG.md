@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-079
+
+- Task ID: AUTO-079 — Add patch application provenance audit
+- Summary: Shipped `forge patch-application-audit` and compatibility `forge-patch-application-audit`, a read-only audit over ready patch-application preflight JSON. The audit confirms provenance/path metadata consistency, explicit source labels, clear preflight blockers, non-empty validation steps, and hard refusal of actual patch application before any future write-capable patch design.
+- Branch and PR assessment: Inspected repository metadata and recent PRs. PR #4 was already merged, while PRs #2, #3, and #5 were closed or obsolete. No open PR required integration; work stayed directly on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic core tests and installed-router tests for clear evidence, blocked evidence, unsafe path refusal, wrong payload refusal, JSON/text output, primary route success, and fail-closed `--require-clear` behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending-final-commit plus follow-up documentation/state commits
+- Follow-up notes: Add CI smoke coverage for primary and compatibility patch-application audit routes, then continue toward a guarded patch-application design only if provenance evidence remains clear.
+
 ## 2026-07-08 — AUTO-078
 
 - Task ID: AUTO-078 — Expand CI smoke coverage for patch-application preflight
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic core and primary CLI route tests for ready, blocked, missing provenance, mismatched summaries, unsafe path labels, JSON output, and `--require-ready` behavior. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: 189b0658f4b8d245ef434fcf0d123d95518469d5 plus follow-up documentation/state commits
 - Follow-up notes: Add a read-only patch provenance/audit chain that can compare future patch-application preflight evidence against saved review artifacts before any write-capable patch behavior exists.
-
-## 2026-07-08 — AUTO-076
-
-- Task ID: AUTO-076 — Add patch text review gate
-- Summary: Shipped `forge patch-text-review` plus compatibility `forge-patch-text-review`, a read-only gate that consumes ready patch-text preflight JSON plus explicit per-path patch summaries and returns ready/blocked status before any future patch-text generation or apply workflow.
-- Branch and PR assessment: Inspected repository metadata, README/state/changelog/decisions/roadmap records, CI workflow context, installed entry-point routing, patch text preflight implementation, tests, docs, recent commits, and recent PRs. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic core, CLI, router, and CI smoke coverage for primary and compatibility patch text review routes. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: edc615231b63c1910729d543bfe741c8c8dd931e plus follow-up documentation/state commits
-- Follow-up notes: Add a guarded read-only patch-application preflight or patch-text provenance check before any write-capable patch behavior.
 
 ## Historical note
 
