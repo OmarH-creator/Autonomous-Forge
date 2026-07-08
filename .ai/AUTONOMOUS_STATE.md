@@ -5,7 +5,7 @@
 - Current task status: DONE
 - Current branch: main
 - Last run timestamp: 2026-07-08T05:03:29+04:00
-- Last successful implementation commit hash: pending final direct-main commit inspection
+- Last successful implementation commit hash: Recorded in Git history for this direct-main run.
 - Latest run summary: Added `forge run-history-compare`, a read-only command that compares two explicit persisted `.ai/run-history/*.json` records and reports changed or unchanged task, review, preflight, validation, changed-files, commit, blocker, and safety-note fields without mutating files.
 - Files changed in the latest run: `src/autonomous_forge/run_history_compare.py`, `src/autonomous_forge/cli.py`, `tests/test_run_history_compare.py`, `docs/RUN_HISTORY_COMPARISONS.md`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, and `.ai/AUTONOMOUS_STATE.md`.
 - Validation commands and results: Static review completed through the GitHub repository API. Deterministic tests were added for changed fields, unchanged records, text output, JSON output, unsafe path refusal, malformed-record refusal, CLI JSON output, and CLI refusal output. Direct local pytest execution remains unavailable from this environment; final GitHub status checks were inspected after push where visible.
