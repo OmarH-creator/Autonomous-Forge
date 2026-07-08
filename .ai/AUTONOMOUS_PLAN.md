@@ -14,11 +14,11 @@ The repository contains a Python package under `src/autonomous_forge`, package m
 
 ## Current implementation status
 
-Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, structured change intent, read-only patch intent, read-only run-history previews, preflight readiness checks, an explicitly confirmed local run-history writer, a single-record history reader, a read-only history list preview, a latest-record selector, a read-only run-history comparison surface, a read-only validation-result attachment preview, a guarded validation-result writer command, and installed-package CI smoke coverage for the validation-result preview/write/read handoff. Product commands still do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
+Roadmap v1 established the local CLI, task parsing, deterministic task selection, and dry-run reports. Roadmap v2 added conservative policy parsing, policy-readiness reporting, roadmap linting, command output contracts, run-summary preview output, repository health inventory file-presence signals, and a visual project overview. Roadmap v3 has advanced the policy-aware maintenance workflow with implementation plans, structured plan JSON, change proposals, structured proposal JSON, validation plans, validation previews, explicit changed-file reviews, combined review artifacts, structured change intent, read-only patch intent, read-only run-history previews, preflight readiness checks, an explicitly confirmed local run-history writer, a single-record history reader, a read-only history list preview, a latest-record selector, a read-only run-history comparison surface, a read-only validation-result attachment preview, a guarded validation-result writer command, installed-package CI smoke coverage for the validation-result preview/write/read handoff, and read-only validation-result guard visibility in history list/latest surfaces. Product commands still do not enforce policy, read environment settings, call networks, run external commands, generate patches, execute plans, inspect diffs, read changed-file contents, verify commits, check workflow status, or commit changes.
 
 ## Technical debt
 
-The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, combine those signals into a structured review artifact with change intent and patch intent, preview the durable run-history record shape, report a conservative readiness checklist, write one local run-history JSON artifact after explicit confirmation, read one saved history record, list direct non-symlink JSON records under `.ai/run-history/`, select the latest readable record by deterministic filename ordering, compare two explicit saved history records, preview a supplied validation-result attachment for one saved record, attach a supplied validation result to one explicit saved history record after `--confirm-write`, and smoke-test that mutable validation-result handoff in CI after package installation. It does not yet append to a long-lived history index, inspect git diffs, read changed-file contents, generate patches, run validation commands, verify commits, check workflow status, summarize validation-result history, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
+The CLI can select work, describe policy boundaries, build reviewable plans, build reviewable proposals, describe validation intent, preview validation command candidates, review explicit paths, combine those signals into a structured review artifact with change intent and patch intent, preview the durable run-history record shape, report a conservative readiness checklist, write one local run-history JSON artifact after explicit confirmation, read one saved history record, list direct non-symlink JSON records under `.ai/run-history/` with saved validation-result counts and advisory guards, select the latest readable record by deterministic filename ordering with validation-result guard visibility, compare two explicit saved history records, preview a supplied validation-result attachment for one saved record, attach a supplied validation result to one explicit saved history record after `--confirm-write`, and smoke-test that mutable validation-result handoff in CI after package installation. It does not yet append to a long-lived history index, inspect git diffs, read changed-file contents, generate patches, run validation commands, verify commits, check workflow status, consume validation guards in orchestration previews, or execute approved plans. Runtime test execution and main-branch CI observation were unavailable from the automation environment for the latest direct commits.
 
 ## Prioritized roadmap
 
@@ -147,16 +147,29 @@ Notes: This resolved the immediate CI coverage gap for the current mutable histo
 
 ### AUTO-038 — Add read-only validation-result history summary
 Priority: P1
-Status: TODO
+Status: DONE
 
 Goal: Summarize saved run-history validation-result fields without changing records.
 Why it matters: After validation results can be attached, maintainers need a safe read-only status view before any workflow polling, validation execution, or inferred success behavior exists.
-Scope: Add a command that reads direct non-symlink `.ai/run-history/*.json` records, summarizes validation execution/result/note values, and reports malformed or unsafe records conservatively without writing an index.
-Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.ai` records.
-Acceptance criteria: The command is read-only, deterministic, supports text and JSON output, avoids recursive scans, refuses or ignores unsafe paths consistently with run-history list/latest, and does not infer validation success beyond saved record fields.
-Validation: Add deterministic tests and run `python -m pytest` in a checkout-capable environment; update CI smoke coverage only after the command surface is stable.
+Scope: Extend the existing direct-file run-history list/latest surfaces so readable records expose saved validation execution/result values and advisory validation guards, while list output also reports validation-result counts and an aggregate guard.
+Expected files or areas: `src/autonomous_forge/run_history_index.py`, `tests/test_run_history_index.py`, README, `docs/RUN_HISTORY_LISTS.md`, `.ai` records.
+Acceptance criteria: The surfaces remain read-only, deterministic, support text and JSON output, avoid recursive scans, refuse or ignore unsafe paths consistently with run-history list/latest, and do not infer validation success beyond saved record fields.
+Validation: Static review completed through the GitHub repository API. Deterministic tests were added for validation-result counts, blocked/clear/needs-validation/needs-review guards, text output, JSON output, latest-record validation fields, and CLI JSON behavior. Direct local pytest execution remains unavailable here.
 Risks or assumptions: Do not poll workflows, run commands, verify commits, inspect diffs, generate patches, enforce policy, write indexes, or mutate records.
 Notes: This is the next safe visibility step before broader validation orchestration.
+
+### AUTO-039 — Add validation orchestration preview gated by saved history status
+Priority: P1
+Status: TODO
+
+Goal: Preview validation orchestration readiness without executing commands.
+Why it matters: The workflow should consume saved validation-result guards before any command execution, workflow polling, or patch-generation behavior is introduced.
+Scope: Build a read-only preview that combines the current validation plan, validation command candidates, latest/listed history validation guards, and explicit blockers into one orchestration-readiness artifact.
+Expected files or areas: `src/autonomous_forge/`, `tests/`, README, `docs/`, `.ai` records.
+Acceptance criteria: The preview remains read-only, deterministic, supports text and JSON output, does not run commands or check workflow status, and reports clear blockers when saved history contains failed, skipped, missing, unknown, or refused validation records.
+Validation: Add deterministic tests and run `python -m pytest` in a checkout-capable environment.
+Risks or assumptions: Do not execute validation, poll GitHub Actions, verify commits, inspect diffs, generate patches, enforce policy, or mutate history.
+Notes: This is the next safe product milestone before any controlled validation executor.
 
 ## Future Ideas
 
