@@ -79,8 +79,9 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-list.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-latest.json > /dev/null
-      - name: Smoke-test validation-result attachment flow
+      - name: Smoke-test validation-result attachment and comparison flow
         run: |
+          cp .ai/run-history/ci-smoke.json .ai/run-history/ci-smoke-before-validation.json
           forge validation-result-preview \
             --root . \
             --record .ai/run-history/ci-smoke.json \
@@ -92,13 +93,21 @@ jobs:
             --record .ai/run-history/ci-smoke.json \
             --result passed \
             --note "CI smoke supplied result" \
-            --confirm-write
+            --confirm-write \
+            --format json > /tmp/autonomous-forge-validation-result-write.json
           forge run-history-read \
             --root . \
             --record .ai/run-history/ci-smoke.json \
             --format json > /tmp/autonomous-forge-validation-result-read.json
+          forge run-history-compare \
+            --root . \
+            --before .ai/run-history/ci-smoke-before-validation.json \
+            --after .ai/run-history/ci-smoke.json \
+            --format json > /tmp/autonomous-forge-run-history-compare.json
           python -m json.tool /tmp/autonomous-forge-validation-result-preview.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-validation-result-write.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-result-read.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-run-history-compare.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -107,6 +116,14 @@ jobs:
           assert payload['record']['validation_execution'] == 'external_result_attached'
           assert payload['record']['validation_result'] == 'passed'
           assert payload['record']['validation_note'] == 'CI smoke supplied result'
+
+          comparison = json.loads(Path('/tmp/autonomous-forge-run-history-compare.json').read_text(encoding='utf-8'))
+          changed_fields = {
+              item['field']
+              for item in comparison['differences']
+              if item['status'] == 'changed'
+          }
+          assert {'validation_execution', 'validation_result'}.issubset(changed_fields)
           PY
       - name: Run test suite
         run: python -m pytest -q
