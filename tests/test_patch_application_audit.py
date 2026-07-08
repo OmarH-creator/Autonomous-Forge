@@ -79,14 +79,14 @@ def test_patch_application_audit_refuses_unsafe_provenance_path_label():
         build_patch_application_audit_data(preflight)
 
 
-def test_patch_application_audit_refuses_wrong_payload_title():
+def test_patch_application_audit_refuses_wrong_payload_title(tmp_path):
     preflight = _preflight()
     preflight["title"] = "Autonomous Forge patch text review"
+    preflight_path = tmp_path / "preflight.json"
+    preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
 
     with pytest.raises(PatchApplicationAuditError):
-        path_data = json.dumps(preflight)
-        assert path_data
-        # Exercise through the reader below for title validation.
+        read_patch_application_audit_data(preflight_path, root=tmp_path)
 
 
 def test_read_patch_application_audit_data_reuses_validated_evidence(tmp_path):
