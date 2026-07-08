@@ -1,6 +1,6 @@
 # Patch proposal reviews
 
-`forge-patch-proposal-review` is a read-only evidence gate before any future patch proposal generation surface.
+`forge patch-proposal-review` is a read-only evidence gate before any future patch proposal generation surface. The compatibility command `forge-patch-proposal-review` remains available for existing scripts.
 
 It consumes two explicit JSON inputs:
 
@@ -32,7 +32,7 @@ forge content-audit \
   --file README.md \
   --format json > fresh-content-audit.json
 
-forge-patch-proposal-review \
+forge patch-proposal-review \
   --root . \
   --manifest patch-proposal-manifest.json \
   --content-audit fresh-content-audit.json \
