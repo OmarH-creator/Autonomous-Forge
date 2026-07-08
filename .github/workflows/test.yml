@@ -163,7 +163,7 @@ jobs:
           }
           assert {'validation_execution', 'validation_result'}.issubset(changed_fields)
           PY
-      - name: Smoke-test opt-in executor run
+      - name: Smoke-test opt-in executor run and handoff persistence
         run: |
           forge executor-run \
             --plan .ai/AUTONOMOUS_PLAN.md \
@@ -172,17 +172,30 @@ jobs:
             --root . \
             --command "python -m pytest" \
             --confirm-executor-dry-run \
-            --format json > /tmp/autonomous-forge-executor-run.json
-          python -m json.tool /tmp/autonomous-forge-executor-run.json > /dev/null
+            --format json > executor-run-output.json
+          python -m json.tool executor-run-output.json > /dev/null
+          forge executor-handoff-persist \
+            --root . \
+            --executor-output executor-run-output.json \
+            --confirm-write \
+            --format json > /tmp/autonomous-forge-executor-handoff-persist.json
+          python -m json.tool /tmp/autonomous-forge-executor-handoff-persist.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
 
-          payload = json.loads(Path('/tmp/autonomous-forge-executor-run.json').read_text(encoding='utf-8'))
+          payload = json.loads(Path('executor-run-output.json').read_text(encoding='utf-8'))
           assert payload['execution_status'] == 'completed'
           assert payload['validation_execution'] == 'local_command_observed'
           assert payload['validation_result'] == 'passed'
           assert payload['return_code'] == 0
+          assert payload['persistence_handoff']['available'] is True
+          assert payload['persistence_handoff']['auto_persistence'] is False
+
+          persisted = json.loads(Path('/tmp/autonomous-forge-executor-handoff-persist.json').read_text(encoding='utf-8'))
+          assert persisted['validation_execution'] == 'external_result_attached'
+          assert persisted['validation_result'] == 'passed'
+          assert persisted['source'].endswith('/executor-run-output.json')
           PY
       - name: Run test suite
         run: python -m pytest -q
