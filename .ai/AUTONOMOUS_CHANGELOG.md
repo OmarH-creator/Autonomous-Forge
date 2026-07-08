@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-092
+
+- Task ID: AUTO-092 — Commit-readiness summary
+- Summary: Added `forge commit-readiness` and compatibility `forge-commit-readiness`, a read-only final readiness summary that consumes post-apply-validation JSON, final git-diff-review JSON, and commit-status-review JSON. It reports `ready` only when post-apply validation is validated, the final diff review is clear and contains the validated target path, and status evidence is clear. It keeps `commit_allowed` and `commit_workflow_allowed` false and supports `--require-ready` for fail-closed automation.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, command router, workflow, post-apply validation implementation, change-readiness/status-review patterns, tests, and docs. Work stayed directly on `main`. PR #11 was already merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for ready commit-readiness evidence, unvalidated post-apply evidence, final diff target mismatch, unclear status evidence, unsafe paths, primary CLI JSON output, and `--require-ready` fail-closed behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a guarded commit-proposal preview that prepares commit metadata from ready commit-readiness evidence without committing.
+
 ## 2026-07-09 — AUTO-091
 
 - Task ID: AUTO-091 — Live workflow-status collection for commit-status review
@@ -17,24 +26,6 @@
 - Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for validated full coverage, missing required validation steps, failed results, unapplied patch reports, unsafe paths, CLI JSON output, and `--require-validated` fail-closed behavior. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a commit-readiness summary that consumes post-apply validation, final diff review, and final status evidence before any commit-oriented workflow is considered.
-
-## 2026-07-09 — AUTO-089
-
-- Task ID: AUTO-089 — Honor patch-apply require-applied exit gating
-- Summary: Fixed `forge patch-apply` so blocked review reports return exit code 0 by default and only fail closed when `--require-applied` is supplied. The command still requires `--confirm-apply` before writing, still verifies generated preview and change-readiness evidence against the current target and replacement, and still writes only the requested target file when all guards pass.
-- Branch and PR assessment: Inspected repository metadata, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, command router, patch-apply source, tests, and focused docs. Work stayed directly on `main`. Open PR #10 is a mergeable CI concurrency guard, but it was not integrated because this run fixed a concrete product defect in the write-capable patch workflow. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
-- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for blocked patch-apply reports without `--require-applied`, preserved fail-closed behavior when `--require-applied` is supplied, and retained confirmed apply coverage. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add an explicit post-apply validation handoff so changed files are not treated as complete until validation evidence is recorded.
-
-## 2026-07-09 — AUTO-088
-
-- Task ID: AUTO-088 — Add explicitly confirmed guarded patch apply
-- Summary: Added `forge patch-apply` and compatibility `forge-patch-apply`, a narrow local write command that applies one explicit replacement-text file only after generated patch-preview JSON and ready change-readiness JSON match the current target. It requires `--confirm-apply`, verifies the current target plus replacement reproduce the supplied preview exactly, writes only the requested target path, and reports deterministic text/JSON.
-- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, patch-generation preview implementation, focused docs, tests, policy, and CI workflow. Work stayed directly on `main`. Open PR #10 is a CI concurrency guard, but it was not integrated because the run needed to ship the next product capability. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
-- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for confirmed matching apply readiness, missing confirmation, stale preview refusal, blocked change-readiness evidence, unsafe path refusal, CLI JSON write behavior, and no-confirmation refusal. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add an explicit post-apply validation handoff so changed files are not treated as complete until validation evidence is recorded.
 
 ## Historical note
 
