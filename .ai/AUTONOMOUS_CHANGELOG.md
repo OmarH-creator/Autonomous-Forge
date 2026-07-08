@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-043
+
+- Task ID: AUTO-042 — Add command-execution handoff preview
+- Summary: Added `forge command-execution-handoff --format text|json`, a read-only pre-executor handoff that consumes validation orchestration readiness and conservative validation command candidates. The artifact reports eligible command strings, candidates requiring review, blockers, required confirmations, expected validation-result record fields, and the explicit no-execution safety boundary.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, README, roadmap, state, changelog, decisions, validation orchestration code, validation preview code, CLI command surface, workflow smoke coverage, and tests. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic core and CLI tests were added. Installed-package CI smoke coverage was extended for command-execution handoff JSON output. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 8d4c07534f46d36801c8127e403c337d52fcfa39
+- Follow-up notes: Add a read-only guarded executor precondition gate before any command execution, workflow polling, commit verification, diff inspection, patch generation, policy enforcement, or mutation behavior.
+
 ## 2026-07-08 — AUTO-042
 
 - Task ID: AUTO-042 — Smoke-test validation orchestration in CI
@@ -23,7 +32,7 @@
 - Task ID: AUTO-040 — Add validation orchestration preview gated by saved history status
 - Summary: Added a read-only validation orchestration preview core that combines the selected validation plan, validation command-candidate preview, saved run-history validation guards, and latest-record guard into one deterministic readiness artifact. The preview reports command-candidate counts, history blockers, latest-record validation guard, orchestration status, risk notes, and a strict no-execution boundary.
 - Branch and PR assessment: Inspected repository metadata, recent PRs, branch search results, README, roadmap, state, changelog, decisions, validation plan/preview code, run-history guard code, and tests. Recent PRs were already closed or merged; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for missing-history blockers, failed-history blockers, clear-history readiness, text output, and JSON output. Direct local checkout/test execution remained unavailable in this environment.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for missing-history blockers, failed-history blockers, clear-history readiness, text output, and JSON output. Direct local pytest execution remained unavailable in this environment.
 - Commit hash: c9b8b37b30f6d6db513e7182613e9ef0d295c94c
 - Follow-up notes: Expose the orchestration preview through `forge validation-orchestration --format text|json` before any validation executor, workflow polling, diff inspection, patch generation, or inferred validation success behavior.
 
