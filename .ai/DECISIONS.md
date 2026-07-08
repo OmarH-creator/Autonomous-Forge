@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-043 — 2026-07-08 — Add command-execution handoff before any executor
+
+Context: `forge validation-orchestration` exposed readiness signals and command-candidate counts, but maintainers still lacked a single review artifact that showed the exact eligible commands, commands requiring review, blockers, confirmations, and expected validation-result record fields before any command runner exists.
+Decision: Add `forge command-execution-handoff --format text|json` as a read-only pre-executor surface built from validation orchestration readiness and validation command candidates. Extend deterministic tests, README usage, focused docs, roadmap/state/changelog records, and installed-package CI smoke coverage for JSON output.
+Alternatives considered: Move directly to a validation executor, poll GitHub Actions, infer success from commits, inspect diffs, generate patches, enforce policy, mutate history automatically, or keep the handoff as an internal Python-only builder.
+Consequences: Maintainers can now review concrete command-execution inputs before any command execution behavior is introduced. The new command remains advisory and does not prove validation success or approve execution.
+Human decision still required: No.
+
 ## DEC-042 — 2026-07-08 — Smoke-test validation orchestration in CI
 
 Context: AUTO-041 exposed `forge validation-orchestration --format text|json`, but the installed-package GitHub Actions smoke workflow still exercised `forge review-artifact` and history flows without validating the new orchestration CLI path against live repository planning inputs.
