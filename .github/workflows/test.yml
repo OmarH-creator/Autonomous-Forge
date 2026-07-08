@@ -67,8 +67,17 @@ jobs:
             --root . \
             --record .ai/run-history/ci-smoke.json \
             --format json > /tmp/autonomous-forge-run-history-read.json
+          forge run-history-list \
+            --root . \
+            --max-records 20 \
+            --format json > /tmp/autonomous-forge-run-history-list.json
+          forge run-history-latest \
+            --root . \
+            --format json > /tmp/autonomous-forge-run-history-latest.json
           python -m json.tool /tmp/autonomous-forge-run-history-preview.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-preflight-readiness.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-run-history-read.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-run-history-list.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-run-history-latest.json > /dev/null
       - name: Run test suite
         run: python -m pytest -q
