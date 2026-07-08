@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 
 from autonomous_forge.command_execution_handoff import read_command_execution_handoff_preview
+from autonomous_forge.content_audit import ContentAuditError, read_content_audit
+from autonomous_forge.diff_source_handoff import DiffSourceHandoffError, read_diff_source_handoff
 from autonomous_forge.executor_contract import read_executor_contract
 from autonomous_forge.executor_dry_run import read_executor_dry_run
 from autonomous_forge.executor_gate import read_executor_precondition_gate
@@ -215,6 +217,19 @@ def build_parser() -> argparse.ArgumentParser:
     review_files_parser.add_argument("--file", action="append", default=[], help="changed file path to review; repeat for multiple paths")
     review_files_parser.add_argument("--format", choices=("text", "json"), default="text", help="changed-file review format: text (default) or JSON")
 
+    content_audit_parser = subparsers.add_parser("content-audit", help="audit explicit repository file contents without printing them")
+    content_audit_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
+    content_audit_parser.add_argument("--root", default=".", help="repository root used to constrain audited paths")
+    content_audit_parser.add_argument("--file", action="append", default=[], help="repository file path to audit; repeat for multiple paths")
+    content_audit_parser.add_argument("--format", choices=("text", "json"), default="text", help="changed-content audit format: text (default) or JSON")
+
+    diff_source_parser = subparsers.add_parser("diff-source-handoff", help="compare two content-audit JSON outputs without reading file contents")
+    diff_source_parser.add_argument("--root", default=".", help="repository root used to constrain audit JSON paths")
+    diff_source_parser.add_argument("--before", required=True, help="earlier content-audit JSON output under root")
+    diff_source_parser.add_argument("--after", required=True, help="later content-audit JSON output under root")
+    diff_source_parser.add_argument("--require-clear", action="store_true", help="return exit code 2 when comparison evidence requires attention")
+    diff_source_parser.add_argument("--format", choices=("text", "json"), default="text", help="diff-source handoff format: text (default) or JSON")
+
     policy_parser = subparsers.add_parser("policy", help="parse repository policy sections without changing files")
     policy_parser.add_argument("--policy", default=".forge/policy.md", help="path to the repository policy file")
 
@@ -400,6 +415,41 @@ def _print_path_review(policy_path: Path, root: Path, paths: list[str], output_f
         print(f"Policy error: {exc}")
         return 2
     return 0
+
+
+def _print_content_audit(policy_path: Path, root: Path, paths: list[str], output_format: str) -> int:
+    try:
+        print(read_content_audit(policy_path, paths, root=root, output_format=output_format))
+    except FileNotFoundError:
+        print(f"Policy file not found: {policy_path}")
+        return 2
+    except (ContentAuditError, PolicyParseError) as exc:
+        print(f"Content audit refused: {exc}")
+        return 2
+    return 0
+
+
+def _print_diff_source_handoff(args: argparse.Namespace) -> int:
+    try:
+        output = read_diff_source_handoff(
+            Path(args.before),
+            Path(args.after),
+            root=Path(args.root),
+            output_format=args.format,
+        )
+    except FileNotFoundError as exc:
+        print(f"Diff-source handoff input not found: {exc.filename}")
+        return 2
+    except DiffSourceHandoffError as exc:
+        print(f"Diff-source handoff refused: {exc}")
+        return 2
+    print(output)
+    if not args.require_clear:
+        return 0
+    if args.format == "json":
+        data = json.loads(output)
+        return 0 if data.get("requires_attention") is False else 2
+    return 0 if "Requires attention: false" in output else 2
 
 
 def _print_policy(policy_path: Path) -> int:
@@ -605,6 +655,10 @@ def main(argv: list[str] | None = None) -> int:
         return _write_validation_result(Path(args.record), args.result, Path(args.root), args.note, args.confirm_write, args.format)
     if args.command == "review-files":
         return _print_path_review(Path(args.policy), Path(args.root), args.file, args.format)
+    if args.command == "content-audit":
+        return _print_content_audit(Path(args.policy), Path(args.root), args.file, args.format)
+    if args.command == "diff-source-handoff":
+        return _print_diff_source_handoff(args)
     if args.command == "policy":
         return _print_policy(Path(args.policy))
     if args.command == "run-summary":
