@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-057
+
+- Task ID: AUTO-057 — Prioritize latest run-history records in limited audits
+- Summary: Hardened `forge run-history-list` and dependent aggregate executor-observation audits so `--max-records` selects the newest filename-sorted direct `.ai/run-history/*.json` records while still displaying the limited records in deterministic ascending filename order. This prevents small audit windows from silently excluding the latest saved validation evidence.
+- Branch and PR assessment: Inspected repository metadata, recent commits, open PRs, open issues, README, workflow smoke coverage, run-history index implementation, executor-observation audit implementation, docs, and tests. No open PR required integration. The run stayed on `main`.
+- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression tests for newest-limited run-history index behavior and newest-limited executor-observation audit behavior. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add a read-only changed-content or diff-intent audit before patch generation, diff inspection, or implementation-execution behavior.
+
 ## 2026-07-08 — AUTO-056
 
 - Task ID: AUTO-056 — Add fail-closed executor-observation audit gate
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic tests for audit classification, JSON/text formatting, refused records, invalid limits, and CLI output/refusal. Extended installed-package CI smoke coverage to run `forge executor-observation-audit --format json` after a validation result is attached. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a read-only changed-content or diff-intent audit before any patch generation, diff inspection, or implementation-execution behavior.
-
-## 2026-07-08 — AUTO-054
-
-- Task ID: AUTO-054 — Require regular run-history record files
-- Summary: Hardened `forge run-history-read` and dependent saved-record readers by requiring resolved `.ai/run-history/*.json` record paths to be regular files. This supplements the existing root, history-directory, extension, symlink, missing-path, and directory guards with an explicit non-regular filesystem-entry refusal.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, open PR search, README, workflow smoke coverage, validation-result audit helper, run-history reader, and relevant tests. No open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic regression coverage that creates a FIFO when supported and asserts a `RunHistoryReadError` regular-file refusal. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a broader read-only executor-observation audit that cross-checks saved history against executor-run handoff fields before patch, diff-inspection, or implementation-execution workflow work begins.
 
 ## Historical note
 
