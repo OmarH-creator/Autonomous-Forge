@@ -13,6 +13,43 @@ These contracts describe implemented behavior only. They are intentionally plain
 - Human-readable output may be extended conservatively, but existing status phrases should remain stable when practical.
 - JSON output is intended for review and automation handoff; it must remain deterministic and must not imply approval.
 
+## `forge commit-status-review`
+
+Purpose: review supplied commit-status, check-run, or workflow-run JSON evidence before future patch application or change-readiness workflows rely on validation status.
+
+Inputs:
+
+- `--status`: required repository-local `.json` file containing supplied status evidence.
+- `--root`: root used to constrain the status input path, defaulting to `.`.
+- `--require-clear`: optional fail-closed gate; when present, the command returns exit code `2` unless all supplied status evidence is successful.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable lines:
+
+```text
+Autonomous Forge commit status review
+Mode: read-only
+Source: supplied commit/workflow status JSON
+Commit: ...
+Review status: clear|blocked
+Status contexts:
+Summary:
+Review blockers:
+Requires attention: true|false
+Safety boundary: Commit-status review reads supplied JSON status evidence only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `commit_sha`, `review_status`, `status_reviews`, `summary`, `review_blockers`, `requires_attention`, `reason`, `next_step`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the review is produced and `--require-clear` is not requested.
+- `0` when `--require-clear` is requested and review status is `clear`.
+- `2` when `--require-clear` is requested and review status is `blocked`.
+- `2` when an input is outside the configured root, missing, not a `.json` regular file, a symlink, malformed JSON, not a JSON object, too large, or an unsupported output format is requested.
+
+Safety limits: commit-status-review reads supplied JSON status evidence only. It does not call networks, poll GitHub, run workflows, run commands, inspect diffs, read repository file contents, infer correctness beyond supplied status fields, approve implementation, enforce policy decisions, mutate saved history, read environment variables, commit, push, or change repository files. `--require-clear` changes only the process exit code.
+
 ## `forge patch-text-review`
 
 Purpose: review ready `forge patch-text-preflight --format json` output plus explicit per-path patch summaries before any future patch-text generation or apply workflow relies on that evidence.
@@ -218,41 +255,3 @@ Safety boundary: Validation-result audit output only; ...
 Expected successful JSON output includes `mode`, `source_path`, `schema_version`, `task`, `validation_execution`, `validation_result`, `validation_note`, `guard_status`, `guard_notes`, `allowed_results`, `persistence`, and `safety_boundary`.
 
 Exit codes:
-
-- `0` when the audit is produced.
-- `2` when the record is missing, malformed, outside `.ai/run-history/`, unsupported, or unsafe to inspect.
-
-Safety limits: validation-result-audit is an observation guard only. It does not run validation commands, poll workflows, verify commits, inspect diffs, read changed-file contents, generate patches, infer success beyond saved fields, approve execution, enforce policy decisions, mutate saved history, call networks, read environment variables, commit, push, or change repository files.
-
-## `forge executor-run`
-
-Purpose: run one exact local validation command after the executor contract and dry-run gate approve it.
-
-Inputs:
-
-- `--plan`: roadmap Markdown path, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
-- `--state`: state Markdown path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
-- `--policy`: policy Markdown path, defaulting to `.forge/policy.md`.
-- `--root`: repository root used as the no-shell subprocess working directory, defaulting to `.`.
-- `--command`: exact executor-contract candidate command to run.
-- `--confirm-executor-dry-run`: required acknowledgement before the command can run.
-- `--format`: `text` or `json`, defaulting to `text`.
-
-Expected successful text output includes these stable lines:
-
-```text
-Autonomous Forge validation executor run
-Mode: opt-in local execution
-Command execution allowed: true
-Execution status: completed
-Validation execution: local_command_observed
-Validation result: passed|failed
-Return code: ...
-Safety boundary: Executor run used subprocess.run with shell=false ...
-```
-
-Expected successful JSON output includes the same information as structured data, including `requested_command`, `command_execution_allowed`, `execution_status`, `validation_execution`, `validation_result`, `return_code`, bounded `stdout` and `stderr` summaries, and `result_record_path`.
-
-Exit codes:
-
-- `0` when the executor run is allowed and the local command completes, even if the observed validation result is `failed`.
