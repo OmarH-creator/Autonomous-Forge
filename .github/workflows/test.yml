@@ -32,7 +32,9 @@ jobs:
       - name: Compile source
         run: python -m compileall -q src
       - name: Smoke-test installed CLI
-        run: forge --version
+        run: |
+          forge --version
+          forge-patch-proposal-review --help
       - name: Validate repository planning inputs
         run: |
           forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
@@ -107,6 +109,12 @@ jobs:
             --validation "python -m pytest" \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-proposal-manifest.json
+          forge-patch-proposal-review \
+            --root /tmp \
+            --manifest autonomous-forge-patch-proposal-manifest.json \
+            --content-audit autonomous-forge-content-audit.json \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-proposal-review.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -118,6 +126,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-intent-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-intent-description.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-proposal-manifest.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-proposal-review.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -155,6 +164,13 @@ jobs:
           assert patch_manifest['manifest_status'] == 'ready'
           assert patch_manifest['proposal_allowed'] is True
           assert patch_manifest['requested_path_count'] == 2
+
+          patch_review = json.loads(Path('/tmp/autonomous-forge-patch-proposal-review.json').read_text(encoding='utf-8'))
+          assert patch_review['mode'] == 'read-only'
+          assert patch_review['review_status'] == 'ready'
+          assert patch_review['patch_proposal_allowed'] is True
+          assert patch_review['requested_path_count'] == 2
+          assert patch_review['fresh_audited_path_count'] == 2
           PY
       - name: Smoke-test run-history persistence flow
         run: |
