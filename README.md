@@ -8,7 +8,7 @@ For a visual orientation to the current read-only workflow and its safety bounda
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-058 added semantic CI assertions for installed `forge content-audit --format json` output. The workflow now verifies that the audited live repository paths are read-only, total the expected count, resolve as clear, require no attention, and classify `src/autonomous_forge/content_audit.py` as an allowed readable file. This supports the new content-audit capability with executable CI expectations before any future patch-adjacent gate relies on it. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review and the committed workflow assertions. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-059 integrated the useful parser fix from open PR #7 directly onto `main`. Planned file-area parsing now preserves hidden policy paths such as `.env` when roadmap text wraps them in backticks and then follows them with sentence or list punctuation, preventing review artifacts from showing dangling-backtick path tokens. Regression coverage was added for the existing hidden-dotfile case and for a trailing-comma roadmap token. Direct local checkout/test execution was unavailable in this environment, so validation was limited to GitHub API static review plus committed deterministic tests. No visual updates were needed because the existing workflow diagram remains accurate. Next objective: add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
 
 The repository now contains:
 
@@ -21,7 +21,7 @@ The repository now contains:
 - `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` for the conservative pre-execution chain from eligibility checks to contract review to a no-subprocess dry-run of one exact command candidate.
 - `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, including a reviewable `persistence_handoff` for saving the observed result separately.
 - `forge executor-handoff-persist` for a separately confirmed write that consumes reviewed executor JSON and delegates the durable result attachment through validation-result writer guards.
-- Smoke and deterministic coverage for the CLI’s current local workflows.
+- Smoke and deterministic coverage for the CLI’s current local workflows, including hidden-dotfile planned-area parsing.
 - CI smoke coverage that validates the live repository roadmap, policy, state, combined review-artifact command, validation-orchestration command, command-execution handoff command, executor-gate command, executor-contract command, executor-dry-run command, content-audit command, executor-run command, executor-handoff persistence command, run-history persistence/list/latest/compare flow, validation-result preview/write/audit/read handoff, executor-observation audit, and installed console entry point after installation.
 
 ## Install for local development
