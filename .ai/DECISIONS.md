@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-033 — 2026-07-08 — Refuse symlinked history records before comparison
+
+Context: `forge run-history-list` and `forge run-history-latest` intentionally scan only direct `.ai/run-history/*.json` records, but symlinked JSON entries could still behave like files while resolving outside the documented history directory boundary.
+Decision: Treat direct history candidates as real non-symlink `.json` files only, and verify each candidate resolves under `.ai/run-history/` before it can be read, listed, or selected as latest.
+Alternatives considered: Follow symlinks and rely on the record reader, mark symlinked entries as refused records, recursively resolve nested directories, write an index, or defer the hardening until record comparison exists.
+Consequences: History inspection stays narrower and avoids unintended reads outside the direct history directory. Symlinked JSON records are ignored rather than selected as valid or refused records, keeping summary counts focused on candidate files the command is allowed to inspect.
+Human decision still required: No.
+
 ## DEC-032 — 2026-07-08 — Select latest history records by filename before comparing records
 
 Context: `forge run-history-list` can inspect multiple saved records, but maintainers still need a deterministic way to focus on the most recent readable record before any comparison, validation executor, or patch workflow exists.
