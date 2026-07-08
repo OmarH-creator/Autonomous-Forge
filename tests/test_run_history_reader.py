@@ -89,6 +89,18 @@ def test_read_run_history_record_refuses_path_outside_history_dir(tmp_path):
         read_run_history_record(path, root=tmp_path)
 
 
+def test_read_run_history_record_refuses_symlinked_history_file(tmp_path):
+    target = _write_record(tmp_path, name="target.json")
+    link = tmp_path / ".ai" / "run-history" / "link.json"
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"symlink creation is unavailable: {exc}")
+
+    with pytest.raises(RunHistoryReadError, match="not a symlink"):
+        read_run_history_record(link, root=tmp_path)
+
+
 def test_read_run_history_record_refuses_malformed_json(tmp_path):
     path = tmp_path / ".ai" / "run-history" / "bad.json"
     path.parent.mkdir(parents=True, exist_ok=True)
