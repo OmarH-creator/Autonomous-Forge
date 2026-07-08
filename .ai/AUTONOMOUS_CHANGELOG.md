@@ -5,8 +5,8 @@
 - Task ID: AUTO-061 — Add diff-source handoff comparison
 - Summary: Added `forge diff-source-handoff`, a read-only comparison command for two explicit `content-audit` JSON outputs. The handoff verifies content-audit payloads, constrains JSON inputs under the configured root, reports added/removed/changed/unchanged audited paths, highlights changed observation fields, and provides a conservative `requires_attention` gate before future patch-generation or diff-review work relies on content-audit evidence.
 - Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent closed/merged PRs, README, roadmap/state/changelog/decisions, CI workflow, content-audit implementation, CLI entrypoint wiring, and related tests. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for unchanged, changed, added, removed, blocked-after, JSON/text, malformed payload, duplicate path, and outside-root refusal cases. Installed-entrypoint tests and CI smoke assertions were added for `forge diff-source-handoff`. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: f153e8a2a33e8a755ace7059c2764883f0dccb40
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests were added for unchanged, changed, added, removed, blocked-after, JSON/text, malformed payload, duplicate path, symlink refusal, and outside-root refusal cases. Installed-entrypoint tests and CI smoke assertions were added for `forge diff-source-handoff`. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 4124f7aa5a7c990154f24ad3902044f318d14231
 - Follow-up notes: Add a guarded patch-intent or git-diff review surface that consumes content-audit and diff-source handoff evidence without generating or applying patches automatically.
 
 ## 2026-07-08 — AUTO-060
