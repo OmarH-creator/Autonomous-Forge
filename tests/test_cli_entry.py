@@ -3,6 +3,7 @@ import json
 from autonomous_forge import cli_entry
 from autonomous_forge.content_audit import build_content_audit_data
 from autonomous_forge.diff_source_handoff import build_diff_source_handoff_data
+from autonomous_forge.patch_intent_description import build_patch_intent_description_data
 from autonomous_forge.patch_intent_review import build_patch_intent_review_data
 
 
@@ -261,3 +262,66 @@ def test_installed_entrypoint_patch_intent_describe_require_described_fails_bloc
     payload = json.loads(capsys.readouterr().out)
     assert payload["intent_status"] == "blocked"
     assert payload["patch_description_allowed"] is False
+
+
+def test_installed_entrypoint_patch_proposal_manifest_require_ready_passes_described_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    review = build_patch_intent_review_data(build_diff_source_handoff_data(audit, audit))
+    description = build_patch_intent_description_data(review)
+    description_path = tmp_path / "patch-description.json"
+    description_path.write_text(json.dumps(description), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-proposal-manifest",
+        "--root",
+        str(tmp_path),
+        "--description",
+        str(description_path),
+        "--objective",
+        "Update README safely.",
+        "--path",
+        "README.md",
+        "--validation",
+        "python -m pytest",
+        "--require-ready",
+        "--format",
+        "json",
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["manifest_status"] == "ready"
+    assert payload["proposal_allowed"] is True
+    assert payload["requested_paths"] == ["README.md"]
+
+
+def test_installed_entrypoint_patch_proposal_manifest_require_ready_fails_unreviewed_path(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    review = build_patch_intent_review_data(build_diff_source_handoff_data(audit, audit))
+    description = build_patch_intent_description_data(review)
+    description_path = tmp_path / "patch-description.json"
+    description_path.write_text(json.dumps(description), encoding="utf-8")
+
+    assert cli_entry.main([
+        "patch-proposal-manifest",
+        "--root",
+        str(tmp_path),
+        "--description",
+        str(description_path),
+        "--objective",
+        "Update source without reviewed evidence.",
+        "--path",
+        "src/new.py",
+        "--validation",
+        "python -m pytest",
+        "--require-ready",
+        "--format",
+        "json",
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["manifest_status"] == "blocked"
+    assert payload["proposal_allowed"] is False
