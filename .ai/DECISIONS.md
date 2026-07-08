@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-050 — 2026-07-08 — Preview executor handoff persistence before writing
+
+Context: `forge executor-handoff-persist` can now write reviewed executor-run JSON into durable run history after explicit confirmation, but callers still need a read-only way to summarize the exact pending persistence action before mutating the saved record.
+Decision: Add `read_executor_handoff_persistence_preview()` as a package-level read-only preview that validates the same `persistence_handoff`, derives the same validation-result writer payload, and reports the target record, validation execution value, result, note, required confirmation, derived write command, and safety boundary in text or JSON.
+Alternatives considered: Add only another docs example, require callers to inspect the raw executor JSON manually, expose a CLI preview before the package API exists, automatically write from executor-run, or merge preview and write into one command.
+Consequences: Maintainers and future CLI surfaces can review the exact handoff-to-history mutation before calling the confirmed writer, while preserving the separation between execution, preview, and persistence.
+Human decision still required: No.
+
 ## DEC-049 — 2026-07-08 — Keep executor handoff persistence as a separate confirmed CLI step
 
 Context: The repository already had a guarded package-level helper for persisting reviewed `forge executor-run --format json` output, but users still had to call Python directly or manually copy handoff fields into `forge validation-result-write`.
