@@ -1,4 +1,4 @@
-"""List persisted local run-history records safely."""
+"""List and select persisted local run-history records safely."""
 
 from __future__ import annotations
 
@@ -23,6 +23,11 @@ def _history_dir(root: Path) -> Path:
     return (resolved_root / ".ai" / "run-history").resolve()
 
 
+def _json_candidates(directory: Path) -> list[Path]:
+    """Return direct JSON child files in deterministic filename order."""
+    return sorted(path for path in directory.iterdir() if path.is_file() and path.suffix == ".json")
+
+
 def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     """Return a record summary or a refusal reason for one JSON file."""
     try:
@@ -36,6 +41,32 @@ def _read_summary(path: Path) -> tuple[dict[str, Any] | None, str | None]:
     except RunHistoryReadError as exc:
         return None, str(exc)
     return summary, None
+
+
+def _record_from_summary(summary: dict[str, Any]) -> dict[str, Any]:
+    """Return the shared list/latest record summary shape for a readable record."""
+    return {
+        "path": summary["source_path"],
+        "status": "readable",
+        "reason": "none",
+        "task": summary["task"],
+        "review_status": summary["review_status"],
+        "preflight_overall_status": summary["preflight_summary"].get("overall_status", "unknown"),
+        "commit": summary["commit"],
+    }
+
+
+def _refused_record(path: Path, reason: str | None) -> dict[str, Any]:
+    """Return the shared list/latest record summary shape for a refused record."""
+    return {
+        "path": str(path),
+        "status": "refused",
+        "reason": reason,
+        "task": None,
+        "review_status": "unknown",
+        "preflight_overall_status": "unknown",
+        "commit": "unknown",
+    }
 
 
 def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 20) -> dict[str, Any]:
@@ -62,7 +93,7 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
     if not directory.is_dir():
         raise RunHistoryIndexError(".ai/run-history exists but is not a directory")
 
-    candidates = sorted(path for path in directory.iterdir() if path.is_file() and path.suffix == ".json")
+    candidates = _json_candidates(directory)
     records = []
     valid = 0
     refused = 0
@@ -70,30 +101,10 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
         summary, reason = _read_summary(path)
         if summary is None:
             refused += 1
-            records.append(
-                {
-                    "path": str(path),
-                    "status": "refused",
-                    "reason": reason,
-                    "task": None,
-                    "review_status": "unknown",
-                    "preflight_overall_status": "unknown",
-                    "commit": "unknown",
-                }
-            )
+            records.append(_refused_record(path, reason))
             continue
         valid += 1
-        records.append(
-            {
-                "path": summary["source_path"],
-                "status": "readable",
-                "reason": "none",
-                "task": summary["task"],
-                "review_status": summary["review_status"],
-                "preflight_overall_status": summary["preflight_summary"].get("overall_status", "unknown"),
-                "commit": summary["commit"],
-            }
-        )
+        records.append(_record_from_summary(summary))
 
     return {
         "title": "Autonomous Forge run-history index",
@@ -112,6 +123,61 @@ def build_run_history_index_data(root: Path = Path("."), *, max_records: int = 2
             "Run-history index output only; no files are changed, no directories are scanned "
             "recursively, no validation commands are run, no diffs are inspected, no patches are "
             "generated, no approvals are granted, and policy is not enforced."
+        ),
+    }
+
+
+def build_run_history_latest_data(root: Path = Path(".")) -> dict[str, Any]:
+    """Select the latest readable direct run-history JSON record without changing files."""
+    directory = _history_dir(root)
+    if not directory.exists():
+        return {
+            "title": "Autonomous Forge latest run-history record",
+            "mode": "read-only",
+            "history_dir": str(directory),
+            "history_dir_status": "missing",
+            "ordering": "filename ascending; latest is the last readable direct JSON record by filename",
+            "summary": {"records_found": 0, "readable": 0, "refused": 0},
+            "latest_record": None,
+            "refused_records": [],
+            "safety_boundary": (
+                "Run-history latest output only; no files are changed, no directories are scanned "
+                "recursively, no validation commands are run, no diffs are inspected, no commits are "
+                "verified, no workflow status is checked, no patches are generated, and policy is not enforced."
+            ),
+        }
+    if not directory.is_dir():
+        raise RunHistoryIndexError(".ai/run-history exists but is not a directory")
+
+    latest_record: dict[str, Any] | None = None
+    refused_records: list[dict[str, Any]] = []
+    readable = 0
+    candidates = _json_candidates(directory)
+    for path in candidates:
+        summary, reason = _read_summary(path)
+        if summary is None:
+            refused_records.append(_refused_record(path, reason))
+            continue
+        readable += 1
+        latest_record = _record_from_summary(summary)
+
+    return {
+        "title": "Autonomous Forge latest run-history record",
+        "mode": "read-only",
+        "history_dir": str(directory),
+        "history_dir_status": "present",
+        "ordering": "filename ascending; latest is the last readable direct JSON record by filename",
+        "summary": {
+            "records_found": len(candidates),
+            "readable": readable,
+            "refused": len(refused_records),
+        },
+        "latest_record": latest_record,
+        "refused_records": refused_records,
+        "safety_boundary": (
+            "Run-history latest output only; no files are changed, no directories are scanned "
+            "recursively, no validation commands are run, no diffs are inspected, no commits are "
+            "verified, no workflow status is checked, no patches are generated, and policy is not enforced."
         ),
     }
 
@@ -150,6 +216,41 @@ def format_run_history_index(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_run_history_latest(data: dict[str, Any]) -> str:
+    """Format latest run-history selection as stable human-readable text."""
+    summary = data["summary"]
+    lines = [
+        str(data["title"]),
+        f"Mode: {data['mode']}",
+        f"History directory: {data['history_dir']}",
+        f"History directory status: {data['history_dir_status']}",
+        f"Ordering: {data['ordering']}",
+        "Summary:",
+        f"- records found: {summary['records_found']}",
+        f"- readable: {summary['readable']}",
+        f"- refused: {summary['refused']}",
+        "Latest record:",
+    ]
+    latest = data["latest_record"]
+    if latest is None:
+        lines.append("- none")
+    else:
+        task = latest["task"] or {}
+        task_id = task.get("id") or "unknown"
+        task_title = task.get("title") or "unknown"
+        lines.append(
+            f"- {latest['path']}: task={task_id} {task_title} | "
+            f"review={latest['review_status']} | "
+            f"preflight={latest['preflight_overall_status']} | commit={latest['commit']}"
+        )
+    if data["refused_records"]:
+        lines.append("Refused records:")
+        for record in data["refused_records"]:
+            lines.append(f"- {record['path']}: {record['reason']}")
+    lines.append(f"Safety boundary: {data['safety_boundary']}")
+    return "\n".join(lines)
+
+
 def read_run_history_index(
     *,
     root: Path = Path("."),
@@ -163,3 +264,17 @@ def read_run_history_index(
     if output_format != "text":
         raise ValueError(f"Unsupported run-history-list output format: {output_format}")
     return format_run_history_index(data)
+
+
+def read_run_history_latest(
+    *,
+    root: Path = Path("."),
+    output_format: str = "text",
+) -> str:
+    """Read and format the latest local run-history record without changing files."""
+    data = build_run_history_latest_data(root)
+    if output_format == "json":
+        return json.dumps(data, indent=2, sort_keys=True)
+    if output_format != "text":
+        raise ValueError(f"Unsupported run-history-latest output format: {output_format}")
+    return format_run_history_latest(data)
