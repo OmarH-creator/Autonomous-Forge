@@ -17,6 +17,7 @@ from autonomous_forge.patch_proposal_draft_cli import main as _patch_proposal_dr
 from autonomous_forge.patch_proposal_review_cli import main as _patch_proposal_review_main
 from autonomous_forge.patch_text_preflight_cli import main as _patch_text_preflight_main
 from autonomous_forge.patch_text_review_cli import main as _patch_text_review_main
+from autonomous_forge.post_apply_validation_cli import main as _post_apply_validation_main
 
 
 _EXTENSION_COMMANDS = {
@@ -32,6 +33,7 @@ _EXTENSION_COMMANDS = {
     "patch-proposal-review": _patch_proposal_review_main,
     "patch-text-preflight": _patch_text_preflight_main,
     "patch-text-review": _patch_text_review_main,
+    "post-apply-validation": _post_apply_validation_main,
 }
 
 
