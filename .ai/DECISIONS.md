@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-058 — 2026-07-08 — Assert content-audit semantics in installed CI smoke
+
+Context: `forge content-audit` is now installed and JSON-smoke-tested in CI, but a JSON-only check does not prove that the live repository audit is classifying expected paths as clear, allowed, readable, or attention-free.
+Decision: Extend the installed-package workflow smoke step with semantic assertions over `/tmp/autonomous-forge-content-audit.json`, including expected total count, clear counts, `requires_attention=false`, and allowed/readable status for the content-audit module.
+Alternatives considered: Leave JSON shape validation only, move the assertions to unit tests only, add a new workflow job, make content-audit a fail-closed gate immediately, inspect git diffs, or generate patches.
+Consequences: The content-audit command has stronger CI evidence before future patch-adjacent work depends on it, while the command remains read-only and advisory.
+Human decision still required: No.
+
 ## DEC-057 — 2026-07-08 — Prefer latest saved evidence in limited run-history audits and smoke-test new content audit
 
 Context: `forge run-history-list` and `forge executor-observation-audit` accept `--max-records`, but the previous implementation applied that limit to the first filename-sorted records. In a growing run-history directory, a small limit could therefore audit old records while omitting the newest saved validation evidence. During the same run, a concurrent content-audit command landed without installed-package workflow smoke coverage.
@@ -14,14 +22,6 @@ Context: `forge executor-observation-audit` can review aggregate saved executor 
 Decision: Add `--require-clear` to `forge executor-observation-audit`. The command still prints the same read-only text or JSON audit, but returns a failing exit code unless the aggregate status is `clear`.
 Alternatives considered: Keep the audit informational only, make all non-clear audits fail by default, persist gate decisions to history, poll workflow status, inspect diffs, verify commits, or infer validation success from saved fields.
 Consequences: Maintainers and CI can now fail closed on blocked, missing, refused, or needs-review saved executor evidence before future patch or diff workflows rely on it, while the command remains read-only and non-authoritative.
-Human decision still required: No.
-
-## DEC-055 — 2026-07-08 — Audit aggregate saved executor observations before patch workflows
-
-Context: The repository can now run one exact local validation command, persist reviewed executor-run JSON through guarded validation-result semantics, and audit one saved validation-result observation. Future patch or diff workflows need a broader read-only checkpoint that reviews all direct saved run-history records before relying on persisted executor evidence.
-Decision: Add `executor_observation_audit` and expose it as `forge executor-observation-audit --root . --max-records 20 --format text|json`. The audit builds on the guarded run-history index, classifies each listed record as observed-clear, observed-blocked, missing-observation, needs-review, or refused, and reports a conservative aggregate status without mutating files or running validation.
-Alternatives considered: Rely only on single-record validation-result audit, trust the run-history list validation guard, immediately inspect diffs, poll workflows, verify commits, generate patches, or make the audit mutating.
-Consequences: Maintainers now have an aggregate saved-observation review surface before any patch-adjacent workflow is introduced, while validation execution, persistence, audit, patch generation, diff inspection, and policy enforcement remain separated.
 Human decision still required: No.
 
 ## Historical note
