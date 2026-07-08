@@ -150,6 +150,19 @@ def test_patch_proposal_manifest_refuses_duplicate_candidate_paths(tmp_path):
         )
 
 
+def test_patch_proposal_manifest_refuses_missing_requested_paths(tmp_path):
+    description_path = _write_description(tmp_path)
+
+    with pytest.raises(PatchProposalManifestError, match="at least one requested path"):
+        read_patch_proposal_manifest(
+            description_path,
+            root=tmp_path,
+            objective="Update README.",
+            requested_paths=[],
+            validation_steps=["python -m pytest"],
+        )
+
+
 def test_patch_proposal_manifest_refuses_missing_validation_steps(tmp_path):
     description_path = _write_description(tmp_path)
 
