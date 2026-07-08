@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-083 — 2026-07-08 — Supplied git diffs need bounded policy review before patch application
+
+Context: The repository had a long patch-adjacent evidence chain through content audit, diff-source handoff, patch-intent review, patch text review, patch-application preflight, patch-application audit, and patch-application readiness. It still explicitly lacked git-diff inspection, so future patch-applier design would not have a native way to inspect changed paths and diff metadata before considering application.
+Decision: Add `forge git-diff-review` plus compatibility `forge-git-diff-review` as a local read-only command over a repository-local `.diff` or `.patch` file. It parses unified diff headers, file status, hunk counts, additions, deletions, old/new path labels, policy status, and path-presence signals, with `--require-clear` for fail-closed advisory gating.
+Alternatives considered: Move directly to a patch applier, keep relying on JSON evidence summaries only, add documentation-only guidance, run `git diff` internally, or check workflow status first.
+Consequences: Maintainers now get bounded supplied-diff inspection without applying patches or running commands. The command still does not read target file contents, generate patch text, apply patches, run validation, check workflow status, approve implementation, mutate history, commit, push, or change files.
+Human decision still required: No.
+
 ## DEC-082 — 2026-07-08 — Patch application needs a final readiness summary before applier design
 
 Context: Patch-application preflight can confirm reviewed patch-text evidence and explicit provenance metadata, and patch-application audit can verify that provenance remains internally consistent while actual application stays disallowed. Maintainers still need one compact checkpoint that confirms both evidence files agree before any future write-capable patch-applier design is considered.
