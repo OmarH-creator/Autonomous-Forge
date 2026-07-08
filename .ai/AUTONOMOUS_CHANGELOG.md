@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-059
+
+- Task ID: AUTO-059 — Harden planned file-area parsing for hidden policy paths
+- Summary: Integrated the useful blocker fix from open PR #7 directly onto `main`. `_split_expected_areas` now iteratively peels surrounding backticks and trailing sentence/list punctuation so hidden dotfile paths such as `.env` remain exact in planned-file area output when roadmap text uses patterns like ``.env`.`` or ``.env`,``.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branches, open/closed PRs, open issues, README, roadmap/state/changelog/decisions, proposal parsing code, and dotfile tests. PR #7 contained relevant validated work for a concrete failing test; its patch was integrated directly on `main` per the main-only workflow. PR #8 remains open and unintegrated because this run focused on the active failing parser blocker. Older PRs are closed, merged, or obsolete.
+- Validation completed: Static review completed through the GitHub repository API. Regression tests now cover the existing hidden-dotfile sentence-punctuation case and a trailing-comma roadmap token. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Close PR #7 as obsolete after confirming the mainline fix is recorded; add a diff-source handoff that can compare explicit content-audit outputs before patch generation.
+
 ## 2026-07-08 — AUTO-058
 
 - Task ID: AUTO-058 — Assert content-audit smoke semantics
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic regression tests for newest-limited run-history index behavior and newest-limited executor-observation audit behavior. Added GitHub Actions smoke coverage that JSON-validates installed `forge content-audit` output. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add semantic CI assertions for content-audit output counts and review statuses before using it as a patch-adjacent gate.
-
-## 2026-07-08 — AUTO-056
-
-- Task ID: AUTO-056 — Add fail-closed executor-observation audit gate
-- Summary: Added `forge executor-observation-audit --require-clear`, allowing the aggregate saved executor-observation audit to return a failing exit code unless all listed readable run-history observations are clear. This makes the existing read-only audit usable as a conservative gate before any future patch-adjacent workflow relies on saved executor evidence.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search, recent PRs, open issues, README, roadmap, state, changelog, executor-observation audit implementation, CLI entry point, docs, and tests. Recent PRs were closed/merged or obsolete; no open PR required integration. The run stayed on `main`.
-- Validation completed: Static review completed through the GitHub repository API. Added deterministic CLI tests for `--require-clear` passing on clear observations and failing on missing observations while preserving JSON output. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a read-only changed-content or diff-intent audit before patch generation, diff inspection, or implementation-execution behavior.
 
 ## Historical note
 
