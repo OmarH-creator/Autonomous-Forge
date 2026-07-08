@@ -88,6 +88,61 @@ def test_installed_entrypoint_diff_source_handoff_outputs_json(tmp_path, capsys)
     assert payload["requires_attention"] is False
 
 
+def test_installed_entrypoint_diff_source_handoff_require_clear_passes_clear_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(json.dumps(audit), encoding="utf-8")
+    after.write_text(json.dumps(audit), encoding="utf-8")
+
+    assert cli_entry.main([
+        "diff-source-handoff",
+        "--root",
+        str(tmp_path),
+        "--before",
+        str(before),
+        "--after",
+        str(after),
+        "--require-clear",
+        "--format",
+        "json",
+    ]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["requires_attention"] is False
+
+
+def test_installed_entrypoint_diff_source_handoff_require_clear_fails_changed_evidence(tmp_path, capsys):
+    readme = tmp_path / "README.md"
+    readme.write_text("# Example\n", encoding="utf-8")
+    before_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    readme.write_text("# Example\n\nChanged\n", encoding="utf-8")
+    after_audit = build_content_audit_data(POLICY, ["README.md"], root=tmp_path)
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    before.write_text(json.dumps(before_audit), encoding="utf-8")
+    after.write_text(json.dumps(after_audit), encoding="utf-8")
+
+    assert cli_entry.main([
+        "diff-source-handoff",
+        "--root",
+        str(tmp_path),
+        "--before",
+        str(before),
+        "--after",
+        str(after),
+        "--require-clear",
+        "--format",
+        "json",
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["requires_attention"] is True
+    assert payload["summary"]["counts"]["changed"] == 1
+
+
 def test_installed_entrypoint_diff_source_handoff_refuses_bad_input(tmp_path, capsys):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"title": "other", "mode": "read-only", "audited_paths": []}), encoding="utf-8")
