@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-08 — AUTO-065
+
+- Task ID: AUTO-065 — Add patch-intent description artifact
+- Summary: Added `forge patch-intent-describe`, a read-only artifact that consumes reviewed `patch-intent-review` JSON and reports `described` only when the supplied evidence is ready, allows patch intent, contains compared paths, and has no blockers. The command supports `--require-described`, returning exit code `2` for blocked evidence while leaving files unchanged.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README, roadmap/state/changelog/decisions, CI workflow, patch-intent review implementation, CLI entrypoint, and related tests. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
+- Validation completed: Static review completed through the GitHub repository API. Deterministic tests cover described evidence, blocked evidence, text/JSON output, content non-disclosure, bad payloads, unsafe paths, symlinks, and installed-entrypoint `--require-described` pass/fail behavior. CI smoke coverage now exercises installed `forge patch-intent-describe --require-described` with clear live patch-intent review evidence. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit/status check
+- Follow-up notes: Add an explicit read-only patch-proposal description surface that accepts a concrete change objective and reviewed patch-intent description evidence without generating or applying patches automatically.
+
 ## 2026-07-08 — AUTO-064
 
 - Task ID: AUTO-064 — Add patch-intent review gate
@@ -17,15 +26,6 @@
 - Validation completed: Static review completed through the GitHub repository API. Added deterministic CLI regression tests for `content-audit` JSON output without leaking audited file content, `diff-source-handoff --require-clear` passing on unchanged clear evidence, and `diff-source-handoff --require-clear` returning exit code `2` on changed evidence. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: pending final commit/status check
 - Follow-up notes: Add a lightweight parser/CI command registry test that asserts every command named by the smoke workflow is present in the installed parser before CI reaches command execution.
-
-## 2026-07-08 — AUTO-062
-
-- Task ID: AUTO-062 — Add fail-closed diff-source handoff gate
-- Summary: Added `--require-clear` to `forge diff-source-handoff`. The command remains read-only and still emits the same text or JSON comparison evidence, but it now returns exit code `2` when supplied content-audit comparison evidence has added, removed, changed, non-clear, or otherwise attention-required observations.
-- Branch and PR assessment: Inspected repository metadata, recent closed/merged PRs, open issues, README, roadmap/state/changelog/decisions, CI workflow, CLI entrypoint, diff-source handoff docs, content-audit behavior, and installed-entrypoint tests. Recent PRs are closed, merged, or obsolete; no open PR required integration in this run.
-- Validation completed: Static review completed through the GitHub repository API. Deterministic installed-entrypoint tests now cover clear evidence passing with `--require-clear` and changed evidence returning exit code `2`. CI smoke coverage now runs the installed `forge diff-source-handoff --require-clear` command against unchanged live content-audit outputs and validates the JSON evidence.
-- Commit hash: pending final commit/status check
-- Follow-up notes: Add a guarded read-only patch-intent or git-diff review surface that consumes clear content-audit and diff-source evidence without generating or applying patches automatically.
 
 ## Historical note
 
