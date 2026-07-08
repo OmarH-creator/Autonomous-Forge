@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-087
+
+- Task ID: AUTO-087 — Add guarded patch-generation preview
+- Summary: Added `forge patch-generation-preview` and compatibility `forge-patch-generation-preview`, a guarded local patch preview command that reads ready patch-application readiness JSON, one reviewed target path, and one explicit replacement-text file to produce bounded unified diff text. It keeps `patch_application_allowed` false and refuses unready evidence, unreviewed paths, identical replacements, unsafe paths, symlinks, out-of-root inputs, non-UTF-8/oversized files, and simple secret-marker strings.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, change-readiness/status/diff implementations, focused docs, tests, policy, and CI workflow. Work stayed directly on `main`. Open PR #10 is a mergeable CI concurrency guard, but it was not integrated because the run needed to ship the next product capability beyond minor CI work. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for generated previews, blocked upstream evidence, identical replacement text, unreviewed target paths, unsafe path refusal, CLI JSON output, fail-closed generated gating, and secret-marker refusal. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: 55c9ceba921a0833b2a7c2240008d9e7cf687130 plus preceding implementation/test/docs commits
+- Follow-up notes: Design an explicitly confirmed patch applier that consumes generated patch preview, clear diff evidence, and clear status/readiness evidence before changing files.
+
 ## 2026-07-09 — AUTO-086
 
 - Task ID: AUTO-086 — Add combined change-readiness summary
@@ -17,24 +26,6 @@
 - Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for successful status evidence, failed/pending/unknown evidence, workflow-run evidence, missing evidence, JSON/text output, fail-closed clear gating, and out-of-root input refusal. Added installed workflow smoke coverage for primary and compatibility status-review routes. Direct local checkout/test execution remained unavailable in this environment.
 - Commit hash: aab3a39c5b7e89d07ef17927810300c79c4c924a plus preceding implementation/test/docs/workflow commits
 - Follow-up notes: Combine clear supplied git-diff review and clear supplied commit-status review into a single change-readiness summary before any write-capable patch applier is considered.
-
-## 2026-07-09 — AUTO-084
-
-- Task ID: AUTO-084 — Harden supplied git diff review for binary and metadata-only changes
-- Summary: Hardened `forge git-diff-review` and compatibility `forge-git-diff-review` so allowed-path binary diffs and metadata-only file-mode diffs no longer pass as clear ordinary text diffs. The JSON/text review data now surfaces per-file `binary`, `mode_changes`, and `metadata_only` fields, adds `binary_files` and `metadata_only_changes` summary counts, and makes `--require-clear` fail closed on those signals.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, git-diff review implementation, focused docs, tests, and CI workflow. Work stayed directly on `main`. No open PR required integration. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 remain product-direction or example/documentation feedback.
-- Validation completed: Static source/test/documentation review completed through the GitHub repository API. Added deterministic tests for binary diffs, metadata-only mode changes, text/JSON output fields, and fail-closed clear gating. Added installed workflow smoke coverage that verifies binary diff evidence fails `--require-clear` and still produces parseable JSON. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: 39dc809f990a18d5a401bd19d6d88b05809ffad5 plus preceding implementation/test/docs/workflow commits
-- Follow-up notes: Add guarded commit/workflow status inspection so reviewed diffs can be connected to observable validation status before any write-capable patch applier is considered.
-
-## 2026-07-08 — AUTO-083
-
-- Task ID: AUTO-083 — Add supplied git diff review
-- Summary: Shipped `forge git-diff-review` and compatibility `forge-git-diff-review`, a local read-only review over repository-local `.diff` and `.patch` files. The command parses unified diff metadata, file status, hunk counts, additions, deletions, old/new changed paths, policy status, path-presence signals, and parse warnings, with `--require-clear` for fail-closed advisory gating.
-- Branch and PR assessment: Inspected repository metadata, recent commits, open issues, recent PRs, branch search results, README/status, roadmap, state, changelog, decisions, pyproject, command router, existing patch-application readiness work, and tests. Work stayed directly on `main`. No open PR required integration. PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
-- Validation completed: Static source/package/router/test review completed through the GitHub repository API. Added deterministic tests for clean supplied diffs, blocked/unknown paths, JSON/text output, fail-closed behavior, out-of-root diff refusal, and primary `forge` routing. Direct local checkout/test execution remained unavailable in this environment.
-- Commit hash: pending-final-commit plus preceding implementation/documentation commits
-- Follow-up notes: Add a guarded commit/workflow status inspection command so reviewed diffs can be tied to observable validation status before any write-capable patch applier is considered.
 
 ## Historical note
 
