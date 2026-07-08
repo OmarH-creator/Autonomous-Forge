@@ -35,10 +35,12 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           forge --version
+          forge patch-application-preflight --help
           forge patch-proposal-review --help
           forge patch-proposal-draft --help
           forge patch-text-preflight --help
           forge patch-text-review --help
+          forge-patch-application-preflight --help
           forge-patch-proposal-review --help
           forge-patch-proposal-draft --help
           forge-patch-text-review --help
@@ -140,11 +142,22 @@ jobs:
             --root /tmp \
             --preflight autonomous-forge-patch-text-preflight.json \
             --path README.md \
-            --patch-summary "Review the README patch text summary." \
+            --patch-summary "Document the smoke-tested workflow." \
             --path src/autonomous_forge/content_audit.py \
-            --patch-summary "Review the content-audit patch text summary." \
+            --patch-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-text-review.json
+          forge patch-application-preflight \
+            --root /tmp \
+            --review autonomous-forge-patch-text-review.json \
+            --path README.md \
+            --patch-source ci-smoke-reviewed-summary \
+            --expected-summary "Document the smoke-tested workflow." \
+            --path src/autonomous_forge/content_audit.py \
+            --patch-source ci-smoke-reviewed-summary \
+            --expected-summary "Preserve content-audit implementation metadata." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-application-preflight.json
           forge-patch-proposal-review \
             --root /tmp \
             --manifest autonomous-forge-patch-proposal-manifest.json \
@@ -160,11 +173,22 @@ jobs:
             --root /tmp \
             --preflight autonomous-forge-patch-text-preflight.json \
             --path README.md \
-            --patch-summary "Review the README patch text summary." \
+            --patch-summary "Document the smoke-tested workflow." \
             --path src/autonomous_forge/content_audit.py \
-            --patch-summary "Review the content-audit patch text summary." \
+            --patch-summary "Preserve content-audit implementation metadata." \
             --require-ready \
             --format json > /tmp/autonomous-forge-patch-text-review-compat.json
+          forge-patch-application-preflight \
+            --root /tmp \
+            --review autonomous-forge-patch-text-review.json \
+            --path README.md \
+            --patch-source ci-smoke-reviewed-summary \
+            --expected-summary "Document the smoke-tested workflow." \
+            --path src/autonomous_forge/content_audit.py \
+            --patch-source ci-smoke-reviewed-summary \
+            --expected-summary "Preserve content-audit implementation metadata." \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-application-preflight-compat.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -183,6 +207,8 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-patch-text-preflight.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-text-review-compat.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-application-preflight.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-application-preflight-compat.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -257,6 +283,17 @@ jobs:
 
           patch_text_review_compat = json.loads(Path('/tmp/autonomous-forge-patch-text-review-compat.json').read_text(encoding='utf-8'))
           assert patch_text_review_compat == patch_text_review
+
+          patch_application_preflight = json.loads(Path('/tmp/autonomous-forge-patch-application-preflight.json').read_text(encoding='utf-8'))
+          assert patch_application_preflight['mode'] == 'read-only'
+          assert patch_application_preflight['preflight_status'] == 'ready'
+          assert patch_application_preflight['patch_application_preflight_allowed'] is True
+          assert patch_application_preflight['patch_application_allowed'] is False
+          assert patch_application_preflight['preflight_blockers'] == []
+          assert patch_application_preflight['reviewed_paths'] == patch_text_review['preflight_target_paths']
+
+          patch_application_preflight_compat = json.loads(Path('/tmp/autonomous-forge-patch-application-preflight-compat.json').read_text(encoding='utf-8'))
+          assert patch_application_preflight_compat == patch_application_preflight
           PY
       - name: Smoke-test run-history persistence flow
         run: |
