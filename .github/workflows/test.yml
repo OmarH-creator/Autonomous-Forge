@@ -98,6 +98,15 @@ jobs:
             --patch-review autonomous-forge-patch-intent-review.json \
             --require-described \
             --format json > /tmp/autonomous-forge-patch-intent-description.json
+          forge patch-proposal-manifest \
+            --root /tmp \
+            --description autonomous-forge-patch-intent-description.json \
+            --objective "Verify the read-only patch proposal manifest smoke path." \
+            --path README.md \
+            --path src/autonomous_forge/content_audit.py \
+            --validation "python -m pytest" \
+            --require-ready \
+            --format json > /tmp/autonomous-forge-patch-proposal-manifest.json
           python -m json.tool /tmp/autonomous-forge-review-artifact.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-validation-orchestration.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-command-execution-handoff.json > /dev/null
@@ -108,6 +117,7 @@ jobs:
           python -m json.tool /tmp/autonomous-forge-diff-source-handoff.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-intent-review.json > /dev/null
           python -m json.tool /tmp/autonomous-forge-patch-intent-description.json > /dev/null
+          python -m json.tool /tmp/autonomous-forge-patch-proposal-manifest.json > /dev/null
           python - <<'PY'
           import json
           from pathlib import Path
@@ -139,6 +149,12 @@ jobs:
           assert patch_description['intent_status'] == 'described'
           assert patch_description['patch_description_allowed'] is True
           assert patch_description['candidate_path_count'] == 2
+
+          patch_manifest = json.loads(Path('/tmp/autonomous-forge-patch-proposal-manifest.json').read_text(encoding='utf-8'))
+          assert patch_manifest['mode'] == 'read-only'
+          assert patch_manifest['manifest_status'] == 'ready'
+          assert patch_manifest['proposal_allowed'] is True
+          assert patch_manifest['requested_path_count'] == 2
           PY
       - name: Smoke-test run-history persistence flow
         run: |
