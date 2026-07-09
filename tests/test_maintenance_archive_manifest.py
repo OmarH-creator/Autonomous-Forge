@@ -8,7 +8,7 @@ from autonomous_forge.maintenance_archive_manifest_cli import main as archive_ma
 STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"]
 
 
-def write_replayable_bundle(tmp_path, bundle_id="AUTO-129", commit_sha="abc1234", *, reviewed_paths=None):
+def write_replayable_bundle(tmp_path, bundle_id="AUTO-130", commit_sha="abc1234", *, reviewed_paths=None):
     reviewed_paths = reviewed_paths or ["README.md"]
     validation_context = {
         "expected_file_changes": ["Update archive manifest command"],
@@ -57,7 +57,7 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-129", commit_sha="abc1234"
     return bundle_path, validation_context
 
 
-def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-129", commit_sha="abc1234", sha256=None):
+def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-130", commit_sha="abc1234", sha256=None):
     digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
     link = {
         "schema_version": "maintenance-bundle-history-link/v1",
@@ -99,8 +99,9 @@ def test_archive_manifest_preview_lists_candidate_evidence(tmp_path):
     data = build_maintenance_archive_manifest_data([link], root=tmp_path)
 
     assert data["manifest_status"] == "ready"
-    assert data["write_allowed"] is False
-    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-129"
+    assert data["write_allowed"] is True
+    assert data["manifest_written"] is False
+    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-130"
     assert data["archive_entry_count"] == 7
     assert data["source_report_count"] == 5
     assert data["archive_integrity"]["status"] == "passed"
@@ -154,6 +155,7 @@ def test_archive_manifest_text_shows_integrity_gates(tmp_path, capsys):
     assert status == 0
     output = capsys.readouterr().out
     assert "Archive integrity: status=passed" in output
+    assert "Manifest written: false" in output
     assert "sha256_verified=true" in output
     assert "Archive integrity gates:" in output
 
@@ -167,3 +169,87 @@ def test_archive_manifest_cli_require_ready_blocks(tmp_path, capsys):
     assert status == 2
     output = capsys.readouterr().out
     assert "Manifest status: blocked" in output
+
+
+def test_archive_manifest_write_requires_confirm_write(tmp_path, capsys):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+    output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
+    output.parent.mkdir()
+
+    status = archive_manifest_main(["--root", str(tmp_path), "--link", str(link), "--output", str(output)])
+
+    assert status == 2
+    assert not output.exists()
+    assert "requires --confirm-write" in capsys.readouterr().out
+
+
+def test_archive_manifest_confirmed_write_persists_ready_manifest(tmp_path, capsys):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+    output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
+    output.parent.mkdir()
+
+    status = archive_manifest_main([
+        "--root",
+        str(tmp_path),
+        "--link",
+        str(link),
+        "--output",
+        str(output),
+        "--confirm-write",
+        "--format",
+        "json",
+    ])
+
+    assert status == 0
+    assert output.exists()
+    printed = json.loads(capsys.readouterr().out)
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert printed["manifest_written"] is True
+    assert printed["manifest_path"] == ".ai/archives/AUTO-130-manifest.json"
+    assert saved["manifest_written"] is True
+    assert saved["archive_entry_count"] == 7
+    assert saved["write_allowed"] is False
+
+
+def test_archive_manifest_write_refuses_existing_output(tmp_path, capsys):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+    output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
+    output.parent.mkdir()
+    output.write_text("existing", encoding="utf-8")
+
+    status = archive_manifest_main([
+        "--root",
+        str(tmp_path),
+        "--link",
+        str(link),
+        "--output",
+        str(output),
+        "--confirm-write",
+    ])
+
+    assert status == 2
+    assert output.read_text(encoding="utf-8") == "existing"
+    assert "refusing to overwrite" in capsys.readouterr().out
+
+
+def test_archive_manifest_write_refuses_outside_root(tmp_path, capsys):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+    outside = tmp_path.parent / "outside-manifest.json"
+
+    status = archive_manifest_main([
+        "--root",
+        str(tmp_path),
+        "--link",
+        str(link),
+        "--output",
+        str(outside),
+        "--confirm-write",
+    ])
+
+    assert status == 2
+    assert not outside.exists()
+    assert "output path must stay inside" in capsys.readouterr().out
