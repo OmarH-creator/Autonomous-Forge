@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 from autonomous_forge.maintenance_evidence_bundle import (
@@ -57,6 +58,15 @@ POST_PUSH_VERIFY = {
 }
 
 
+SOURCE_REPORTS = [
+    {"stage": "patch_apply", "path": "patch-apply.json", "sha256": "a" * 64, "bytes": 123},
+    {"stage": "post_apply_validation", "path": "post-apply-validation.json", "sha256": "b" * 64, "bytes": 124},
+    {"stage": "commit_verify", "path": "commit-verify.json", "sha256": "c" * 64, "bytes": 125},
+    {"stage": "push_handoff", "path": "push-handoff.json", "sha256": "d" * 64, "bytes": 126},
+    {"stage": "post_push_verify", "path": "post-push-verify.json", "sha256": "e" * 64, "bytes": 127},
+]
+
+
 def test_build_maintenance_evidence_bundle_complete():
     data = build_maintenance_evidence_bundle_data(
         PATCH_APPLY,
@@ -64,13 +74,16 @@ def test_build_maintenance_evidence_bundle_complete():
         COMMIT_VERIFY,
         PUSH_HANDOFF,
         POST_PUSH_VERIFY,
-        bundle_id="AUTO-099",
+        bundle_id="AUTO-100",
+        source_reports=SOURCE_REPORTS,
     )
 
     assert data["bundle_status"] == "complete"
     assert data["bundle_complete"] is True
     assert data["commit_sha"] == "abc1234"
     assert data["reviewed_paths"] == ["README.md", "src/autonomous_forge/example.py"]
+    assert data["source_reports"] == SOURCE_REPORTS
+    assert data["summary"]["source_reports"] == 5
     assert data["write_allowed"] is False
 
 
@@ -116,7 +129,37 @@ def test_build_maintenance_evidence_bundle_refuses_unsafe_path():
         raise AssertionError("unsafe path was not refused")
 
 
-def test_read_maintenance_evidence_bundle_data_reads_repository_local_json(tmp_path):
+def test_build_maintenance_evidence_bundle_refuses_malformed_source_hash():
+    try:
+        build_maintenance_evidence_bundle_data(
+            PATCH_APPLY,
+            POST_APPLY_VALIDATION,
+            COMMIT_VERIFY,
+            PUSH_HANDOFF,
+            POST_PUSH_VERIFY,
+            source_reports=[{"stage": "patch_apply", "path": "patch-apply.json", "sha256": "not-a-sha", "bytes": 10}],
+        )
+    except MaintenanceEvidenceBundleError as exc:
+        assert "lowercase SHA-256" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("malformed source report hash was not refused")
+
+
+def test_build_maintenance_evidence_bundle_blocks_missing_source_hash_stage():
+    data = build_maintenance_evidence_bundle_data(
+        PATCH_APPLY,
+        POST_APPLY_VALIDATION,
+        COMMIT_VERIFY,
+        PUSH_HANDOFF,
+        POST_PUSH_VERIFY,
+        source_reports=SOURCE_REPORTS[:-1],
+    )
+
+    assert data["bundle_status"] == "blocked"
+    assert "source report hashes are missing stages: post_push_verify" in data["bundle_blockers"]
+
+
+def test_read_maintenance_evidence_bundle_data_reads_repository_local_json_and_hashes_sources(tmp_path):
     files = {
         "patch-apply.json": PATCH_APPLY,
         "post-apply-validation.json": POST_APPLY_VALIDATION,
@@ -137,6 +180,15 @@ def test_read_maintenance_evidence_bundle_data_reads_repository_local_json(tmp_p
     )
 
     assert data["bundle_status"] == "complete"
+    assert [item["stage"] for item in data["source_reports"]] == [
+        "patch_apply",
+        "post_apply_validation",
+        "commit_verify",
+        "push_handoff",
+        "post_push_verify",
+    ]
+    expected = hashlib.sha256((tmp_path / "patch-apply.json").read_bytes()).hexdigest()
+    assert data["source_reports"][0]["sha256"] == expected
 
 
 def test_write_maintenance_evidence_bundle_requires_confirmation(tmp_path):
