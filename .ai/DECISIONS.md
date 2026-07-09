@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-121 — 2026-07-09 — Run-history links should have a pointer-level quality review
+
+Context: AUTO-120 added compact replay policy gates for persisted maintenance bundles, but maintainers still had to open a full bundle before knowing whether a small `.ai/run-history/` pointer contained enough information to continue replay review.
+Decision: Add `forge maintenance-history-link-review` and `forge-maintenance-history-link-review` as read-only commands that validate one persisted history-link schema and report compact quality gates for confirmed link write status, bundle path/hash pointer, reviewed paths, validation steps, required source-report stage pointers, and retained validation context.
+Alternatives considered: Fold pointer review into `forge maintenance-replay-summary`, require every history link to include validation context, or skip pointer review and rely only on bundle verification. Folding it into replay summary would require opening full bundles before pointer quality is known, hard-failing missing context would make older links unusable, and skipping pointer review leaves run-history navigation less trustworthy.
+Consequences: Maintainers can triage a run-history pointer before deeper hash-linked bundle replay. The new command reviews pointer quality only; it does not read the linked bundle, recompute hashes, rerun validation, poll workflows, inspect diffs, verify signatures, or prove validation coverage.
+Human decision still required: No.
+
 ## DEC-120 — 2026-07-09 — Replay summaries should expose compact policy gates
 
 Context: AUTO-119 made `forge maintenance-replay-summary` block replayability when retained validation context no longer matched reviewed paths or preserved validation steps. The output still required maintainers to interpret raw blockers, source-report summaries, and consistency fields to understand which replay checks passed, failed, or were advisory.
