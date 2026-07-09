@@ -17,6 +17,7 @@ from autonomous_forge.maintenance_bundle_verify_cli import main as _maintenance_
 from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
 from autonomous_forge.maintenance_history_link_review_cli import main as _maintenance_history_link_review_main
 from autonomous_forge.maintenance_replay_summary_cli import main as _maintenance_replay_summary_main
+from autonomous_forge.maintenance_review_compare_cli import main as _maintenance_review_compare_main
 from autonomous_forge.maintenance_review_handoff_cli import main as _maintenance_review_handoff_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
@@ -46,6 +47,7 @@ _EXTENSION_COMMANDS = {
     "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
     "maintenance-history-link-review": _maintenance_history_link_review_main,
     "maintenance-replay-summary": _maintenance_replay_summary_main,
+    "maintenance-review-compare": _maintenance_review_compare_main,
     "maintenance-review-handoff": _maintenance_review_handoff_main,
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
