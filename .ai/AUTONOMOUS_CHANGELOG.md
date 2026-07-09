@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-118
+
+- Task ID: AUTO-118 — Validation-context-preserving maintenance bundle creation and history links
+- Summary: Enhanced `forge maintenance-evidence-bundle` so generated maintenance bundles and optional `.ai/run-history/` history-link pointers retain supported upstream `validation_context` fields: expected file changes, implementation steps, validation steps, and risk register. Malformed validation context now blocks bundle completion instead of silently dropping ambiguous implementation-plan evidence.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap, state, changelog, decisions, maintenance bundle implementation, focused tests, and maintenance bundle docs. Work stayed directly on `main`. Prior PRs remain merged/closed/obsolete; no open PR or branch required integration.
+- Validation completed: Local scratch syntax compilation passed for the updated bundle implementation. Focused scratch pytest for `tests/test_maintenance_bundle_validation_context.py` passed 4 tests. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a policy-aware bundle-context consistency check that compares retained expected file changes against reviewed paths and retained validation steps against preserved validation steps before replayability is trusted.
+
 ## 2026-07-09 — AUTO-117
 
 - Task ID: AUTO-117 — Validation-context-aware maintenance replay summaries
