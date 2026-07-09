@@ -8,6 +8,8 @@ It is intended for reviewers who already have completed maintenance evidence bun
 - the selected maintenance bundle;
 - each source evidence report referenced by the bundle;
 - current existence and byte counts for those repository-local files;
+- current SHA-256 verification for the maintenance bundle and source evidence reports;
+- archive integrity gate totals and per-entry pass/fail/advisory reasons;
 - the pushed commit, remote, and branch target;
 - blockers and next preservation guidance.
 
@@ -19,7 +21,7 @@ forge maintenance-archive-manifest \
   --link .ai/run-history/AUTO-121-link.json
 ```
 
-Use `--require-ready` when the preview should fail closed unless the comparison is ready, a selected candidate exists, and all listed archive entries are present:
+Use `--require-ready` when the preview should fail closed unless the comparison is ready, a selected candidate exists, all listed archive entries are present, and hash/byte-count integrity gates pass:
 
 ```bash
 forge maintenance-archive-manifest \
@@ -41,9 +43,17 @@ The compatibility script is also available:
 forge-maintenance-archive-manifest --help
 ```
 
+## Integrity gates
+
+The manifest preview recomputes local SHA-256 values for the selected maintenance bundle and source reports. Source reports also compare current byte counts to the values recorded in the bundle. The output includes an `archive_integrity` object in JSON and an `Archive integrity` line in text output.
+
+A ready manifest requires zero failed integrity gates. Missing files, source-report hash drift, or byte-count drift block readiness before a future archive writer can safely use the manifest.
+
+The run-history link is still listed as an advisory entry because the linked bundle and replay gates already verify the hash-linked evidence chain. The preview does not invent a new expected digest for the link itself.
+
 ## Safety boundary
 
-The command reads repository-local history links, linked bundle JSON, and source-report metadata. It recomputes local path existence and byte counts, but it does not copy files, write archive manifests, create archives, change files, stage, commit, push, poll workflows, inspect live remotes, or prove signer identity.
+The command reads repository-local history links, linked bundle JSON, and source-report metadata. It recomputes local path existence, byte counts, and source-report hashes, but it does not copy files, write archive manifests, create archives, change files, stage, commit, push, poll workflows, inspect live remotes, or prove signer identity.
 
 ## Exit codes
 
