@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-102 — 2026-07-09 — Verified commits need a local trust checkpoint
+
+Context: The workflow can now create and verify a local commit against reviewed evidence, but content/message/path verification alone does not expose whether the commit is unsigned, badly signed, expired, revoked, uncheckable, or mismatched during local git signature inspection.
+Decision: Add `forge commit-trust-review` plus compatibility `forge-commit-trust-review`. The command consumes verified `commit-verify` JSON, inspects the same local commit with `git show --format=%H%x00%G?%x00%GS%x00%GF`, reports `trusted` only for trusted git signature states, and keeps `push_allowed` and `remote_changes_allowed` false.
+Alternatives considered: Fold trust inspection into `commit-verify`, defer trust to manual review, require push-readiness to inspect signatures directly, use GitHub API signature verification instead of local git, or introduce a full allowed-signer policy immediately.
+Consequences: Maintainers now get a deterministic local trust checkpoint before push-readiness without expanding write, commit, push, remote, network, workflow, or environment-read authority. This is not yet an allowed-signer policy, identity proof, branch-protection proof, or remote attestation system.
+Human decision still required: No.
+
 ## DEC-101 — 2026-07-09 — Persisted bundles need a local drift verifier
 
 Context: AUTO-100 added SHA-256 source-report fingerprints to durable maintenance evidence bundles, but the repository still lacked a command that could later recompute those fingerprints and report whether the persisted bundle still matched its local source evidence files.
