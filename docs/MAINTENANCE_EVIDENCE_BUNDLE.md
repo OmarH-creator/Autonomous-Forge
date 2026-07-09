@@ -20,7 +20,7 @@ forge maintenance-evidence-bundle \
   --commit-verify commit-verify.json \
   --push-handoff push-handoff.json \
   --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-099 \
+  --bundle-id AUTO-100 \
   --require-complete \
   --format json > maintenance-evidence-bundle.json
 ```
@@ -35,16 +35,22 @@ forge maintenance-evidence-bundle \
   --commit-verify commit-verify.json \
   --push-handoff push-handoff.json \
   --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-099 \
-  --output .ai/run-history/AUTO-099-bundle.json \
+  --bundle-id AUTO-100 \
+  --output .ai/run-history/AUTO-100-bundle.json \
   --confirm-write \
   --require-written \
   --format json
 ```
 
+## Hash-linked source reports
+
+Each bundle now records a `source_reports` array with the stage name, repository-local input path, byte count, and SHA-256 digest for every source JSON report. This makes the durable bundle easier to audit later: if any source report is edited, replaced, or regenerated, maintainers can recompute the digest and detect that the preserved bundle no longer matches the report bytes used at bundle creation time.
+
+The hashes are provenance fingerprints for stale-report detection. They do not prove author identity, validate commit signatures, rerun workflows, or replace human review.
+
 ## Safety boundary
 
-The command reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, and checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied and the bundle is complete.
+The command reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, and records bounded SHA-256 source-report fingerprints. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied and the bundle is complete.
 
 It does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables.
 
@@ -56,6 +62,7 @@ A bundle is `complete` only when:
 - post-apply validation shows a passed validation result for the same target path;
 - commit verification is verified and reports reviewed changed paths;
 - push handoff is pushed, non-force, and references the verified commit;
-- post-push verification is verified for the same commit and reviewed paths.
+- post-push verification is verified for the same commit and reviewed paths;
+- all provided source-report hash entries are valid lowercase SHA-256 fingerprints for the expected evidence stages.
 
 When any stage is missing, stale, unsafe, or inconsistent, the command reports `bundle_status: blocked` and lists blockers. Use `--require-complete` or `--require-written` when automation should fail closed.
