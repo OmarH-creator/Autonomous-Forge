@@ -13,16 +13,28 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the parser for the push-readiness command."""
     parser = argparse.ArgumentParser(
         prog="forge push-readiness",
-        description="Summarize push readiness from verified commit, trusted signature metadata, and clear workflow status.",
+        description=(
+            "Summarize push readiness from verified commit, trusted signature metadata, clear workflow status, "
+            "and supplied branch-protection evidence."
+        ),
     )
     parser.add_argument("--root", default=".", help="repository root used to constrain supplied evidence inputs")
     parser.add_argument("--commit-verify", required=True, help="repository-local commit-verify JSON report")
     parser.add_argument("--commit-trust", required=True, help="repository-local commit-trust-review JSON report")
     parser.add_argument("--status-review", required=True, help="repository-local commit-status-review JSON report")
     parser.add_argument(
+        "--branch-protection",
+        required=True,
+        help="repository-local branch-protection JSON evidence for the branch being pushed",
+    )
+    parser.add_argument("--branch", default="main", help="branch name expected in the supplied branch-protection evidence")
+    parser.add_argument(
         "--require-ready",
         action="store_true",
-        help="return exit code 2 unless commit verification, commit trust, and status evidence are ready for push consideration",
+        help=(
+            "return exit code 2 unless commit verification, commit trust, status evidence, "
+            "and branch-protection evidence are ready for push consideration"
+        ),
     )
     parser.add_argument(
         "--format",
@@ -42,6 +54,8 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.commit_verify),
             Path(args.commit_trust),
             Path(args.status_review),
+            Path(args.branch_protection),
+            branch=args.branch,
             root=Path(args.root),
         )
     except FileNotFoundError as exc:
