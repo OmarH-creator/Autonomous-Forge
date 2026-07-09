@@ -45,7 +45,9 @@ jobs:
           forge git-diff-review --help
           forge maintenance-bundle-verify --help
           forge maintenance-evidence-bundle --help
+          forge maintenance-history-link-review --help
           forge maintenance-replay-summary --help
+          forge maintenance-review-handoff --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
           forge patch-application-readiness --help
@@ -69,7 +71,9 @@ jobs:
           forge-git-diff-review --help
           forge-maintenance-bundle-verify --help
           forge-maintenance-evidence-bundle --help
+          forge-maintenance-history-link-review --help
           forge-maintenance-replay-summary --help
+          forge-maintenance-review-handoff --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
           forge-patch-application-readiness --help
