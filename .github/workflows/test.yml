@@ -43,6 +43,7 @@ jobs:
           forge commit-trust-review --help
           forge commit-verify --help
           forge git-diff-review --help
+          forge maintenance-archive-manifest --help
           forge maintenance-bundle-verify --help
           forge maintenance-evidence-bundle --help
           forge maintenance-history-link-review --help
@@ -70,6 +71,7 @@ jobs:
           forge-commit-trust-review --help
           forge-commit-verify --help
           forge-git-diff-review --help
+          forge-maintenance-archive-manifest --help
           forge-maintenance-bundle-verify --help
           forge-maintenance-evidence-bundle --help
           forge-maintenance-history-link-review --help
