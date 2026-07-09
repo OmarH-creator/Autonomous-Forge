@@ -32,6 +32,7 @@ The reader refuses to summarize a record unless all of these are true:
 - The record is a file, not a directory.
 - The JSON payload uses the supported `run-history/v1` schema.
 - The core `record`, `record.task`, and `preflight_summary` fields are JSON objects.
+- If present, `record.validation_context` is a JSON object.
 
 ## Summary fields
 
@@ -42,6 +43,7 @@ The text and JSON summaries include:
 - selected task identity and status before the run;
 - review status and attention flag;
 - validation execution/result fields;
+- retained validation context fields when present: `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`;
 - changed-files summary and commit field;
 - preflight pass/warn/block summary;
 - persistence mode;
@@ -50,4 +52,4 @@ The text and JSON summaries include:
 
 ## Current limitations
 
-This command intentionally reads one explicit real JSON record only. It does not list records, follow symlinked records, build a durable index, compare runs, verify commits, check workflow status, inspect repository settings, run tests, or infer success beyond the contents of the selected JSON record.
+This command intentionally reads one explicit real JSON record only. It does not list records, follow symlinked records, build a durable index, compare runs, verify commits, check workflow status, inspect repository settings, run tests, or infer success beyond the contents of the selected JSON record. Retained validation context is displayed for auditability only and remains advisory copied from the saved JSON record.
