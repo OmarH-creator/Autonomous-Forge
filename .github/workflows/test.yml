@@ -45,6 +45,7 @@ jobs:
           forge git-diff-review --help
           forge maintenance-archive-copy --help
           forge maintenance-archive-copy-preview --help
+          forge maintenance-archive-copy-verify --help
           forge maintenance-archive-manifest --help
           forge maintenance-bundle-verify --help
           forge maintenance-evidence-bundle --help
@@ -75,6 +76,7 @@ jobs:
           forge-git-diff-review --help
           forge-maintenance-archive-copy --help
           forge-maintenance-archive-copy-preview --help
+          forge-maintenance-archive-copy-verify --help
           forge-maintenance-archive-manifest --help
           forge-maintenance-bundle-verify --help
           forge-maintenance-evidence-bundle --help
