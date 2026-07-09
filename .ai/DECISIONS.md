@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-108 — 2026-07-09 — Completed bundles need run-history links
+
+Context: AUTO-099 through AUTO-103 created complete maintenance evidence bundles, source-report hash verification, and replay summaries, but a completed pushed bundle still had to be discovered by knowing the exact persisted bundle path. The roadmap after AUTO-107 identified durable run-history linkage for completed pushed bundles as the next safe step.
+Decision: Extend `forge maintenance-evidence-bundle` with optional `--history-link`, `--confirm-history-link`, and `--require-history-linked` support. The command writes one small `maintenance-bundle-history-link/v1` JSON pointer under `.ai/run-history/` only after the bundle itself is complete and already written.
+Alternatives considered: Copy the full bundle into multiple run-history files, modify the legacy run-history schema, add a separate command first, auto-write links without confirmation, overwrite an existing latest pointer, or defer all discovery until a future index command exists.
+Consequences: Maintainers can now preserve a lightweight durable pointer to completed pushed bundles without duplicating the full bundle. The link records bundle hash/size, commit, branch, reviewed paths, validation steps, and source-report fingerprints, but it does not verify hashes, sign evidence, prove remote state, or replace bundle verification/replay commands.
+Human decision still required: No.
+
 ## DEC-107 — 2026-07-09 — Push handoff must enforce branch-policy evidence
 
 Context: AUTO-106 made `forge push-readiness` branch-protection aware, but the push-capable `forge push-handoff` boundary still needed to reject older ready reports that predated protected-branch/status-context evidence. Without that explicit check, stale ready JSON could reach the local git inspection and confirmed push path.
@@ -14,30 +22,6 @@ Context: `forge push-readiness` already required commit verification, commit tru
 Decision: Require `forge push-readiness` to consume `--branch-protection` JSON for the target branch. The command now checks that the supplied branch is protected, that required status checks are strict/up-to-date, that required contexts or checks are present, and that every required context appears in the supplied clear status-review evidence.
 Alternatives considered: Add a separate branch-protection-review command first, call GitHub APIs directly from push-readiness, leave branch policy to manual review, push first and rely on GitHub rejection, or defer branch protection until a full remote policy model exists.
 Consequences: Push-readiness now encodes a stronger branch-policy gate without adding git execution, network calls, pushes, remote mutation, workflow reruns, branch-protection changes, environment reads, or working-tree writes. The gate trusts supplied JSON and exact status-context names; it does not prove the branch policy is current.
-Human decision still required: No.
-
-## DEC-105 — 2026-07-09 — Commit trust can require an allowed signer
-
-Context: `forge commit-trust-review` already inspected local git signature metadata and blocked unsigned, bad, expired, revoked, uncheckable, or mismatched commits before push-readiness. However, a trusted git signature code alone did not let maintainers express a repository-specific identity policy for which signer names or key fingerprints are allowed to advance toward push handoff.
-Decision: Add optional allowed-signer policy support to `forge commit-trust-review`. The command accepts `--allowed-signers` for one repository-local JSON policy with a non-empty `allowed_signers` list. Entries match exact signer, exact key fingerprint, or both; wildcard identity values are refused. When the policy is supplied, otherwise trusted signatures block unless the inspected signer/key fingerprint matches at least one allowlist entry.
-Alternatives considered: Keep signer review manual, make all trusted local git signatures pass, require a default checked-in allowlist before adding the feature, move allowlist checks into push-readiness, call GitHub signing APIs, or defer until a full cryptographic attestation model exists.
-Consequences: The push-readiness evidence chain can now include repository-specific maintainer identity policy without adding staging, commit creation, push execution, network calls, remote mutation, workflow reruns, environment reads, or branch-protection changes. The feature still relies on local `git show` signature metadata and exact policy strings; it does not manage keys or prove organization membership.
-Human decision still required: No.
-
-## DEC-104 — 2026-07-09 — Push handoff must preflight fast-forward ancestry
-
-Context: `forge push-handoff` was already explicitly confirmed, non-force, branch/upstream checked, and limited to one verified commit pushed to one branch, but it did not explicitly verify that the current remote-tracking branch tip was an ancestor of the verified commit before attempting the push. A normal `git push` would reject many non-fast-forward updates, but the safe maintenance workflow benefits from reporting that blocker deterministically before remote mutation is attempted.
-Decision: Add a fast-forward guard to `forge push-handoff`. After readiness, branch, HEAD, upstream, and remote-ref checks pass, the command runs `git merge-base --is-ancestor <remote-sha> <verified-commit>` and blocks confirmed pushes when the verified commit is not a descendant of the current remote branch tip. The report exposes `fast_forward_checked` for review.
-Alternatives considered: Rely on non-force `git push` rejection, require users to run fetch manually without a tool-level check, move the check into post-push verification only, add branch-protection API checks first, or disable the push-capable handoff until a larger remote policy model exists.
-Consequences: Confirmed pushes now fail earlier and more clearly on stale or divergent remote history while preserving the existing no-force, no-tags, no-remote-configuration, no-branch-protection-mutation boundary. The guard still relies on local remote-tracking refs, so maintainers should refresh refs before using the handoff when remote state may have changed.
-Human decision still required: No.
-
-## DEC-103 — 2026-07-09 — Persisted bundles need a replay summary
-
-Context: AUTO-101 can verify that a persisted maintenance evidence bundle still matches its source-report hashes, but maintainers still lacked one compact command that explains whether the saved patch, validation, commit, push, and post-push chain is internally complete and replayable.
-Decision: Add `forge maintenance-replay-summary` plus compatibility `forge-maintenance-replay-summary`. The command consumes one persisted bundle, reuses the bundle verifier to detect source-report drift, checks the bundle completion fields, safe reviewed paths, target path, validation steps, and expected evidence-chain stages, then reports `replayable` or `blocked` with blockers.
-Alternatives considered: Leave replay decisions to manual review, add replay output to `maintenance-bundle-verify`, require rerunning validation/workflows, poll GitHub Actions, inspect branch protection remotely, or defer this until a cryptographic attestation model exists.
-Consequences: Maintainers now have a deterministic local replay decision for saved maintenance evidence without adding writes, patch application, validation execution, commits, pushes, remote mutation, workflow reruns, polling, or environment reads. This is still evidence replay, not proof of current remote state, signer identity, or branch-protection compliance.
 Human decision still required: No.
 
 ## Historical note
