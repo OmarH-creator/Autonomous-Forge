@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-123
+
+- Task ID: AUTO-123 — Maintenance review handoff
+- Summary: Added `forge maintenance-review-handoff` and `forge-maintenance-review-handoff` to produce a single reviewer-facing handoff from a `.ai/run-history` pointer and its linked bundle replay. The handoff reports pointer quality, linked bundle SHA-256 verification, replay status, compact replay policy counts, blockers, reviewed paths, validation steps, retained validation context, and final preservation guidance.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, open issues, maintenance history-link review code/CLI/tests/docs, maintenance replay surfaces, package scripts, and CI smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused tests. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for ready handoffs, linked bundle hash mismatch blocking, JSON CLI output, and `--require-ready` fail-closed behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add comparison-oriented maintenance handoff summaries so reviewers can compare completed run handoffs without opening raw bundle JSON.
+
 ## 2026-07-09 — AUTO-122
 
 - Task ID: AUTO-122 — Linked-bundle replay from history-link review
