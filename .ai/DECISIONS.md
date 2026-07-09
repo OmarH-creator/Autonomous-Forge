@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-115 — 2026-07-09 — Validation-result writes should retain implementation context
+
+Context: AUTO-109 through AUTO-114 carried expected file changes, implementation steps, validation steps, and risk register fields from `forge plan` through executor-run output and the validation-result persistence handoff. The final `validation-result-write` persistence step still attached only validation execution/result/note fields, which meant persisted records could lose a normalized context block for the result being attached.
+Decision: Update `forge validation-result-write` internals to copy existing implementation context fields from the source run-history record into `record.validation_context` when attaching a supplied validation result. Also report retained context through the Python API while keeping the existing CLI JSON summary compact and backward-compatible.
+Alternatives considered: Add a new result-record review command, require executor-output JSON for every validation-result write, expand CLI JSON unconditionally, or automatically verify validation coverage against retained fields. Those options either delayed persistence closure, narrowed a general writer into one executor-only path, risked breaking existing automation, or implied proof the writer cannot provide.
+Consequences: Saved validation-result records now preserve implementation intent beside externally supplied validation evidence, making later review and bundling safer. The writer still requires explicit confirmation, does not run commands, does not infer success, and treats retained context as advisory copied from trusted local JSON.
+Human decision still required: No.
+
 ## DEC-114 — 2026-07-09 — Executor-run results should preserve implementation context
 
 Context: AUTO-109 through AUTO-113 made planning, proposal, validation, orchestration, executor handoff, executor gate, executor contract, and executor dry-run artifacts carry implementation-grade fields, but `forge executor-run` still centered on command text, execution status, return code, captured output, and validation-result persistence command text. That created a structure-loss gap exactly when local validation evidence became observable.
