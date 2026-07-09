@@ -10,6 +10,7 @@ from autonomous_forge.commit_create_cli import main as _commit_create_main
 from autonomous_forge.commit_proposal_preview_cli import main as _commit_proposal_preview_main
 from autonomous_forge.commit_readiness_cli import main as _commit_readiness_main
 from autonomous_forge.commit_status_review_cli import main as _commit_status_review_main
+from autonomous_forge.commit_verify_cli import main as _commit_verify_main
 from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
@@ -29,6 +30,7 @@ _EXTENSION_COMMANDS = {
     "commit-proposal-preview": _commit_proposal_preview_main,
     "commit-readiness": _commit_readiness_main,
     "commit-status-review": _commit_status_review_main,
+    "commit-verify": _commit_verify_main,
     "git-diff-review": _git_diff_review_main,
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
