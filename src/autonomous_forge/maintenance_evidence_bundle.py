@@ -15,6 +15,12 @@ _SAFE_BOUNDARY = (
     "commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, "
     "or read environment variables."
 )
+_HISTORY_LINK_BOUNDARY = (
+    "Maintenance history linking writes one small repository-local JSON pointer under .ai/run-history/ only after explicit "
+    "confirmation and only from a completed, already-written maintenance bundle. It does not rewrite the bundle, inspect "
+    "source reports, run validation commands, stage files, create commits, push, change remotes, change branch protections, "
+    "rerun workflows, or read environment variables."
+)
 
 
 class MaintenanceEvidenceBundleError(ValueError):
@@ -128,6 +134,15 @@ def _clean_source_reports(source_reports: Any) -> list[dict[str, Any]]:
         seen_stages.add(stage)
         cleaned.append({"stage": stage, "path": path, "sha256": digest, "bytes": size})
     return cleaned
+
+
+def _safe_bundle_id(value: str) -> str:
+    bundle_id = value.strip()
+    if not bundle_id or bundle_id != value or any(char in bundle_id for char in "\\/\n\r\t"):
+        raise MaintenanceEvidenceBundleError("bundle id must be safe for a run-history link")
+    if bundle_id in {".", ".."} or ".." in bundle_id:
+        raise MaintenanceEvidenceBundleError("bundle id must be safe for a run-history link")
+    return bundle_id
 
 
 def build_maintenance_evidence_bundle_data(
@@ -298,6 +313,71 @@ def write_maintenance_evidence_bundle(data: dict[str, Any], output_path: Path, *
     return to_write
 
 
+def write_maintenance_history_link(
+    data: dict[str, Any],
+    *,
+    bundle_path: Path,
+    link_path: Path,
+    root: Path,
+    confirm_link: bool,
+) -> dict[str, Any]:
+    """Persist one run-history link for an already-written complete maintenance bundle."""
+    blockers = list(data.get("bundle_blockers") or [])
+    if data.get("bundle_status") != "complete" or data.get("bundle_complete") is not True:
+        blockers.append("bundle is not complete")
+    if data.get("write_status") != "written":
+        blockers.append("bundle must be written before creating a run-history link")
+    if not confirm_link:
+        blockers.append("explicit --confirm-history-link was not provided")
+
+    resolved_bundle = _resolve_under_root(root, bundle_path, kind="bundle output")
+    resolved_link = _resolve_under_root(root, link_path, kind="history link", must_exist=False)
+    history_dir = (root.resolve() / ".ai" / "run-history").resolve()
+    try:
+        resolved_link.relative_to(history_dir)
+    except ValueError as exc:
+        raise MaintenanceEvidenceBundleError("history link path must stay under .ai/run-history/") from exc
+    if resolved_link.suffix != ".json":
+        raise MaintenanceEvidenceBundleError("history link path must use .json extension")
+    if resolved_link.exists():
+        blockers.append("history link output already exists")
+
+    bundle_id = _safe_bundle_id(_clean_text(data.get("bundle_id")))
+    link_payload = {
+        "schema_version": "maintenance-bundle-history-link/v1",
+        "title": "Autonomous Forge maintenance bundle history link",
+        "mode": "explicit local run-history link",
+        "bundle_id": bundle_id,
+        "bundle_path": str(bundle_path),
+        "bundle_sha256": hashlib.sha256(resolved_bundle.read_bytes()).hexdigest(),
+        "bundle_bytes": resolved_bundle.stat().st_size,
+        "commit_sha": _clean_text(data.get("commit_sha")),
+        "remote": _clean_text(data.get("remote")),
+        "branch": _clean_text(data.get("branch")),
+        "remote_ref": _clean_text(data.get("remote_ref")),
+        "reviewed_paths": list(data.get("reviewed_paths") or []),
+        "validation_steps": list(data.get("validation_steps") or []),
+        "source_reports": list(data.get("source_reports") or []),
+        "history_link_blockers": blockers,
+        "history_link_status": "blocked" if blockers else "linked",
+        "history_link_written": False,
+        "write_allowed": False,
+        "next_step": (
+            "Use this run-history link to locate and verify the completed maintenance bundle."
+            if not blockers
+            else "Resolve bundle completion, write confirmation, or output-path blockers before linking history."
+        ),
+        "safety_boundary": _HISTORY_LINK_BOUNDARY,
+    }
+    if blockers:
+        return {**data, "history_link": link_payload}
+
+    resolved_link.parent.mkdir(parents=True, exist_ok=True)
+    written = {**link_payload, "history_link_written": True}
+    resolved_link.write_text(json.dumps(written, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return {**data, "history_link": written}
+
+
 def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
     """Format maintenance evidence bundle data as stable human-readable text."""
     lines = [
@@ -329,4 +409,16 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
     if "write_status" in data:
         lines.insert(4, f"Write status: {data['write_status']}")
         lines.insert(5, f"Output path: {data.get('output_path', 'none')}")
+    if "history_link" in data:
+        link = data["history_link"]
+        lines.extend(
+            [
+                "History link:",
+                f"- status={link['history_link_status']}",
+                f"- written={str(link['history_link_written']).lower()}",
+                f"- bundle_sha256={link['bundle_sha256']}",
+                "History link blockers:",
+                *[f"- {blocker}" for blocker in link["history_link_blockers"] or ["none"]],
+            ]
+        )
     return "\n".join(lines)
