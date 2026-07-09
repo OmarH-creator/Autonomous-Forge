@@ -70,6 +70,13 @@ def test_executor_gate_blocks_missing_history(tmp_path):
     assert data["command_execution_allowed"] is False
     assert data["future_dry_run_eligible"] is False
     assert data["gate_status"] == "blocked"
+    assert data["expected_file_changes"] == [
+        "src/autonomous_forge/executor_gate.py",
+        "tests/test_executor_gate.py",
+    ]
+    assert data["implementation_steps"][0] == "Build a pre-execution gate preview from command-execution handoff data and saved-history guards."
+    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["risk_register"] == ["Do not add command execution."]
     assert "command-execution handoff status is blocked-by-readiness" in data["block_reasons"]
     assert "no saved run-history record is available" in data["block_reasons"][1]
     assert data["allow_reasons"] == []
@@ -84,6 +91,7 @@ def test_executor_gate_ready_after_clear_history(tmp_path):
     assert data["gate_status"] == "ready-for-explicit-future-confirmation"
     assert data["future_dry_run_eligible"] is True
     assert data["block_reasons"] == []
+    assert "implementation context is preserved for executor review" in data["allow_reasons"]
     assert "no orchestration blockers are reported" in data["allow_reasons"]
     assert data["result_record_target"].endswith(".ai/run-history/passed.json")
     assert data["gated_commands"][0]["gate_result"] == "requires-explicit-future-confirmation"
@@ -105,6 +113,9 @@ def test_executor_gate_formats_text(tmp_path):
     assert "Future dry-run eligible: true" in output
     assert "Gate status: ready-for-explicit-future-confirmation" in output
     assert "Selected task: AUTO-043 [P1/TODO] Design guarded executor preconditions" in output
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
+    assert "Risk register:" in output
     assert "- python -m pytest: gate=requires-explicit-future-confirmation; execution=not run" in output
     assert "Safety boundary: Executor precondition gate preview only" in output
 
@@ -127,6 +138,7 @@ def test_executor_gate_supports_json(tmp_path):
     assert data["gate_status"] == "ready-for-explicit-future-confirmation"
     assert data["command_execution_allowed"] is False
     assert data["gated_commands"][0]["execution_status"] == "not run"
+    assert data["expected_file_changes"][0] == "src/autonomous_forge/executor_gate.py"
 
 
 def test_executor_gate_cli_supports_json(tmp_path, capsys):
@@ -151,3 +163,4 @@ def test_executor_gate_cli_supports_json(tmp_path, capsys):
     assert data["title"] == "Autonomous Forge executor precondition gate preview"
     assert data["gate_status"] == "ready-for-explicit-future-confirmation"
     assert data["gated_commands"][0]["command"] == "python -m pytest"
+    assert data["risk_register"] == ["Do not add command execution."]
