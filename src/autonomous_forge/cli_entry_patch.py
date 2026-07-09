@@ -12,6 +12,7 @@ from autonomous_forge.commit_readiness_cli import main as _commit_readiness_main
 from autonomous_forge.commit_status_review_cli import main as _commit_status_review_main
 from autonomous_forge.commit_verify_cli import main as _commit_verify_main
 from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
+from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
 from autonomous_forge.patch_application_readiness_cli import main as _patch_application_readiness_main
@@ -35,6 +36,7 @@ _EXTENSION_COMMANDS = {
     "commit-status-review": _commit_status_review_main,
     "commit-verify": _commit_verify_main,
     "git-diff-review": _git_diff_review_main,
+    "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
     "patch-application-readiness": _patch_application_readiness_main,
