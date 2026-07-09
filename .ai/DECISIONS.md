@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-111 — 2026-07-09 — Validation plans should preserve enriched proposal fields
+
+Context: AUTO-109 made `forge plan` emit implementation-grade fields and AUTO-110 carried them into `forge propose`, but `forge validate-plan` still reduced the handoff mostly to validation steps, expected file areas, path checks, and flattened risk notes. That created a structure-loss gap before validation preview and executor orchestration.
+Decision: Update `forge validate-plan` to consume and emit the proposal's `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` fields while preserving backward-compatible `expected_file_areas`, `path_checks`, and `risk_notes` keys for existing consumers. Keep the command read-only and advisory.
+Alternatives considered: Add another audit/preflight command, create a separate validation-plan-v2 command, replace existing path-check fields outright, or defer propagation until validation-preview work. Those options either duplicated workflow surface, broke downstream compatibility, or left the proposal/validation handoff incomplete.
+Consequences: Validation-plan artifacts now carry the same implementation-grade structure selected by `forge plan` and reviewed by `forge propose`, improving downstream handoff consistency. The command still does not enforce policy decisions, run commands, inspect diffs, generate patches, stage, commit, push, call networks, or mutate repository state.
+Human decision still required: No.
+
 ## DEC-110 — 2026-07-09 — Proposals should preserve enriched plan fields
 
 Context: AUTO-109 made `forge plan` emit implementation-grade fields, but `forge propose` still reduced selected tasks to generic planned operations and policy lists. That created a handoff gap between planning and proposal review.
