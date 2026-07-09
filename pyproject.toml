@@ -41,6 +41,7 @@ forge-patch-proposal-review = "autonomous_forge.patch_proposal_review_cli:main"
 forge-patch-text-preflight = "autonomous_forge.patch_text_preflight_cli:main"
 forge-patch-text-review = "autonomous_forge.patch_text_review_cli:main"
 forge-post-apply-validation = "autonomous_forge.post_apply_validation_cli:main"
+forge-post-push-verify = "autonomous_forge.post_push_verify_cli:main"
 forge-push-handoff = "autonomous_forge.push_handoff_cli:main"
 forge-push-readiness = "autonomous_forge.push_readiness_cli:main"
 
