@@ -6,6 +6,7 @@ from autonomous_forge.maintenance_evidence_bundle import (
     build_maintenance_evidence_bundle_data,
     read_maintenance_evidence_bundle_data,
     write_maintenance_evidence_bundle,
+    write_maintenance_history_link,
 )
 
 PATCH_APPLY = {
@@ -67,16 +68,20 @@ SOURCE_REPORTS = [
 ]
 
 
-def test_build_maintenance_evidence_bundle_complete():
-    data = build_maintenance_evidence_bundle_data(
+def complete_bundle(bundle_id="AUTO-100"):
+    return build_maintenance_evidence_bundle_data(
         PATCH_APPLY,
         POST_APPLY_VALIDATION,
         COMMIT_VERIFY,
         PUSH_HANDOFF,
         POST_PUSH_VERIFY,
-        bundle_id="AUTO-100",
+        bundle_id=bundle_id,
         source_reports=SOURCE_REPORTS,
     )
+
+
+def test_build_maintenance_evidence_bundle_complete():
+    data = complete_bundle()
 
     assert data["bundle_status"] == "complete"
     assert data["bundle_complete"] is True
@@ -219,3 +224,61 @@ def test_write_maintenance_evidence_bundle_writes_complete_confirmed_bundle(tmp_
 
     assert result["write_status"] == "written"
     assert json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))["bundle_status"] == "complete"
+
+
+def test_write_maintenance_history_link_writes_confirmed_link_under_run_history(tmp_path):
+    data = write_maintenance_evidence_bundle(complete_bundle("AUTO-108"), tmp_path / "bundle.json", root=tmp_path, confirm_write=True)
+
+    result = write_maintenance_history_link(
+        data,
+        bundle_path=tmp_path / "bundle.json",
+        link_path=tmp_path / ".ai" / "run-history" / "AUTO-108-link.json",
+        root=tmp_path,
+        confirm_link=True,
+    )
+
+    link = result["history_link"]
+    written = json.loads((tmp_path / ".ai" / "run-history" / "AUTO-108-link.json").read_text(encoding="utf-8"))
+    assert link["history_link_status"] == "linked"
+    assert link["history_link_written"] is True
+    assert written["schema_version"] == "maintenance-bundle-history-link/v1"
+    assert written["bundle_id"] == "AUTO-108"
+    assert written["bundle_sha256"] == hashlib.sha256((tmp_path / "bundle.json").read_bytes()).hexdigest()
+    assert written["commit_sha"] == "abc1234"
+    assert written["write_allowed"] is False
+
+
+def test_write_maintenance_history_link_requires_written_bundle_and_confirmation(tmp_path):
+    data = complete_bundle("AUTO-108")
+    (tmp_path / "bundle.json").write_text(json.dumps(data), encoding="utf-8")
+
+    result = write_maintenance_history_link(
+        data,
+        bundle_path=tmp_path / "bundle.json",
+        link_path=tmp_path / ".ai" / "run-history" / "AUTO-108-link.json",
+        root=tmp_path,
+        confirm_link=False,
+    )
+
+    blockers = result["history_link"]["history_link_blockers"]
+    assert result["history_link"]["history_link_status"] == "blocked"
+    assert "bundle must be written before creating a run-history link" in blockers
+    assert "explicit --confirm-history-link was not provided" in blockers
+    assert not (tmp_path / ".ai" / "run-history" / "AUTO-108-link.json").exists()
+
+
+def test_write_maintenance_history_link_refuses_outside_run_history(tmp_path):
+    data = write_maintenance_evidence_bundle(complete_bundle("AUTO-108"), tmp_path / "bundle.json", root=tmp_path, confirm_write=True)
+
+    try:
+        write_maintenance_history_link(
+            data,
+            bundle_path=tmp_path / "bundle.json",
+            link_path=tmp_path / "outside.json",
+            root=tmp_path,
+            confirm_link=True,
+        )
+    except MaintenanceEvidenceBundleError as exc:
+        assert "history link path must stay under .ai/run-history/" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("outside history link path was not refused")
