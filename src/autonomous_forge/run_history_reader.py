@@ -11,6 +11,14 @@ class RunHistoryReadError(ValueError):
     """Raised when a run-history record cannot be safely read."""
 
 
+_VALIDATION_CONTEXT_FIELDS = (
+    "expected_file_changes",
+    "implementation_steps",
+    "validation_steps",
+    "risk_register",
+)
+
+
 def _resolve_inside(root: Path, path: Path | str) -> tuple[Path, Path]:
     """Return resolved root/path and reject paths outside root."""
     resolved_root = root.resolve()
@@ -60,6 +68,19 @@ def _require_mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
+def _validation_context_from_record(record: dict[str, Any]) -> dict[str, Any]:
+    """Return supported validation context fields from a persisted record."""
+    raw_context = record.get("validation_context", {})
+    if raw_context in ({}, None):
+        return {}
+    context = _require_mapping(raw_context, "record.validation_context")
+    return {
+        field: context[field]
+        for field in _VALIDATION_CONTEXT_FIELDS
+        if field in context
+    }
+
+
 def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -> dict[str, Any]:
     """Build a stable summary from one persisted run-history payload."""
     if payload.get("schema_version") != "run-history/v1":
@@ -77,6 +98,8 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
     if not isinstance(safety_notes, list):
         raise RunHistoryReadError("safety_notes must be a list")
 
+    validation_context = _validation_context_from_record(record)
+
     return {
         "title": "Autonomous Forge run-history record",
         "mode": "read-only",
@@ -93,6 +116,8 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
         "requires_attention": record.get("requires_attention", "unknown"),
         "validation_execution": record.get("validation_execution", "unknown"),
         "validation_result": record.get("validation_result", "unknown"),
+        "validation_context": validation_context,
+        "validation_context_fields": list(validation_context),
         "changed_files_summary": record.get("changed_files_summary", "unknown"),
         "commit": record.get("commit", "unknown"),
         "preflight_summary": preflight_summary,
@@ -106,6 +131,11 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
             "no approvals are granted, and policy is not enforced."
         ),
     }
+
+
+def _format_context_value(value: Any) -> str:
+    """Format validation context values compactly and deterministically."""
+    return json.dumps(value, sort_keys=True) if isinstance(value, (dict, list)) else str(value)
 
 
 def format_run_history_record_summary(data: dict[str, Any]) -> str:
@@ -128,12 +158,25 @@ def format_run_history_record_summary(data: dict[str, Any]) -> str:
         )
 
     summary = data["preflight_summary"]
+    validation_context = data.get("validation_context", {})
     lines.extend(
         [
             f"Review status: {data['review_status']}",
             f"Requires attention: {str(data['requires_attention']).lower()}",
             f"Validation execution: {data['validation_execution']}",
             f"Validation result: {data['validation_result']}",
+            "Validation context:",
+        ]
+    )
+    if validation_context:
+        lines.extend(
+            f"- {field}: {_format_context_value(validation_context[field])}"
+            for field in data["validation_context_fields"]
+        )
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
             f"Changed files summary: {data['changed_files_summary']}",
             f"Commit: {data['commit']}",
             "Preflight summary:",
