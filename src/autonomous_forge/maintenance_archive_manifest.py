@@ -1,4 +1,4 @@
-"""Build a read-only archive manifest preview for selected maintenance evidence."""
+"""Build and write guarded archive manifests for selected maintenance evidence."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from autonomous_forge.maintenance_review_compare import build_maintenance_review
 
 
 class MaintenanceArchiveManifestError(ValueError):
-    """Raised when archive manifest preview inputs are incomplete or unsafe."""
+    """Raised when archive manifest inputs are incomplete or unsafe."""
 
 
 def _file_sha256(path: Path) -> str:
@@ -35,6 +35,26 @@ def _safe_repository_path(path_text: str, *, root: Path, label: str) -> dict[str
         "bytes": resolved.stat().st_size if resolved.is_file() else 0,
         "resolved": resolved,
     }
+
+
+def _safe_output_path(output_path: Path, *, root: Path) -> Path:
+    value = str(output_path).strip()
+    if not value:
+        raise MaintenanceArchiveManifestError("output path is required")
+    root_resolved = root.resolve()
+    candidate = output_path if output_path.is_absolute() else root_resolved / output_path
+    try:
+        resolved = candidate.resolve(strict=False)
+        resolved.relative_to(root_resolved)
+    except (OSError, ValueError) as exc:
+        raise MaintenanceArchiveManifestError("output path must stay inside the configured root") from exc
+    if resolved.exists():
+        raise MaintenanceArchiveManifestError("output path already exists; refusing to overwrite archive manifest")
+    if not resolved.parent.exists():
+        raise MaintenanceArchiveManifestError("output parent directory must already exist")
+    if not resolved.parent.is_dir():
+        raise MaintenanceArchiveManifestError("output parent path must be a directory")
+    return resolved
 
 
 def _load_bundle(bundle_path: str, *, root: Path) -> dict[str, Any]:
@@ -114,7 +134,7 @@ def _source_report_entries(bundle: dict[str, Any], *, root: Path) -> list[dict[s
 
 
 def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Path = Path(".")) -> dict[str, Any]:
-    """Build a read-only archive manifest preview from maintenance review comparison links."""
+    """Build an archive manifest from maintenance review comparison links without writing it."""
     comparison = build_maintenance_review_compare_data(link_paths, root=root)
     selected = comparison.get("selected_preservation_candidate")
     blockers = list(comparison.get("comparison_blockers") or [])
@@ -124,8 +144,8 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         blockers.append("no ready preservation candidate was selected")
     if blockers:
         return {
-            "title": "Autonomous Forge maintenance archive manifest preview",
-            "mode": "read-only archive manifest preview",
+            "title": "Autonomous Forge maintenance archive manifest",
+            "mode": "archive manifest preview",
             "manifest_status": "blocked",
             "manifest_ready": False,
             "selected_preservation_candidate": selected,
@@ -135,11 +155,13 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
             "source_report_count": 0,
             "archive_integrity": {"status": "blocked", "passed": 0, "failed": 0, "advisory": 0, "gates": []},
             "archive_blockers": blockers,
-            "next_step": "Resolve comparison blockers before preparing an archive manifest.",
+            "next_step": "Resolve comparison blockers before writing an archive manifest.",
             "write_allowed": False,
+            "manifest_written": False,
             "safety_boundary": (
                 "Archive manifest preview reads repository-local run-history links, linked bundles, and source-report metadata. "
-                "It does not copy files, write archives, change files, stage, commit, push, poll workflows, or prove signer identity."
+                "It does not copy files, write archives, stage, commit, push, poll workflows, or prove signer identity. "
+                "Writing a manifest requires --output and --confirm-write and only writes the manifest JSON."
             ),
         }
     bundle = _load_bundle(str(selected["bundle_path"]), root=root)
@@ -172,8 +194,8 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         blockers.append(f"archive integrity failed for {integrity['failed']} entr{'y' if integrity['failed'] == 1 else 'ies'}")
     status = "ready" if not blockers else "blocked"
     return {
-        "title": "Autonomous Forge maintenance archive manifest preview",
-        "mode": "read-only archive manifest preview",
+        "title": "Autonomous Forge maintenance archive manifest",
+        "mode": "archive manifest preview",
         "manifest_status": status,
         "manifest_ready": status == "ready",
         "comparison_status": comparison["comparison_status"],
@@ -187,21 +209,45 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         "branch": selected["branch"],
         "archive_blockers": blockers,
         "next_step": (
-            "Review this integrity-checked manifest, then preserve the listed history link, bundle, and source reports together."
+            "Write this manifest with --output and --confirm-write, then preserve the listed history link, bundle, and source reports together."
             if status == "ready"
             else "Resolve missing, drifted, or unsafe archive entries before preserving the evidence set."
         ),
-        "write_allowed": False,
+        "write_allowed": status == "ready",
+        "manifest_written": False,
         "safety_boundary": (
             "Archive manifest preview reads repository-local run-history links, linked bundles, and source-report metadata. "
-            "It recomputes local source-report hashes and byte counts, but does not copy files, write archives, change files, "
-            "stage, commit, push, poll workflows, or prove signer identity."
+            "It recomputes local source-report hashes and byte counts, but does not copy files, change evidence files, "
+            "stage, commit, push, poll workflows, or prove signer identity. Writing a manifest requires --output and "
+            "--confirm-write and only writes the manifest JSON."
         ),
     }
 
 
+def write_maintenance_archive_manifest(
+    link_paths: list[Path], *, output_path: Path, root: Path = Path("."), confirm_write: bool = False
+) -> dict[str, Any]:
+    """Write a ready archive manifest JSON when explicitly confirmed."""
+    if not confirm_write:
+        raise MaintenanceArchiveManifestError("writing an archive manifest requires --confirm-write")
+    data = build_maintenance_archive_manifest_data(link_paths, root=root)
+    if not data.get("manifest_ready"):
+        raise MaintenanceArchiveManifestError("refusing to write a blocked archive manifest")
+    target = _safe_output_path(output_path, root=root)
+    payload = dict(data)
+    payload["mode"] = "explicit local archive manifest write"
+    payload["manifest_written"] = True
+    payload["manifest_path"] = target.relative_to(root.resolve()).as_posix()
+    payload["write_allowed"] = False
+    payload["next_step"] = "Preserve every archive entry listed in this manifest together with this manifest file."
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    target.write_text(text, encoding="utf-8")
+    payload["manifest_bytes"] = len(text.encode("utf-8"))
+    return payload
+
+
 def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
-    """Format an archive manifest preview as stable text."""
+    """Format an archive manifest preview or write result as stable text."""
     selected = data.get("selected_preservation_candidate") or {}
     integrity = data.get("archive_integrity") or {"status": "unknown", "passed": 0, "failed": 0, "advisory": 0, "gates": []}
     lines = [
@@ -209,6 +255,8 @@ def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
         f"Mode: {data['mode']}",
         f"Manifest status: {data['manifest_status']}",
         f"Manifest ready: {str(data['manifest_ready']).lower()}",
+        f"Manifest written: {str(bool(data.get('manifest_written'))).lower()}",
+        f"Manifest path: {data.get('manifest_path', 'none')}",
         f"Comparison status: {data.get('comparison_status') or 'unknown'}",
         (
             "Selected preservation candidate: "
