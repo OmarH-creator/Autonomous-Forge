@@ -21,6 +21,25 @@ COMMIT_VERIFY_REPORT = {
     "verification_blockers": [],
 }
 
+COMMIT_TRUST_REPORT = {
+    "title": "Autonomous Forge commit trust review",
+    "mode": "local git commit signature trust inspection",
+    "source": "supplied commit-verify JSON and local git signature metadata",
+    "trust_status": "trusted",
+    "commit_trusted": True,
+    "expected_commit": "abc1234",
+    "inspected_commit": "abc1234",
+    "signature_code": "G",
+    "signature_description": "good valid signature",
+    "signer": "Hassan Salem",
+    "key_fingerprint": "ABCDEF1234567890",
+    "reviewed_paths": ["README.md", "src/autonomous_forge/push_readiness.py"],
+    "push_allowed": False,
+    "remote_changes_allowed": False,
+    "summary": {"reviewed_paths": 2, "blockers": 0},
+    "trust_blockers": [],
+}
+
 STATUS_REVIEW = {
     "title": "Autonomous Forge commit status review",
     "mode": "read-only",
@@ -44,20 +63,23 @@ STATUS_REVIEW = {
 }
 
 
-def test_build_push_readiness_data_reports_ready_from_verified_commit_and_clear_status():
-    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, STATUS_REVIEW)
+def test_build_push_readiness_data_reports_ready_from_verified_trusted_commit_and_clear_status():
+    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, COMMIT_TRUST_REPORT, STATUS_REVIEW)
 
     assert data["push_readiness_status"] == "ready"
     assert data["push_ready"] is True
     assert data["push_allowed"] is False
     assert data["remote_changes_allowed"] is False
     assert data["verified_commit"] == "abc1234"
+    assert data["trusted_commit"] == "abc1234"
+    assert data["signature_code"] == "G"
     assert data["reviewed_paths"] == ["README.md", "src/autonomous_forge/push_readiness.py"]
 
 
 def test_build_push_readiness_data_blocks_unverified_commit():
     data = build_push_readiness_data(
         {**COMMIT_VERIFY_REPORT, "verification_status": "blocked", "commit_verified": False},
+        COMMIT_TRUST_REPORT,
         STATUS_REVIEW,
     )
 
@@ -65,8 +87,48 @@ def test_build_push_readiness_data_blocks_unverified_commit():
     assert "commit verification status is not verified" in data["push_readiness_blockers"]
 
 
+def test_build_push_readiness_data_blocks_untrusted_commit():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        {
+            **COMMIT_TRUST_REPORT,
+            "trust_status": "blocked",
+            "commit_trusted": False,
+            "signature_code": "N",
+            "trust_blockers": ["commit signature is not trusted enough for automatic push readiness: no signature"],
+        },
+        STATUS_REVIEW,
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert "commit trust status is not trusted" in data["push_readiness_blockers"]
+    assert "commit signature is not trusted for push readiness" in data["push_readiness_blockers"]
+
+
+def test_build_push_readiness_data_blocks_trust_sha_mismatch():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        {**COMMIT_TRUST_REPORT, "inspected_commit": "def5678"},
+        STATUS_REVIEW,
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert "commit-trust-review SHA does not match verified commit" in data["push_readiness_blockers"]
+
+
+def test_build_push_readiness_data_blocks_trust_path_mismatch():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        {**COMMIT_TRUST_REPORT, "reviewed_paths": ["README.md"]},
+        STATUS_REVIEW,
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert "commit-trust-review reviewed paths do not match verified commit paths" in data["push_readiness_blockers"]
+
+
 def test_build_push_readiness_data_blocks_status_sha_mismatch():
-    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, {**STATUS_REVIEW, "commit_sha": "def5678"})
+    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, COMMIT_TRUST_REPORT, {**STATUS_REVIEW, "commit_sha": "def5678"})
 
     assert data["push_readiness_status"] == "blocked"
     assert "commit status review SHA does not match verified commit" in data["push_readiness_blockers"]
@@ -75,6 +137,7 @@ def test_build_push_readiness_data_blocks_status_sha_mismatch():
 def test_build_push_readiness_data_blocks_unclear_status():
     data = build_push_readiness_data(
         COMMIT_VERIFY_REPORT,
+        COMMIT_TRUST_REPORT,
         {
             **STATUS_REVIEW,
             "review_status": "blocked",
@@ -91,12 +154,14 @@ def test_build_push_readiness_data_blocks_unclear_status():
 
 def test_read_push_readiness_refuses_unsafe_path(tmp_path):
     commit_verify = tmp_path / "commit-verify.json"
+    commit_trust = tmp_path / "commit-trust.json"
     status_review = tmp_path / "status-review.json"
     commit_verify.write_text(json.dumps({**COMMIT_VERIFY_REPORT, "inspected_paths": ["../README.md"]}), encoding="utf-8")
+    commit_trust.write_text(json.dumps(COMMIT_TRUST_REPORT), encoding="utf-8")
     status_review.write_text(json.dumps(STATUS_REVIEW), encoding="utf-8")
 
     try:
-        read_push_readiness(commit_verify, status_review, root=tmp_path)
+        read_push_readiness(commit_verify, commit_trust, status_review, root=tmp_path)
     except PushReadinessError as exc:
         assert "unsafe reviewed path" in str(exc)
     else:  # pragma: no cover
@@ -105,11 +170,13 @@ def test_read_push_readiness_refuses_unsafe_path(tmp_path):
 
 def test_read_push_readiness_reads_repository_local_json(tmp_path):
     commit_verify = tmp_path / "commit-verify.json"
+    commit_trust = tmp_path / "commit-trust.json"
     status_review = tmp_path / "status-review.json"
     commit_verify.write_text(json.dumps(COMMIT_VERIFY_REPORT), encoding="utf-8")
+    commit_trust.write_text(json.dumps(COMMIT_TRUST_REPORT), encoding="utf-8")
     status_review.write_text(json.dumps(STATUS_REVIEW), encoding="utf-8")
 
-    data = read_push_readiness(commit_verify, status_review, root=tmp_path)
+    data = read_push_readiness(commit_verify, commit_trust, status_review, root=tmp_path)
 
     assert data["push_ready"] is True
     assert data["summary"]["status_contexts"] == 1
