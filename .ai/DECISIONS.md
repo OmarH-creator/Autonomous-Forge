@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-098 — 2026-07-09 — Pushed commits need explicit post-push verification
+
+Context: The workflow can now create, verify, mark ready, and push one reviewed commit through an explicitly confirmed non-force handoff, but it still had no concrete checkpoint confirming that the pushed commit is reachable from the intended remote branch with clear status evidence.
+Decision: Add `forge post-push-verify` plus compatibility `forge-post-push-verify`. The command consumes pushed push-handoff JSON and clear commit-status-review JSON for the same commit, validates safe reviewed paths, branch, and remote labels, optionally runs one bounded `git fetch --prune <remote> <branch>`, checks the local remote-tracking ref, and reports verified only when `git merge-base --is-ancestor <commit> <remote>/<branch>` confirms reachability.
+Alternatives considered: Treat successful `git push` as enough, add verification inside push-handoff, poll/rerun GitHub workflows, trust status evidence without matching the pushed commit, require the commit to be exactly the branch head, or add remote/protection management.
+Consequences: Maintainers now have a concrete post-push completion gate while avoiding force-pushes, tag pushes, remote mutation, workflow reruns, and branch-protection mutation. The command trusts supplied handoff/status evidence and local git remote-tracking output; `--fetch` refreshes only the requested remote branch.
+Human decision still required: No.
+
 ## DEC-097 — 2026-07-09 — Remote push must be explicit, non-force, and ref-checked
 
 Context: The workflow can now verify a created local commit and combine it with clear workflow status in a push-readiness report, but it still had no concrete handoff beyond evidence review.
@@ -14,14 +22,6 @@ Context: The workflow can now create one explicitly confirmed local commit and v
 Decision: Add `forge push-readiness` plus compatibility `forge-push-readiness`. The command consumes commit-verify JSON and commit-status-review JSON, requires verified commit evidence, requires the status-review commit SHA to match the verified commit SHA, requires successful status evidence with no failed/pending/unknown contexts, validates safe reviewed paths, supports fail-closed `--require-ready`, and keeps `push_allowed` and `remote_changes_allowed` false.
 Alternatives considered: Move directly to a push command, add push-readiness inside commit-verify, rely on README guidance, require signed commits first, or trust commit-status evidence without matching the verified commit SHA.
 Consequences: Maintainers now have a deterministic pre-push checkpoint while the product still cannot push. The command trusts supplied upstream evidence, does not verify signatures or author identity, and does not prove remote branch safety.
-Human decision still required: No.
-
-## DEC-095 — 2026-07-09 — Created commits need local verification before push readiness
-
-Context: The workflow can now create one explicitly confirmed local commit from reviewed commit proposal evidence, but the product had no command that verifies the created commit still matches the reviewed SHA, message, and changed paths before any future push workflow.
-Decision: Add `forge commit-verify` plus compatibility `forge-commit-verify`. The command consumes created commit-create JSON evidence, validates that push and remote authority remain disabled, inspects the local commit with `git show` and `git diff-tree`, compares the commit SHA, subject, reviewed body lines, and exact changed paths, and supports fail-closed `--require-verified` behavior.
-Alternatives considered: Move directly to push-readiness, add verification inside commit-create, rely on manual `git show`, or require signed commits before any verification command.
-Consequences: Maintainers now have a concrete post-commit verification checkpoint before any push workflow is considered. The command trusts supplied commit-create evidence and local git output, does not verify signatures or authorship, and never pushes or mutates the working tree.
 Human decision still required: No.
 
 ## Historical note
