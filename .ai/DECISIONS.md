@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-099 — 2026-07-09 — Completed maintenance loops need one durable evidence bundle
+
+Context: The workflow can now apply a reviewed patch, record supplied post-apply validation, verify a created commit, push through an explicitly confirmed non-force handoff, and verify post-push remote reachability. Those reports remained separate, making it harder to preserve one portable end-to-end maintenance artifact.
+Decision: Add `forge maintenance-evidence-bundle` plus compatibility `forge-maintenance-evidence-bundle`. The command consumes completed patch-apply, post-apply validation, commit-verify, push-handoff, and post-push verification JSON reports, validates that the same commit and reviewed paths flow through the commit/push/post-push stages, reports blockers for stale or inconsistent evidence, and can persist one bounded JSON bundle only with `--output` plus `--confirm-write`.
+Alternatives considered: Leave bundling to manual documentation, add bundle writing inside post-push verification, write automatically without confirmation, include workflow reruns or polling, or make the bundle a cryptographic trust artifact.
+Consequences: Maintainers now have a durable evidence handoff for completed maintenance loops. The command trusts supplied JSON evidence and does not yet hash-link source reports, verify commit signatures, rerun workflows, apply patches, create commits, push, or mutate remotes.
+Human decision still required: No.
+
 ## DEC-098 — 2026-07-09 — Pushed commits need explicit post-push verification
 
 Context: The workflow can now create, verify, mark ready, and push one reviewed commit through an explicitly confirmed non-force handoff, but it still had no concrete checkpoint confirming that the pushed commit is reachable from the intended remote branch with clear status evidence.
@@ -14,14 +22,6 @@ Context: The workflow can now verify a created local commit and combine it with 
 Decision: Add `forge push-handoff` plus compatibility `forge-push-handoff`. The command consumes ready push-readiness JSON, validates safe branch and remote names, checks the current local branch, local `HEAD`, configured upstream, and remote branch SHA, reports readiness without pushing by default, and only runs one non-force `git push <remote> <commit>:refs/heads/<branch>` after `--confirm-push`.
 Alternatives considered: Keep push fully manual, add a push directly to push-readiness, allow generic git push arguments, force-push when remote diverges, push tags automatically, or change remotes/protections from the tool.
 Consequences: Maintainers now have a concrete guarded remote handoff. The command intentionally mutates the configured remote when explicitly confirmed and all checks pass, but it still does not force-push, push tags, change remotes, change branch protections, create commits, or verify post-push workflow status.
-Human decision still required: No.
-
-## DEC-096 — 2026-07-09 — Push readiness requires verified commit and clear status evidence
-
-Context: The workflow can now create one explicitly confirmed local commit and verify that the created commit matches reviewed commit-create evidence, but it still had no single gate that combines that verified commit evidence with fresh workflow status before any future push workflow.
-Decision: Add `forge push-readiness` plus compatibility `forge-push-readiness`. The command consumes commit-verify JSON and commit-status-review JSON, requires verified commit evidence, requires the status-review commit SHA to match the verified commit SHA, requires successful status evidence with no failed/pending/unknown contexts, validates safe reviewed paths, supports fail-closed `--require-ready`, and keeps `push_allowed` and `remote_changes_allowed` false.
-Alternatives considered: Move directly to a push command, add push-readiness inside commit-verify, rely on README guidance, require signed commits first, or trust commit-status evidence without matching the verified commit SHA.
-Consequences: Maintainers now have a deterministic pre-push checkpoint while the product still cannot push. The command trusts supplied upstream evidence, does not verify signatures or author identity, and does not prove remote branch safety.
 Human decision still required: No.
 
 ## Historical note
