@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -9,9 +10,10 @@ from typing import Any
 _MAX_JSON_BYTES = 1_000_000
 _SAFE_BOUNDARY = (
     "Maintenance evidence bundle reads completed patch, validation, commit, push, and post-push JSON reports, "
-    "links their key identifiers, and can persist one bounded JSON bundle only when explicitly confirmed. It does not "
-    "apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change "
-    "branch protections, rerun workflows, or read environment variables."
+    "links their key identifiers, records bounded SHA-256 hashes of each source report for stale-report detection, "
+    "and can persist one bounded JSON bundle only when explicitly confirmed. It does not apply patches, run validation "
+    "commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, "
+    "or read environment variables."
 )
 
 
@@ -46,6 +48,20 @@ def _resolve_under_root(root: Path, raw_path: Path, *, kind: str, must_exist: bo
     if must_exist and not resolved.is_file():
         raise MaintenanceEvidenceBundleError(f"{kind} path must be a regular file")
     return resolved
+
+
+def _source_report_record(stage: str, path: Path, *, root: Path) -> dict[str, Any]:
+    resolved = _resolve_under_root(root, path, kind=stage)
+    size_bytes = resolved.stat().st_size
+    if size_bytes > _MAX_JSON_BYTES:
+        raise MaintenanceEvidenceBundleError(f"{stage} input is too large for bounded review")
+    digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+    return {
+        "stage": stage.replace("-", "_"),
+        "path": str(path),
+        "sha256": digest,
+        "bytes": size_bytes,
+    }
 
 
 def _read_json(path: Path, *, root: Path, kind: str, expected_title: str) -> dict[str, Any]:
@@ -89,6 +105,31 @@ def _same_paths(expected: list[str], observed: list[str], *, label: str, blocker
         blockers.append(f"{label} contains unreviewed paths: {', '.join(extra)}")
 
 
+def _clean_source_reports(source_reports: Any) -> list[dict[str, Any]]:
+    if source_reports is None:
+        return []
+    if not isinstance(source_reports, list):
+        raise MaintenanceEvidenceBundleError("source report hashes must be a list")
+    cleaned: list[dict[str, Any]] = []
+    seen_stages: set[str] = set()
+    for item in source_reports:
+        if not isinstance(item, dict):
+            raise MaintenanceEvidenceBundleError("source report hash entries must be objects")
+        stage = _clean_text(item.get("stage"))
+        path = _clean_text(item.get("path"))
+        digest = _clean_text(item.get("sha256"))
+        size = item.get("bytes")
+        if not stage or stage in seen_stages:
+            raise MaintenanceEvidenceBundleError("source report hashes must use unique non-empty stages")
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            raise MaintenanceEvidenceBundleError(f"source report hash for {stage} must be lowercase SHA-256")
+        if not isinstance(size, int) or size <= 0 or size > _MAX_JSON_BYTES:
+            raise MaintenanceEvidenceBundleError(f"source report hash for {stage} has invalid byte count")
+        seen_stages.add(stage)
+        cleaned.append({"stage": stage, "path": path, "sha256": digest, "bytes": size})
+    return cleaned
+
+
 def build_maintenance_evidence_bundle_data(
     patch_apply: dict[str, Any],
     post_apply_validation: dict[str, Any],
@@ -97,6 +138,7 @@ def build_maintenance_evidence_bundle_data(
     post_push_verify: dict[str, Any],
     *,
     bundle_id: str = "maintenance-evidence-bundle",
+    source_reports: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic end-to-end maintenance evidence bundle."""
     blockers: list[str] = []
@@ -148,6 +190,17 @@ def build_maintenance_evidence_bundle_data(
         blockers.append("post-push verification commit does not match verified commit")
     _same_paths(commit_paths, post_push_paths, label="post-push verification", blockers=blockers)
 
+    cleaned_source_reports = _clean_source_reports(source_reports)
+    if cleaned_source_reports:
+        required_stages = {"patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"}
+        observed_stages = {item["stage"] for item in cleaned_source_reports}
+        missing_stages = sorted(required_stages - observed_stages)
+        extra_stages = sorted(observed_stages - required_stages)
+        if missing_stages:
+            blockers.append(f"source report hashes are missing stages: {', '.join(missing_stages)}")
+        if extra_stages:
+            blockers.append(f"source report hashes contain unknown stages: {', '.join(extra_stages)}")
+
     bundle_status = "complete" if not blockers else "blocked"
     return {
         "title": "Autonomous Forge maintenance evidence bundle",
@@ -163,6 +216,7 @@ def build_maintenance_evidence_bundle_data(
         "branch": _clean_text(push_handoff.get("branch")),
         "remote_ref": _clean_text(post_push_verify.get("remote_ref")),
         "commit_location": _clean_text(post_push_verify.get("commit_location")),
+        "source_reports": cleaned_source_reports,
         "evidence_chain": [
             {"stage": "patch_apply", "status": _clean_text(patch_apply.get("apply_status"))},
             {"stage": "post_apply_validation", "status": _clean_text(post_apply_validation.get("validation_status"))},
@@ -175,6 +229,7 @@ def build_maintenance_evidence_bundle_data(
         "summary": {
             "reviewed_paths": len(commit_paths),
             "validation_steps": len([step for step in validation_steps if _clean_text(step)]),
+            "source_reports": len(cleaned_source_reports),
             "blockers": len(blockers),
         },
         "next_step": (
@@ -196,7 +251,14 @@ def read_maintenance_evidence_bundle_data(
     root: Path = Path("."),
     bundle_id: str = "maintenance-evidence-bundle",
 ) -> dict[str, Any]:
-    """Read repository-local evidence reports and build a bundle."""
+    """Read repository-local evidence reports and build a hash-linked bundle."""
+    source_reports = [
+        _source_report_record("patch-apply", patch_apply_path, root=root),
+        _source_report_record("post-apply-validation", post_apply_validation_path, root=root),
+        _source_report_record("commit-verify", commit_verify_path, root=root),
+        _source_report_record("push-handoff", push_handoff_path, root=root),
+        _source_report_record("post-push-verify", post_push_verify_path, root=root),
+    ]
     return build_maintenance_evidence_bundle_data(
         _read_json(patch_apply_path, root=root, kind="patch-apply", expected_title="Autonomous Forge guarded patch apply"),
         _read_json(
@@ -214,6 +276,7 @@ def read_maintenance_evidence_bundle_data(
             expected_title="Autonomous Forge post-push verification report",
         ),
         bundle_id=bundle_id,
+        source_reports=source_reports,
     )
 
 
@@ -251,6 +314,11 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
         *[f"- {path}" for path in data["reviewed_paths"]],
         "Validation steps:",
         *[f"- {step}" for step in data["validation_steps"]],
+        "Source reports:",
+        *[
+            f"- {item['stage']}: sha256={item['sha256']} bytes={item['bytes']} path={item['path']}"
+            for item in data.get("source_reports", [])
+        ],
         "Evidence chain:",
         *[f"- {item['stage']}: {item['status']}" for item in data["evidence_chain"]],
         "Bundle blockers:",
