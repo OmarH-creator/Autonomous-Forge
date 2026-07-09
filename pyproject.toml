@@ -25,6 +25,7 @@ dependencies = []
 [project.scripts]
 forge = "autonomous_forge.cli_entry_patch:main"
 forge-change-readiness = "autonomous_forge.change_readiness_cli:main"
+forge-commit-proposal-preview = "autonomous_forge.commit_proposal_preview_cli:main"
 forge-commit-readiness = "autonomous_forge.commit_readiness_cli:main"
 forge-commit-status-review = "autonomous_forge.commit_status_review_cli:main"
 forge-git-diff-review = "autonomous_forge.git_diff_review_cli:main"
