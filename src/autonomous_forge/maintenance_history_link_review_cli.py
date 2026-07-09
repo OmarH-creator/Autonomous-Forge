@@ -123,7 +123,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-linked-replayable",
         action="store_true",
-        help="return exit code 2 unless --verify-linked-bundle confirms replayable linked bundle evidence",
+        help=(
+            "return exit code 2 unless linked bundle evidence is verified and replayable; "
+            "this implies --verify-linked-bundle"
+        ),
     )
     parser.add_argument(
         "--format",
@@ -139,9 +142,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     root = Path(args.root)
+    verify_linked_bundle = args.verify_linked_bundle or args.require_linked_replayable
     try:
         data = build_maintenance_history_link_review_data(Path(args.link), root=root)
-        if args.verify_linked_bundle:
+        if verify_linked_bundle:
             data["linked_bundle_replay"] = _linked_bundle_replay(data, root=root)
         else:
             data["linked_bundle_replay"] = {"requested": False, "status": "not_requested"}
