@@ -172,8 +172,6 @@ def _verified_manifest_entries(entries: list[dict[str, Any]], *, root: Path) -> 
             verified_entry["sha256"] = expected_sha256
             verified_entry["current_sha256"] = current_sha256
             verified_entry["sha256_verified"] = bool(current_sha256 and current_sha256 == expected_sha256)
-        elif current_sha256:
-            verified_entry["current_sha256"] = current_sha256
         verified.append(verified_entry)
     if not verified:
         raise MaintenanceArchiveManifestError("archive manifest has no archive entries")
