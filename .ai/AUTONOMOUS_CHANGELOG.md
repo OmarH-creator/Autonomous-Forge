@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-135
+
+- Task ID: AUTO-135 — Archive package metadata preview
+- Summary: Added `forge maintenance-archive-package-preview` and `forge-maintenance-archive-package-preview`, a read-only package-planning command that verifies a written archive manifest and copied archive root, compares archive-root files with manifested evidence entries, reports intended package path/format/entry count/total bytes, and blocks unsafe package destinations or unmanifested files before any archive writer exists.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, archive manifest/copy/copy-verify implementation, focused tests, docs, package scripts, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for ready package previews, unmanifested archive-root blocking, existing package-destination blocking, JSON CLI success, and fail-closed `--require-ready` behavior when copied evidence is missing. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add an explicitly confirmed archive-package writer that creates one repository-local compressed archive only from a ready package preview and refuses overwrites.
+
 ## 2026-07-09 — AUTO-134
 
 - Task ID: AUTO-134 — Post-copy archive-root verification
@@ -17,24 +26,6 @@
 - Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for missing confirmation refusal, successful confirmed copy with explicit parent creation, missing-parent refusal, overwrite refusal, JSON CLI output, and CLI confirmation refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add post-copy archive verification that reopens a copied archive root and verifies copied-file hashes and byte counts against the written manifest before any compressed archive packaging exists.
-
-## 2026-07-09 — AUTO-132
-
-- Task ID: AUTO-132 — Guarded archive-copy preview
-- Summary: Added `forge maintenance-archive-copy-preview` and `forge-maintenance-archive-copy-preview`, a read-only preview that verifies a written archive manifest, maps each evidence entry under a repository-local `--archive-root`, reports source-to-destination copy plans, and blocks unsafe destination layouts before any copy command exists.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, branch search, archive manifest implementation/CLI/tests/docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for ready source-to-destination mapping, existing-destination blocking, JSON CLI output, fail-closed `--require-ready` behavior when manifest verification fails, and outside-root archive-root refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a confirmation-gated archive-copy command that copies only ready previewed entries, refuses overwrites, and records copied-file hashes.
-
-## 2026-07-09 — AUTO-131
-
-- Task ID: AUTO-131 — Written archive-manifest verification
-- Summary: Extended `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` with `--manifest` verification mode. The command now reopens a previously written manifest, requires `manifest_written=true`, constrains all listed entries to the repository root, recomputes current evidence SHA-256 values and byte counts, reports archive-integrity gates, and fails closed with `--require-ready` when evidence is missing or drifted.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, branch search, archive manifest implementation/CLI/tests/docs, and prior writer behavior. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for successful written-manifest verification, drift blocking, and refusal to combine `--manifest` with link/write behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a guarded archive-copy preview that plans copy destinations for verified manifest entries without copying evidence.
 
 ## Historical note
 
