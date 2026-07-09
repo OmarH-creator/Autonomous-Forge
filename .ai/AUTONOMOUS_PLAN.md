@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, optional linked-bundle replay verification from a ready history pointer, and a reviewer-facing maintenance preservation handoff. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, and reviewer-facing maintenance preservation handoffs. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -154,6 +154,18 @@ Expected files or areas: `src/autonomous_forge/maintenance_review_handoff.py`, `
 Acceptance criteria: A ready run-history pointer with a hash-verified replayable linked bundle yields a ready handoff; hash mismatches or unready pointer quality block the handoff; JSON/text outputs remain deterministic; `--require-ready` fails closed; behavior is local-first and read-only.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused tests. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: The handoff summarizes persisted JSON evidence and recomputed hashes; it does not rerun validation, inspect live remotes, poll workflow status, prove signer identity, or prove coverage.
+Notes: Completed before strict linked replay gate usability hardening.
+
+### AUTO-124 — Strict linked replay requirement usability hardening
+Priority: P1
+Status: DONE
+Goal: Make `--require-linked-replayable` self-sufficient by automatically performing linked-bundle verification.
+Why it matters: Strict callers expect a required replayable gate to verify replayability; requiring a second flag created avoidable user friction and a misleading fail-closed path.
+Scope: Update `forge maintenance-history-link-review` / `forge-maintenance-history-link-review`, focused tests, command docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `tests/test_maintenance_history_link_review.py`, `docs/MAINTENANCE_HISTORY_LINK_REVIEW.md`, README, and `.ai` records.
+Acceptance criteria: `--require-linked-replayable` implies linked-bundle verification, returns success for a ready replayable bundle, still fails closed for blocked or non-replayable linked evidence, and remains local-first/read-only.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated CLI and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The stricter flag still reviews persisted JSON evidence and recomputed hashes only; it does not rerun validation, poll workflows, or prove signer identity.
 Notes: Next safe step is a comparison-oriented maintenance handoff summary for multiple completed runs.
 
 ## Future Ideas
