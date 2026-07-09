@@ -10,8 +10,8 @@ from typing import Any, Callable, Sequence
 
 _MAX_JSON_BYTES = 1_000_000
 _SAFE_BOUNDARY = (
-    "Push-handoff consumes ready push-readiness JSON evidence, checks local git branch and remote refs, "
-    "confirms the requested update is fast-forward-only, and only runs "
+    "Push-handoff consumes branch-protection-aware push-readiness JSON evidence, checks local git branch "
+    "and remote refs, confirms the requested update is fast-forward-only, and only runs "
     "`git push <remote> <commit>:refs/heads/<branch>` after explicit confirmation. "
     "It never force-pushes, pushes tags, changes remotes, changes branch protections, stages files, "
     "creates commits, reads environment variables, or uses shell execution."
@@ -94,7 +94,29 @@ def _read_json(path: Path, *, root: Path, label: str) -> dict[str, Any]:
     return payload
 
 
-def _validate_push_readiness(report: dict[str, Any]) -> tuple[list[str], str, list[str]]:
+def _read_text_list(report: dict[str, Any], key: str, *, label: str, blockers: list[str], require_non_empty: bool = False) -> list[str]:
+    value = report.get(key)
+    if not isinstance(value, list):
+        if require_non_empty:
+            blockers.append(f"push-readiness report lacks {label}")
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = _clean_text(item)
+        if not text:
+            blockers.append(f"push-readiness report contains a blank {label} entry")
+            continue
+        if text in seen:
+            blockers.append(f"push-readiness report duplicates {label} entry: {text}")
+        seen.add(text)
+        result.append(text)
+    if require_non_empty and not result:
+        blockers.append(f"push-readiness report lacks {label}")
+    return result
+
+
+def _validate_push_readiness(report: dict[str, Any]) -> tuple[list[str], str, list[str], str, list[str], list[str], bool]:
     blockers: list[str] = []
     if report.get("title") != "Autonomous Forge push readiness report":
         blockers.append("push-readiness report is not a forge push-readiness JSON payload")
@@ -131,7 +153,51 @@ def _validate_push_readiness(report: dict[str, Any]) -> tuple[list[str], str, li
                 blockers.append(f"push-readiness report duplicates reviewed path: {path}")
             seen.add(path)
             reviewed_paths.append(path)
-    return blockers, commit_sha, reviewed_paths
+
+    branch_protection_status = _clean_text(report.get("branch_protection_status"))
+    if branch_protection_status != "clear":
+        blockers.append("push-readiness report is not branch-protection clear")
+    strict_checks = report.get("branch_status_checks_strict") is True
+    if not strict_checks:
+        blockers.append("push-readiness report does not prove strict branch status checks")
+    protected_branch = _clean_text(report.get("protected_branch"))
+    if not protected_branch:
+        blockers.append("push-readiness report lacks a protected branch")
+    else:
+        _validate_ref_name(protected_branch, label="protected branch")
+    required_status_contexts = _read_text_list(
+        report,
+        "required_status_contexts",
+        label="required status context",
+        blockers=blockers,
+        require_non_empty=True,
+    )
+    observed_status_contexts = _read_text_list(
+        report,
+        "observed_status_contexts",
+        label="observed status context",
+        blockers=blockers,
+    )
+    missing_required_status_contexts = _read_text_list(
+        report,
+        "missing_required_status_contexts",
+        label="missing required status context",
+        blockers=blockers,
+    )
+    for context in missing_required_status_contexts:
+        blockers.append(f"push-readiness report still misses required status context: {context}")
+    for context in required_status_contexts:
+        if context not in observed_status_contexts:
+            blockers.append(f"push-readiness required status context was not observed: {context}")
+    return (
+        blockers,
+        commit_sha,
+        reviewed_paths,
+        protected_branch,
+        required_status_contexts,
+        observed_status_contexts,
+        strict_checks,
+    )
 
 
 def build_push_handoff_data(
@@ -147,9 +213,19 @@ def build_push_handoff_data(
     if not isinstance(push_readiness, dict):
         raise PushHandoffError("push-readiness evidence must be a JSON object")
     root = root.resolve()
-    blockers, verified_commit, reviewed_paths = _validate_push_readiness(push_readiness)
+    (
+        blockers,
+        verified_commit,
+        reviewed_paths,
+        protected_branch,
+        required_status_contexts,
+        observed_status_contexts,
+        strict_checks,
+    ) = _validate_push_readiness(push_readiness)
     _validate_ref_name(branch, label="branch")
     _validate_remote(remote)
+    if protected_branch and protected_branch != branch:
+        blockers.append("push-readiness protected branch does not match requested push branch")
 
     local_branch = ""
     head_sha = ""
@@ -204,10 +280,14 @@ def build_push_handoff_data(
     return {
         "title": "Autonomous Forge push handoff report",
         "mode": "explicitly confirmed non-force local push handoff",
-        "source": "ready push-readiness JSON plus local git branch/ref inspection",
+        "source": "branch-protection-aware push-readiness JSON plus local git branch/ref inspection",
         "handoff_status": handoff_status,
         "verified_commit": verified_commit,
         "branch": branch,
+        "protected_branch": protected_branch,
+        "branch_status_checks_strict": strict_checks,
+        "required_status_contexts": required_status_contexts,
+        "observed_status_contexts": observed_status_contexts,
         "remote": remote,
         "reviewed_paths": reviewed_paths,
         "local_branch": local_branch,
@@ -224,6 +304,8 @@ def build_push_handoff_data(
         "tag_push_allowed": False,
         "summary": {
             "reviewed_paths": len(reviewed_paths),
+            "required_status_contexts": len(required_status_contexts),
+            "observed_status_contexts": len(observed_status_contexts),
             "blockers": len(blockers),
             "push_executed": pushed,
             "fast_forward_checked": fast_forward_checked,
@@ -234,7 +316,7 @@ def build_push_handoff_data(
             if pushed
             else "Review the ready handoff and rerun with explicit confirmation only when pushing is intended."
             if handoff_status == "ready"
-            else "Resolve push-readiness or local git ref blockers before pushing."
+            else "Resolve push-readiness, branch-policy, or local git ref blockers before pushing."
         ),
         "safety_boundary": _SAFE_BOUNDARY,
     }
@@ -250,6 +332,8 @@ def format_push_handoff(data: dict[str, Any]) -> str:
         f"Verified commit: {data['verified_commit'] or 'none'}",
         f"Remote: {data['remote']}",
         f"Branch: {data['branch']}",
+        f"Protected branch: {data['protected_branch'] or 'none'}",
+        f"Branch status checks strict: {str(data['branch_status_checks_strict']).lower()}",
         f"Local branch: {data['local_branch'] or 'none'}",
         f"HEAD: {data['head_sha'] or 'none'}",
         f"Upstream: {data['upstream_ref'] or 'none'}",
@@ -260,6 +344,10 @@ def format_push_handoff(data: dict[str, Any]) -> str:
         f"Force push allowed: {str(data['force_push_allowed']).lower()}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
+        "Required status contexts:",
+        *[f"- {context}" for context in data["required_status_contexts"]],
+        "Observed status contexts:",
+        *[f"- {context}" for context in data["observed_status_contexts"]],
         "Push command:",
         f"- {' '.join(data['push_command']) if data['push_command'] else 'none'}",
         "Push-handoff blockers:",
