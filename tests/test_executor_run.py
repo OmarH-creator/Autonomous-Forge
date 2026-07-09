@@ -138,10 +138,12 @@ def test_executor_run_builds_explicit_validation_result_write_handoff(tmp_path):
         runner=fake_runner,
     )
 
+    record_path = str(tmp_path / ".ai/run-history/passed.json")
     handoff = data["persistence_handoff"]
     assert handoff["available"] is True
     assert handoff["auto_persistence"] is False
     assert handoff["confirmation_required"] == "--confirm-write"
+    assert handoff["record"] == record_path
     assert handoff["validation_result"] == "passed"
     assert handoff["validation_note"] == "executor-run completed for 'python -m pytest'; return_code=0"
     assert handoff["write_command_args"] == [
@@ -150,7 +152,7 @@ def test_executor_run_builds_explicit_validation_result_write_handoff(tmp_path):
         "--root",
         ".",
         "--record",
-        ".ai/run-history/latest.json",
+        record_path,
         "--result",
         "passed",
         "--note",
