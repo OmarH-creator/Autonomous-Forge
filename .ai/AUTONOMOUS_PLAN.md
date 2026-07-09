@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run an explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -142,7 +142,19 @@ Expected files or areas: `src/autonomous_forge/push_readiness.py`, `src/autonomo
 Acceptance criteria: Ready evidence requires protected branch evidence, strict required status checks, matching branch, at least one required context, every required context present in status-review evidence, and no verification/trust/status blockers. Unprotected, non-strict, branch-mismatched, missing-context, untrusted, unverified, unclear, or unsafe evidence blocks while `push_allowed` remains false.
 Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module and CLI. Focused scratch pytest for `tests/test_push_readiness.py` passed with 12 tests.
 Risks or assumptions: The branch-protection check trusts supplied JSON and exact status-context names. It does not call GitHub, prove current branch rules, change protection, rerun workflows, poll remote status, or replace human review.
-Notes: Next safe step is requiring branch-protection-aware push-readiness explicitly in the push-handoff boundary and linking completed pushed bundles into durable run history.
+Notes: Completed before branch-policy-enforcing push handoff.
+
+### AUTO-107 — Branch-policy-enforcing push handoff
+Priority: P1
+Status: DONE
+Goal: Require branch-protection-aware push-readiness explicitly at the push-capable handoff boundary.
+Why it matters: A safe confirmed push command should not accept stale ready evidence that predates branch-protection/status-policy checks.
+Scope: Harden `forge push-handoff` to require protected branch, strict status-check policy, required/observed status contexts, and no missing required contexts from supplied push-readiness evidence; expose those fields in the handoff report; update tests, docs, README, and project memory.
+Expected files or areas: `src/autonomous_forge/push_handoff.py`, `tests/test_push_handoff.py`, `docs/PUSH_HANDOFF.md`, README, and `.ai` records.
+Acceptance criteria: Ready branch-policy evidence still permits review/confirmed handoff when git refs are safe; legacy readiness without branch-policy fields blocks; protected branch mismatch blocks; missing required status contexts block; fast-forward, already-pushed, wrong-branch, unsafe-branch, and git-failure guards remain intact; no force-push, tag push, remote mutation, branch-protection mutation, staging, commit creation, shell execution, or environment reads are introduced.
+Validation: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 12 tests.
+Risks or assumptions: The handoff trusts branch-policy fields carried by push-readiness JSON and exact status-context names. It does not call GitHub, prove branch rules are current, change protections, rerun workflows, or replace human review.
+Notes: Next safe step is durable run-history linkage for completed pushed bundles.
 
 ## Future Ideas
 
