@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, and write confirmed local archive-manifest JSON records without requiring uncontrolled autonomous behavior.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, write confirmed local archive-manifest JSON records, and verify written archive manifests before archive-copy behavior without requiring uncontrolled autonomous behavior.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, and confirmation-gated local archive-manifest JSON writes for selected preservation candidates. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, copy evidence files, or create archive files.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, confirmation-gated local archive-manifest JSON writes, and written archive-manifest verification. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, copy evidence files, or create archive files.
 
 ## Prioritized roadmap
 
@@ -166,7 +166,19 @@ Expected files or areas: `src/autonomous_forge/maintenance_archive_manifest.py`,
 Acceptance criteria: Preview remains default; writing requires `--output --confirm-write`; blocked manifests are not written; output paths must stay under root; parent directories must already exist; existing files are not overwritten; written manifests retain selected candidate, archive entries, integrity gates, blockers, and manifest path.
 Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: Written manifests preserve current evidence metadata but do not copy evidence files, create archives, rerun validation, poll workflows, prove signer identity, or prove validation coverage.
-Notes: Next safe step is a manifest verification/read command before any archive-copy behavior.
+Notes: Completed before written archive-manifest verification.
+
+### AUTO-131 — Written archive-manifest verification
+Priority: P1
+Status: DONE
+Goal: Reopen a written archive manifest and verify that every listed evidence entry still matches current repository-local bytes before any archive-copy behavior exists.
+Why it matters: A durable manifest can become stale after evidence files change; maintainers need a fail-closed check before preserving or copying evidence.
+Scope: Extend `forge maintenance-archive-manifest` / `forge-maintenance-archive-manifest` with `--manifest` verification mode, focused tests, command docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_archive_manifest.py`, `src/autonomous_forge/maintenance_archive_manifest_cli.py`, `tests/test_maintenance_archive_manifest.py`, `docs/MAINTENANCE_ARCHIVE_MANIFEST.md`, README, and `.ai` records.
+Acceptance criteria: `--manifest` reads one written manifest, refuses link/write flag combinations, recomputes listed evidence SHA-256 and byte counts, reports pass/fail/advisory archive-integrity gates, blocks `--require-ready` on missing or drifted evidence, and remains non-mutating.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: Verification checks current local evidence files listed by a written manifest but does not copy evidence, create archives, rerun validation, poll workflows, prove signer identity, or prove coverage.
+Notes: Next safe step is a guarded archive-copy preview that plans copy targets without copying evidence.
 
 ## Future Ideas
 
@@ -176,5 +188,4 @@ Notes: Next safe step is a manifest verification/read command before any archive
 - Branch protection and workflow-status replay summaries.
 - Combined history-link replay handoff.
 - Maintenance handoff comparison summaries.
-- Written archive-manifest verification.
 - Confirmation-gated archive-copy previews.
