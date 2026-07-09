@@ -62,6 +62,10 @@ def build_executor_contract_data(gate_data: dict[str, Any]) -> dict[str, Any]:
         "executor_dry_run_allowed_now": False,
         "gate_status": gate_data.get("gate_status", "unknown"),
         "future_dry_run_eligible": bool(gate_data.get("future_dry_run_eligible", False)),
+        "expected_file_changes": list(gate_data.get("expected_file_changes", [])),
+        "implementation_steps": list(gate_data.get("implementation_steps", [])),
+        "validation_steps": list(gate_data.get("validation_steps", [])),
+        "risk_register": list(gate_data.get("risk_register", [])),
         "allowed_command_classes": _ALLOWED_COMMAND_CLASSES,
         "candidate_commands": gated_commands,
         "refusal_cases": _REFUSAL_CASES,
@@ -80,6 +84,7 @@ def build_executor_contract_data(gate_data: dict[str, Any]) -> dict[str, Any]:
         "required_future_inputs": [
             _FUTURE_CONFIRMATION_FLAG,
             "one exact command selected from candidate_commands",
+            "reviewed expected file changes, implementation steps, validation steps, and risk register",
             "root constrained to the repository checkout",
             "existing saved run-history record target",
         ],
@@ -114,7 +119,19 @@ def format_executor_contract(data: dict[str, Any]) -> str:
             f"{selected['id']} [{selected['priority']}/{selected['status']}] {selected['title']}"
         )
 
-    lines.append("Allowed command classes:")
+    lines.extend(
+        [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
+            "Allowed command classes:",
+        ]
+    )
     for command_class in data["allowed_command_classes"]:
         lines.append(f"- {command_class['name']}: {', '.join(command_class['patterns'])}")
         lines.extend(f"  - requirement: {requirement}" for requirement in command_class["requirements"])
