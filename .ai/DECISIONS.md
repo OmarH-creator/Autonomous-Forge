@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-114 — 2026-07-09 — Executor-run results should preserve implementation context
+
+Context: AUTO-109 through AUTO-113 made planning, proposal, validation, orchestration, executor handoff, executor gate, executor contract, and executor dry-run artifacts carry implementation-grade fields, but `forge executor-run` still centered on command text, execution status, return code, captured output, and validation-result persistence command text. That created a structure-loss gap exactly when local validation evidence became observable.
+Decision: Update `forge executor-run` and its nested `persistence_handoff` to consume and emit `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` while preserving existing execution, output-capture, result, and write-command keys. Keep the fields advisory and keep saved-history mutation behind the existing separate explicit `validation-result-write --confirm-write` command.
+Alternatives considered: Add another audit/preflight command, create a separate executor-run-v2 command, automatically write enriched validation-result records, or defer context propagation to bundle creation. Those options either duplicated the workflow surface, risked downstream compatibility, expanded write authority, or left observed validation evidence detached from implementation intent.
+Consequences: Executor-run output and the persistence handoff now retain implementation objective, planned file targets, validation steps, and risk review beside the observed result. The command still executes only one exact gated command with `shell=false`, does not automatically persist history, and does not inspect diffs, generate patches, stage, commit, push, call networks, or enforce policy decisions.
+Human decision still required: No.
+
 ## DEC-113 — 2026-07-09 — Executor handoff should preserve implementation context
 
 Context: AUTO-109 through AUTO-112 made `forge plan`, `forge propose`, `forge validate-plan`, `forge validation-preview`, and `forge validation-orchestration` carry implementation-grade fields, but `forge command-execution-handoff`, `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` still centered on command candidates, gate status, confirmation flags, and result-record targets. That created a structure-loss gap immediately before validation execution.
