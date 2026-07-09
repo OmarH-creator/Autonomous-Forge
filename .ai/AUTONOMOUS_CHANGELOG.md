@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-094
+
+- Task ID: AUTO-094 — Guarded local commit creation
+- Summary: Added `forge commit-create` and compatibility `forge-commit-create`, the first explicitly confirmed local command that can turn ready commit-proposal-preview evidence into one local git commit. It validates ready proposal evidence, safe reviewed paths, disabled push/remote authority, and explicit confirmation; checks local git status for reviewed paths; stages only those paths; creates one local commit with the reviewed message; reports the created commit SHA; and keeps push/remote changes disallowed.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, open issues, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, command router, workflow, commit-proposal-preview implementation, tests, and docs. Work stayed directly on `main`. No branches were returned by branch search. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation covered the new module and CLI. Added deterministic tests for missing confirmation, guarded git command sequence, unready proposal blocking, no-change blocking, and unsafe path refusal. CI smoke now checks primary and compatibility help routes. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add post-commit verification that checks created commit metadata and reviewed paths before any push workflow is considered.
+
 ## 2026-07-09 — AUTO-093
 
 - Task ID: AUTO-093 — Commit proposal preview
