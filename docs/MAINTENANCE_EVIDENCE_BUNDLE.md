@@ -10,22 +10,7 @@
 
 The command is intended for the end of a safe maintenance loop, after the patch has been applied, validation has passed, the created commit has been verified, the non-force push handoff has completed, and post-push verification has confirmed remote reachability.
 
-## Example
-
-```bash
-forge maintenance-evidence-bundle \
-  --root . \
-  --patch-apply patch-apply.json \
-  --post-apply-validation post-apply-validation.json \
-  --commit-verify commit-verify.json \
-  --push-handoff push-handoff.json \
-  --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-108 \
-  --require-complete \
-  --format json > maintenance-evidence-bundle.json
-```
-
-To persist a durable bundle directly, provide an output path and explicit write confirmation:
+## Build and persist a bundle
 
 ```bash
 forge maintenance-evidence-bundle \
@@ -42,34 +27,13 @@ forge maintenance-evidence-bundle \
   --format json
 ```
 
-## Link a persisted bundle into run history
-
-After the bundle has been written, the same command can write a small run-history pointer:
-
-```bash
-forge maintenance-evidence-bundle \
-  --root . \
-  --patch-apply patch-apply.json \
-  --post-apply-validation post-apply-validation.json \
-  --commit-verify commit-verify.json \
-  --push-handoff push-handoff.json \
-  --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-108 \
-  --output .ai/run-history/AUTO-108-bundle.json \
-  --confirm-write \
-  --history-link .ai/run-history/AUTO-108-link.json \
-  --confirm-history-link \
-  --require-complete \
-  --require-written \
-  --require-history-linked \
-  --format json
-```
+After the bundle has been written, the same command can write a small run-history pointer with `--history-link .ai/run-history/AUTO-108-link.json --confirm-history-link --require-history-linked`.
 
 The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, retained validation context, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`.
 
 ## Validation context preservation
 
-When any upstream evidence report supplies a `validation_context` object, bundle creation now preserves the supported context fields in the generated bundle and in the optional history-link pointer. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`.
+When any upstream evidence report supplies a `validation_context` object, bundle creation preserves the supported fields in the generated bundle and optional history-link pointer. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`.
 
 Each supported field must be a list of non-empty strings. Malformed context blocks the bundle instead of silently dropping ambiguous implementation-plan evidence. Older evidence reports without validation context remain valid and produce bundles with an empty `validation_context` object.
 
@@ -101,9 +65,9 @@ forge maintenance-replay-summary \
 
 A replayable bundle must still verify all source-report hashes, report `bundle_status: complete`, include the expected patch, validation, commit, push, and post-push stages, preserve at least one reviewed path and validation step, and keep the target path inside the reviewed-path set. The command does not rerun the evidence chain; it gives maintainers a compact replay decision from persisted evidence.
 
-When a persisted bundle includes a `validation_context` object, replay summary output reports whether context is present, which supported context fields were preserved, per-field item counts, total retained context items, and a `validation_context_consistency` summary. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`. Missing context remains backward-compatible for older bundles, while malformed context blocks replayability because it would make the implementation-plan preservation evidence ambiguous.
+When a persisted bundle includes a `validation_context` object, replay summary output reports context presence, preserved fields, per-field item counts, total retained context items, and a `validation_context_consistency` summary. If retained `expected_file_changes` are present, every reviewed path must be named by at least one retained expected-change entry. If retained `validation_steps` are present, each retained validation step must also appear in the bundle's preserved validation steps. Mismatches block replayability.
 
-The consistency summary compares retained implementation context with replay-critical bundle evidence. If retained `expected_file_changes` are present, every reviewed path must be named by at least one retained expected-change entry. If retained `validation_steps` are present, each retained validation step must also appear in the bundle's preserved validation steps. Mismatches block replayability so maintainers do not trust a bundle whose planned-file or validation-step context drifted away from the reviewed evidence chain.
+Replay summaries also include `replay_policy`, a compact gate list with pass/fail/advisory counts. Required gates cover source-report integrity, bundle completion, evidence-chain statuses, reviewed-path coverage, validation-step presence, and validation-context consistency when retained context exists. Older bundles without retained validation context receive an advisory `validation_context_consistency` gate instead of a hard failure, while malformed or inconsistent retained context fails that gate and blocks replayability.
 
 ## Hash-linked source reports
 
@@ -119,22 +83,10 @@ The optional history link writes only one small repository-local JSON pointer un
 
 The verifier reads only one repository-local persisted bundle and the repository-local source reports named by that bundle. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables.
 
-The replay summary reads only one repository-local persisted bundle and the source reports needed for hash verification. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, poll remote status, or read environment variables. Validation context is summarized from already-persisted bundle JSON only; consistency checks compare retained context to bundle-reviewed paths and preserved validation steps but still do not prove that validation covered every retained planned file, step, or risk.
+The replay summary reads only one repository-local persisted bundle and the source reports needed for hash verification. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, poll remote status, or read environment variables. Validation context and replay policy gates are summarized from already-persisted bundle JSON only and do not prove validation coverage.
 
 ## Completion rules
 
-A bundle is `complete` only when:
+A bundle is `complete` only when patch-apply evidence shows an applied change, post-apply validation passed for the same target path, commit verification is verified, push handoff is non-force and references the verified commit, post-push verification is verified for the same commit and reviewed paths, source-report hash entries are valid, and any supplied validation context is a supported object whose values are non-empty string lists.
 
-- patch-apply evidence shows an applied file change and has closed patch application authority;
-- post-apply validation shows a passed validation result for the same target path;
-- commit verification is verified and reports reviewed changed paths;
-- push handoff is pushed, non-force, and references the verified commit;
-- post-push verification is verified for the same commit and reviewed paths;
-- all provided source-report hash entries are valid lowercase SHA-256 fingerprints for the expected evidence stages;
-- any supplied validation context is a supported object whose values are non-empty string lists.
-
-When any stage is missing, stale, unsafe, or inconsistent, the command reports `bundle_status: blocked` and lists blockers. Use `--require-complete` or `--require-written` when automation should fail closed.
-
-A persisted bundle verifies only when all five source-report entries are present, point to regular repository-local files, and the observed byte count and SHA-256 digest exactly match the preserved bundle metadata. Use `--require-verified` when automation should fail closed on drift.
-
-A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, records validation steps, and has absent or well-formed validation context that remains consistent with reviewed paths and bundle validation steps. Use `--require-replayable` when automation should fail closed on replay blockers.
+A persisted bundle verifies only when all five source-report entries are present, point to regular repository-local files, and the observed byte count and SHA-256 digest exactly match the preserved bundle metadata. A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, records validation steps, and has absent or well-formed validation context that remains consistent with reviewed paths and bundle validation steps. Use `--require-complete`, `--require-written`, `--require-verified`, or `--require-replayable` when automation should fail closed.
