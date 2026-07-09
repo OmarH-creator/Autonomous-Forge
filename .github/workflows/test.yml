@@ -49,6 +49,7 @@ jobs:
           forge maintenance-archive-manifest --help
           forge maintenance-archive-package --help
           forge maintenance-archive-package-preview --help
+          forge maintenance-archive-package-verify --help
           forge maintenance-bundle-verify --help
           forge maintenance-evidence-bundle --help
           forge maintenance-history-link-review --help
@@ -82,6 +83,7 @@ jobs:
           forge-maintenance-archive-manifest --help
           forge-maintenance-archive-package --help
           forge-maintenance-archive-package-preview --help
+          forge-maintenance-archive-package-verify --help
           forge-maintenance-bundle-verify --help
           forge-maintenance-evidence-bundle --help
           forge-maintenance-history-link-review --help
