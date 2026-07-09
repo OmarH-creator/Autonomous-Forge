@@ -70,13 +70,14 @@ def _clean_context_list(value: Any, *, field: str, blockers: list[str]) -> list[
 def _validation_context_summary(value: Any, blockers: list[str]) -> dict[str, Any]:
     """Return a compact, deterministic summary of retained implementation context."""
     if value in (None, {}):
-        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0}
+        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0, "items": {}}
     if not isinstance(value, dict):
         blockers.append("validation_context must be an object when present")
-        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0}
+        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0, "items": {}}
 
     fields: list[str] = []
     field_counts: dict[str, int] = {}
+    items: dict[str, list[str]] = {}
     unexpected = sorted(str(field) for field in value if field not in _CONTEXT_FIELDS)
     if unexpected:
         blockers.append(f"validation_context contains unexpected fields: {', '.join(unexpected)}")
@@ -86,11 +87,57 @@ def _validation_context_summary(value: Any, blockers: list[str]) -> dict[str, An
         cleaned = _clean_context_list(value[field], field=field, blockers=blockers)
         fields.append(field)
         field_counts[field] = len(cleaned)
+        items[field] = cleaned
     return {
         "present": bool(fields),
         "fields": fields,
         "field_counts": field_counts,
         "total_items": sum(field_counts.values()),
+        "items": items,
+    }
+
+
+def _context_consistency_summary(
+    validation_context: dict[str, Any],
+    *,
+    reviewed_paths: list[str],
+    validation_steps: list[str],
+    blockers: list[str],
+) -> dict[str, Any]:
+    """Compare retained implementation context against replay-critical bundle evidence."""
+    items = validation_context.get("items") if isinstance(validation_context.get("items"), dict) else {}
+    expected_changes = list(items.get("expected_file_changes") or [])
+    retained_validation_steps = list(items.get("validation_steps") or [])
+
+    reviewed_paths_without_expected_change: list[str] = []
+    for path in reviewed_paths:
+        if not any(path in change for change in expected_changes):
+            reviewed_paths_without_expected_change.append(path)
+            if expected_changes:
+                blockers.append(f"reviewed path lacks retained expected file change context: {path}")
+
+    retained_steps_not_in_bundle: list[str] = []
+    for step in retained_validation_steps:
+        if step not in validation_steps:
+            retained_steps_not_in_bundle.append(step)
+            blockers.append(f"retained validation step is not in bundle validation steps: {step}")
+
+    bundle_steps_without_retained_context: list[str] = []
+    for step in validation_steps:
+        if retained_validation_steps and step not in retained_validation_steps:
+            bundle_steps_without_retained_context.append(step)
+
+    status = "consistent" if not reviewed_paths_without_expected_change and not retained_steps_not_in_bundle else "inconsistent"
+    if not validation_context.get("present"):
+        status = "not_provided"
+
+    return {
+        "status": status,
+        "reviewed_paths_checked": len(reviewed_paths),
+        "reviewed_paths_without_expected_change": reviewed_paths_without_expected_change,
+        "retained_validation_steps_checked": len(retained_validation_steps),
+        "retained_validation_steps_not_in_bundle": retained_steps_not_in_bundle,
+        "bundle_validation_steps_without_retained_context": bundle_steps_without_retained_context,
     }
 
 
@@ -156,6 +203,12 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         blockers.append("bundle lacks validation steps")
     chain = _chain_statuses(bundle, blockers)
     validation_context = _validation_context_summary(bundle.get("validation_context"), blockers)
+    validation_context_consistency = _context_consistency_summary(
+        validation_context,
+        reviewed_paths=reviewed_paths,
+        validation_steps=validation_steps,
+        blockers=blockers,
+    )
     replay_status = "replayable" if not blockers else "blocked"
     verified_reports = verification.get("verified_reports") if isinstance(verification.get("verified_reports"), list) else []
     return {
@@ -174,6 +227,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         "reviewed_paths": reviewed_paths,
         "validation_steps": validation_steps,
         "validation_context": validation_context,
+        "validation_context_consistency": validation_context_consistency,
         "evidence_chain": chain,
         "source_report_summary": {
             "source_reports": len(verified_reports),
@@ -186,6 +240,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
             "validation_steps": len(validation_steps),
             "validation_context_fields": len(validation_context["fields"]),
             "validation_context_items": validation_context["total_items"],
+            "validation_context_consistency": validation_context_consistency["status"],
             "evidence_stages": len(chain),
             "source_reports": len(verified_reports),
             "blockers": len(blockers),
@@ -202,6 +257,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
 def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
     """Format a maintenance replay summary as stable text."""
     context = data["validation_context"]
+    consistency = data["validation_context_consistency"]
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -221,6 +277,16 @@ def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
         "Validation context:",
         f"- present={str(context['present']).lower()} fields={','.join(context['fields']) or 'none'} total_items={context['total_items']}",
         *[f"- {field}: {count}" for field, count in context["field_counts"].items()],
+        "Validation context consistency:",
+        f"- status={consistency['status']} reviewed_paths_checked={consistency['reviewed_paths_checked']} retained_validation_steps_checked={consistency['retained_validation_steps_checked']}",
+        *[
+            f"- reviewed path lacks expected-change context: {path}"
+            for path in consistency["reviewed_paths_without_expected_change"]
+        ],
+        *[
+            f"- retained validation step not in bundle: {step}"
+            for step in consistency["retained_validation_steps_not_in_bundle"]
+        ],
         "Evidence chain:",
         *[f"- {item['stage']}: {item['status']} (expected {item['expected_status']})" for item in data["evidence_chain"]],
         "Source reports:",
