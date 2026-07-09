@@ -19,7 +19,7 @@ def _write_bundle_fixture(tmp_path, *, complete=True, validation_context=None):
         validation_context = {
             "expected_file_changes": ["Update README.md status"],
             "implementation_steps": ["Inspect persisted validation context", "Expose context in replay output"],
-            "validation_steps": ["python -m pytest tests/test_maintenance_replay_summary.py"],
+            "validation_steps": ["python -m pytest"],
             "risk_register": ["Context remains advisory"],
         }
     bundle = {
@@ -83,9 +83,24 @@ def test_build_maintenance_replay_summary_reports_validation_context(tmp_path):
             "risk_register": 1,
         },
         "total_items": 5,
+        "items": {
+            "expected_file_changes": ["Update README.md status"],
+            "implementation_steps": ["Inspect persisted validation context", "Expose context in replay output"],
+            "validation_steps": ["python -m pytest"],
+            "risk_register": ["Context remains advisory"],
+        },
     }
     assert data["summary"]["validation_context_fields"] == 4
     assert data["summary"]["validation_context_items"] == 5
+    assert data["summary"]["validation_context_consistency"] == "consistent"
+    assert data["validation_context_consistency"] == {
+        "status": "consistent",
+        "reviewed_paths_checked": 1,
+        "reviewed_paths_without_expected_change": [],
+        "retained_validation_steps_checked": 1,
+        "retained_validation_steps_not_in_bundle": [],
+        "bundle_validation_steps_without_retained_context": [],
+    }
 
 
 def test_build_maintenance_replay_summary_blocks_malformed_validation_context(tmp_path):
@@ -95,6 +110,42 @@ def test_build_maintenance_replay_summary_blocks_malformed_validation_context(tm
 
     assert data["replay_status"] == "blocked"
     assert any("validation_context.expected_file_changes must be a list" in blocker for blocker in data["replay_blockers"])
+
+
+def test_build_maintenance_replay_summary_blocks_expected_change_not_matching_reviewed_path(tmp_path):
+    bundle_path, _ = _write_bundle_fixture(
+        tmp_path,
+        validation_context={
+            "expected_file_changes": ["Update docs/README copy"],
+            "validation_steps": ["python -m pytest"],
+        },
+    )
+
+    data = build_maintenance_replay_summary_data(bundle_path, root=tmp_path)
+
+    assert data["replay_status"] == "blocked"
+    assert data["validation_context_consistency"]["status"] == "inconsistent"
+    assert data["validation_context_consistency"]["reviewed_paths_without_expected_change"] == ["README.md"]
+    assert any("reviewed path lacks retained expected file change context: README.md" in blocker for blocker in data["replay_blockers"])
+
+
+def test_build_maintenance_replay_summary_blocks_retained_validation_step_not_in_bundle(tmp_path):
+    bundle_path, _ = _write_bundle_fixture(
+        tmp_path,
+        validation_context={
+            "expected_file_changes": ["Update README.md status"],
+            "validation_steps": ["python -m pytest tests/test_other.py"],
+        },
+    )
+
+    data = build_maintenance_replay_summary_data(bundle_path, root=tmp_path)
+
+    assert data["replay_status"] == "blocked"
+    assert data["validation_context_consistency"]["status"] == "inconsistent"
+    assert data["validation_context_consistency"]["retained_validation_steps_not_in_bundle"] == [
+        "python -m pytest tests/test_other.py"
+    ]
+    assert any("retained validation step is not in bundle validation steps" in blocker for blocker in data["replay_blockers"])
 
 
 def test_build_maintenance_replay_summary_blocks_drifted_source_report(tmp_path):
@@ -129,6 +180,7 @@ def test_maintenance_replay_summary_cli_json_and_require_replayable(tmp_path, ca
     payload = json.loads(capsys.readouterr().out)
     assert payload["replay_complete"] is True
     assert payload["validation_context"]["present"] is True
+    assert payload["validation_context_consistency"]["status"] == "consistent"
 
 
 def test_maintenance_replay_summary_cli_require_replayable_fails_on_blocked(tmp_path, capsys):
@@ -150,3 +202,4 @@ def test_primary_forge_router_delegates_maintenance_replay_summary(tmp_path, cap
     output = capsys.readouterr().out
     assert "Replay status: replayable" in output
     assert "Validation context:" in output
+    assert "Validation context consistency:" in output
