@@ -1,4 +1,4 @@
-"""Summarize push readiness from verified commit, trust, and fresh status evidence."""
+"""Summarize push readiness from verified commit, trust, status, and branch-protection evidence."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from typing import Any
 
 _MAX_JSON_BYTES = 1_000_000
 _SAFE_BOUNDARY = (
-    "Push-readiness reads supplied commit-verify, commit-trust-review, and commit-status-review JSON evidence "
-    "only. It never runs git, calls networks, stages files, creates commits, pushes, changes remotes, reads "
-    "environment variables, or modifies the working tree."
+    "Push-readiness reads supplied commit-verify, commit-trust-review, commit-status-review, and "
+    "branch-protection JSON evidence only. It never runs git, calls networks, stages files, creates commits, "
+    "pushes, changes remotes, reads environment variables, or modifies the working tree."
 )
 
 
@@ -146,7 +146,7 @@ def _validate_commit_trust(
     return blockers, trust_commit, signature_code
 
 
-def _validate_status_review(report: dict[str, Any], *, expected_commit: str) -> list[str]:
+def _validate_status_review(report: dict[str, Any], *, expected_commit: str) -> tuple[list[str], list[str]]:
     blockers: list[str] = []
     if report.get("title") != "Autonomous Forge commit status review":
         blockers.append("status review is not a forge commit-status-review JSON payload")
@@ -166,21 +166,90 @@ def _validate_status_review(report: dict[str, Any], *, expected_commit: str) -> 
         blockers.append("commit status review lacks successful status evidence")
     elif int(summary.get("failure") or 0) or int(summary.get("pending") or 0) or int(summary.get("unknown") or 0):
         blockers.append("commit status review includes failed, pending, or unknown contexts")
-    return blockers
+
+    status_names: list[str] = []
+    reviews = report.get("status_reviews")
+    if isinstance(reviews, list):
+        for item in reviews:
+            if not isinstance(item, dict):
+                continue
+            name = _clean_text(item.get("name") or item.get("context") or item.get("workflow_name"))
+            if name and name not in status_names:
+                status_names.append(name)
+    return blockers, status_names
+
+
+def _required_status_contexts(report: dict[str, Any]) -> list[str]:
+    required_status_checks = report.get("required_status_checks")
+    if not isinstance(required_status_checks, dict):
+        return []
+    contexts: list[str] = []
+    for value in required_status_checks.get("contexts") or []:
+        context = _clean_text(value)
+        if context and context not in contexts:
+            contexts.append(context)
+    for value in required_status_checks.get("checks") or []:
+        if not isinstance(value, dict):
+            continue
+        context = _clean_text(value.get("context") or value.get("name"))
+        if context and context not in contexts:
+            contexts.append(context)
+    return contexts
+
+
+def _validate_branch_protection(
+    report: dict[str, Any],
+    *,
+    branch: str,
+    status_names: list[str],
+) -> tuple[list[str], str, list[str], list[str], bool]:
+    blockers: list[str] = []
+    protected_value = report.get("protected")
+    if protected_value is not True:
+        blockers.append("branch protection evidence does not show the branch as protected")
+
+    reported_branch = _clean_text(report.get("branch") or report.get("name"))
+    if reported_branch and reported_branch != branch:
+        blockers.append("branch protection evidence branch does not match requested push branch")
+    elif not reported_branch:
+        blockers.append("branch protection evidence lacks a branch name")
+
+    required_status_checks = report.get("required_status_checks")
+    strict_required = False
+    if not isinstance(required_status_checks, dict):
+        blockers.append("branch protection evidence lacks required status checks")
+        required_contexts: list[str] = []
+    else:
+        strict_required = required_status_checks.get("strict") is True
+        if not strict_required:
+            blockers.append("branch protection evidence does not require up-to-date status checks")
+        required_contexts = _required_status_contexts(report)
+        if not required_contexts:
+            blockers.append("branch protection evidence has no required status contexts")
+
+    missing_contexts = [context for context in required_contexts if context not in status_names]
+    for context in missing_contexts:
+        blockers.append(f"required branch status context missing from status review: {context}")
+    return blockers, reported_branch, required_contexts, missing_contexts, strict_required
 
 
 def build_push_readiness_data(
     commit_verify: dict[str, Any],
     commit_trust: dict[str, Any],
     status_review: dict[str, Any],
+    branch_protection: dict[str, Any],
+    *,
+    branch: str = "main",
 ) -> dict[str, Any]:
-    """Build deterministic push-readiness data from verified commit, trust, and status evidence."""
+    """Build deterministic push-readiness data from verified commit, trust, status, and branch policy evidence."""
     if not isinstance(commit_verify, dict):
         raise PushReadinessError("commit-verify evidence must be a JSON object")
     if not isinstance(commit_trust, dict):
         raise PushReadinessError("commit-trust-review evidence must be a JSON object")
     if not isinstance(status_review, dict):
         raise PushReadinessError("commit-status-review evidence must be a JSON object")
+    if not isinstance(branch_protection, dict):
+        raise PushReadinessError("branch-protection evidence must be a JSON object")
 
     blockers, reviewed_paths, verified_commit = _validate_commit_verify(commit_verify)
     trust_blockers, trusted_commit, signature_code = _validate_commit_trust(
@@ -189,18 +258,38 @@ def build_push_readiness_data(
         expected_paths=reviewed_paths,
     )
     blockers.extend(trust_blockers)
-    blockers.extend(_validate_status_review(status_review, expected_commit=verified_commit))
+    status_blockers, status_names = _validate_status_review(status_review, expected_commit=verified_commit)
+    blockers.extend(status_blockers)
+    (
+        branch_blockers,
+        protected_branch,
+        required_status_contexts,
+        missing_required_status_contexts,
+        strict_required,
+    ) = _validate_branch_protection(branch_protection, branch=branch, status_names=status_names)
+    blockers.extend(branch_blockers)
 
     readiness_status = "ready" if not blockers else "blocked"
+    branch_protection_status = "clear" if not branch_blockers else "blocked"
     return {
         "title": "Autonomous Forge push readiness report",
         "mode": "pre-push readiness gate",
-        "source": "supplied commit-verify, commit-trust-review, and commit-status-review JSON evidence",
+        "source": (
+            "supplied commit-verify, commit-trust-review, commit-status-review, "
+            "and branch-protection JSON evidence"
+        ),
         "push_readiness_status": readiness_status,
         "verified_commit": verified_commit,
         "trusted_commit": trusted_commit,
         "status_commit": _clean_text(status_review.get("commit_sha")),
         "signature_code": signature_code,
+        "branch": branch,
+        "protected_branch": protected_branch,
+        "branch_protection_status": branch_protection_status,
+        "branch_status_checks_strict": strict_required,
+        "required_status_contexts": required_status_contexts,
+        "observed_status_contexts": status_names,
+        "missing_required_status_contexts": missing_required_status_contexts,
         "reviewed_paths": reviewed_paths,
         "status_summary": status_review.get("summary") if isinstance(status_review.get("summary"), dict) else {},
         "push_ready": readiness_status == "ready",
@@ -211,13 +300,15 @@ def build_push_readiness_data(
             "status_contexts": int((status_review.get("summary") or {}).get("total") or 0)
             if isinstance(status_review.get("summary"), dict)
             else 0,
+            "required_status_contexts": len(required_status_contexts),
+            "missing_required_status_contexts": len(missing_required_status_contexts),
             "blockers": len(blockers),
         },
         "push_readiness_blockers": blockers,
         "next_step": (
             "Use this ready report for human review before an explicitly confirmed push command."
             if readiness_status == "ready"
-            else "Resolve commit verification, commit trust, or workflow-status blockers before considering any push workflow."
+            else "Resolve commit verification, commit trust, workflow-status, or branch-protection blockers before considering any push workflow."
         ),
         "safety_boundary": _SAFE_BOUNDARY,
     }
@@ -234,10 +325,20 @@ def format_push_readiness(data: dict[str, Any]) -> str:
         f"Trusted commit: {data['trusted_commit'] or 'none'}",
         f"Status commit: {data['status_commit'] or 'none'}",
         f"Signature code: {data['signature_code'] or 'none'}",
+        f"Branch: {data['branch']}",
+        f"Branch protection status: {data['branch_protection_status']}",
+        f"Protected branch: {data['protected_branch'] or 'none'}",
+        f"Branch status checks strict: {str(data['branch_status_checks_strict']).lower()}",
         f"Push ready: {str(data['push_ready']).lower()}",
         f"Push allowed: {str(data['push_allowed']).lower()}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
+        "Required status contexts:",
+        *[f"- {context}" for context in data["required_status_contexts"]],
+        "Observed status contexts:",
+        *[f"- {context}" for context in data["observed_status_contexts"]],
+        "Missing required status contexts:",
+        *[f"- {context}" for context in data["missing_required_status_contexts"]],
         "Status summary:",
         f"- total: {data['status_summary'].get('total', 0)}",
         f"- success: {data['status_summary'].get('success', 0)}",
@@ -256,11 +357,20 @@ def read_push_readiness(
     commit_verify_path: Path,
     commit_trust_path: Path,
     status_review_path: Path,
+    branch_protection_path: Path,
     *,
+    branch: str = "main",
     root: Path = Path("."),
 ) -> dict[str, Any]:
     """Read supplied evidence and return a push-readiness report."""
     commit_verify = _read_json(commit_verify_path, root=root, label="commit-verify")
     commit_trust = _read_json(commit_trust_path, root=root, label="commit-trust-review")
     status_review = _read_json(status_review_path, root=root, label="commit-status-review")
-    return build_push_readiness_data(commit_verify, commit_trust, status_review)
+    branch_protection = _read_json(branch_protection_path, root=root, label="branch-protection")
+    return build_push_readiness_data(
+        commit_verify,
+        commit_trust,
+        status_review,
+        branch_protection,
+        branch=branch,
+    )
