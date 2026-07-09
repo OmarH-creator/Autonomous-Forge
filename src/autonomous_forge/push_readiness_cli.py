@@ -13,15 +13,16 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the parser for the push-readiness command."""
     parser = argparse.ArgumentParser(
         prog="forge push-readiness",
-        description="Summarize push readiness from verified commit evidence and clear workflow status.",
+        description="Summarize push readiness from verified commit, trusted signature metadata, and clear workflow status.",
     )
     parser.add_argument("--root", default=".", help="repository root used to constrain supplied evidence inputs")
     parser.add_argument("--commit-verify", required=True, help="repository-local commit-verify JSON report")
+    parser.add_argument("--commit-trust", required=True, help="repository-local commit-trust-review JSON report")
     parser.add_argument("--status-review", required=True, help="repository-local commit-status-review JSON report")
     parser.add_argument(
         "--require-ready",
         action="store_true",
-        help="return exit code 2 unless commit verification and status evidence are ready for push consideration",
+        help="return exit code 2 unless commit verification, commit trust, and status evidence are ready for push consideration",
     )
     parser.add_argument(
         "--format",
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         data = read_push_readiness(
             Path(args.commit_verify),
+            Path(args.commit_trust),
             Path(args.status_review),
             root=Path(args.root),
         )
