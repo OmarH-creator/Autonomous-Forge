@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-095 — 2026-07-09 — Created commits need local verification before push readiness
+
+Context: The workflow can now create one explicitly confirmed local commit from reviewed commit proposal evidence, but the product had no command that verifies the created commit still matches the reviewed SHA, message, and changed paths before any future push workflow.
+Decision: Add `forge commit-verify` plus compatibility `forge-commit-verify`. The command consumes created commit-create JSON evidence, validates that push and remote authority remain disabled, inspects the local commit with `git show` and `git diff-tree`, compares the commit SHA, subject, reviewed body lines, and exact changed paths, and supports fail-closed `--require-verified` behavior.
+Alternatives considered: Move directly to push-readiness, add verification inside commit-create, rely on manual `git show`, or require signed commits before any verification command.
+Consequences: Maintainers now have a concrete post-commit verification checkpoint before any push workflow is considered. The command trusts supplied commit-create evidence and local git output, does not verify signatures or authorship, and never pushes or mutates the working tree.
+Human decision still required: No.
+
 ## DEC-094 — 2026-07-09 — Commit creation must be explicit, local, and non-pushing
 
 Context: The workflow can now apply one explicitly confirmed replacement, record supplied post-apply validation evidence, review supplied or live-collected status evidence, summarize commit readiness, and preview commit metadata. The next valuable step is moving beyond metadata preview into actual local commit creation without creating a push bot.
