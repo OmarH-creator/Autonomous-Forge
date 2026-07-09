@@ -24,6 +24,14 @@ def _validation_steps(proposal_data: dict[str, Any]) -> list[str]:
     return steps
 
 
+def _risk_note(entry: dict[str, Any]) -> str:
+    """Flatten one risk-register entry into stable validation-plan text."""
+    source = str(entry.get("source", "unknown"))
+    risk = str(entry.get("risk", "not documented"))
+    mitigation = str(entry.get("mitigation", "not documented"))
+    return f"{source}: {risk} Mitigation: {mitigation}"
+
+
 def _clean_area(value: str) -> str:
     """Normalize one planned repository-relative path for advisory checks."""
     cleaned = value.strip().strip("`").rstrip("/")
@@ -103,6 +111,9 @@ def build_validation_plan_data(
 ) -> dict[str, Any]:
     """Build structured validation-plan data without running commands."""
     selected = proposal_data["selected_task"]
+    expected_file_changes = list(proposal_data.get("expected_file_changes", []))
+    implementation_steps = list(proposal_data.get("implementation_steps", []))
+    risk_register = list(proposal_data.get("risk_register", []))
     expected_file_areas = list(proposal_data["planned_file_areas"])
     data: dict[str, Any] = {
         "title": "Autonomous Forge validation plan",
@@ -110,7 +121,10 @@ def build_validation_plan_data(
         "source": "forge propose structured data",
         "selected_task": selected,
         "validation_execution": "not run",
+        "expected_file_changes": expected_file_changes,
+        "implementation_steps": implementation_steps,
         "validation_steps": _validation_steps(proposal_data),
+        "risk_register": risk_register,
         "expected_file_areas": expected_file_areas,
         "path_checks": _path_checks(expected_file_areas, proposal_data["policy"], root),
         "approval_required_items": list(proposal_data["approval_required_items"]),
@@ -125,10 +139,16 @@ def build_validation_plan_data(
     }
 
     if selected is None:
+        data["expected_file_changes"] = []
+        data["implementation_steps"] = []
         data["validation_steps"] = []
+        data["risk_register"] = []
         data["expected_file_areas"] = []
         data["path_checks"] = []
         return data
+
+    if not data["risk_notes"] and risk_register:
+        data["risk_notes"] = [_risk_note(entry) for entry in risk_register]
 
     return data
 
@@ -159,6 +179,10 @@ def format_validation_plan(data: dict[str, Any]) -> str:
 
     lines.extend(
         [
+            "Expected file changes:",
+            *[f"- {area}" for area in data["expected_file_changes"] or ["none documented"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
             "Validation steps:",
             *[f"- {step}" for step in data["validation_steps"]],
             "Expected file areas:",
@@ -175,6 +199,11 @@ def format_validation_plan(data: dict[str, Any]) -> str:
             *[f"- {item}" for item in data["approval_required_items"]],
             "Blocked items:",
             *[f"- {item}" for item in data["blocked_items"]],
+            "Risk register:",
+            *[
+                f"- {item['source']}: {item['risk']} Mitigation: {item['mitigation']}"
+                for item in data["risk_register"]
+            ],
             "Risk notes:",
             *[f"- {note}" for note in data["risk_notes"]],
             f"Commands allowed: {str(data['commands_allowed']).lower()}",
