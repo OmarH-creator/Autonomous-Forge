@@ -22,6 +22,7 @@ from autonomous_forge.patch_proposal_review_cli import main as _patch_proposal_r
 from autonomous_forge.patch_text_preflight_cli import main as _patch_text_preflight_main
 from autonomous_forge.patch_text_review_cli import main as _patch_text_review_main
 from autonomous_forge.post_apply_validation_cli import main as _post_apply_validation_main
+from autonomous_forge.push_handoff_cli import main as _push_handoff_main
 from autonomous_forge.push_readiness_cli import main as _push_readiness_main
 
 
@@ -43,6 +44,7 @@ _EXTENSION_COMMANDS = {
     "patch-text-preflight": _patch_text_preflight_main,
     "patch-text-review": _patch_text_review_main,
     "post-apply-validation": _post_apply_validation_main,
+    "push-handoff": _push_handoff_main,
     "push-readiness": _push_readiness_main,
 }
 
