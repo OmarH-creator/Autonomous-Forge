@@ -79,10 +79,14 @@ def build_command_execution_handoff_preview_data(
         "commands_allowed": False,
         "handoff_status": _handoff_status(validation_orchestration_data, eligible),
         "orchestration_status": validation_orchestration_data.get("orchestration_status", "unknown"),
+        "expected_file_changes": list(validation_orchestration_data.get("expected_file_changes", [])),
+        "implementation_steps": list(validation_orchestration_data.get("implementation_steps", [])),
+        "validation_steps": list(validation_orchestration_data.get("validation_steps", [])),
+        "risk_register": list(validation_orchestration_data.get("risk_register", [])),
         "candidate_commands": eligible,
         "candidates_requiring_review": needs_review,
         "required_confirmation": [
-            "manual maintainer review of command candidates",
+            "manual maintainer review of command candidates and implementation context",
             "explicit future executor confirmation before any command is run",
             "separate validation-result attachment after observed validation completes",
         ],
@@ -121,6 +125,18 @@ def format_command_execution_handoff_preview(data: dict[str, Any]) -> str:
             "Selected task: "
             f"{selected['id']} [{selected['priority']}/{selected['status']}] {selected['title']}"
         )
+    lines.extend(
+        [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
+        ]
+    )
     lines.append("Candidate commands:")
     lines.extend(
         [
