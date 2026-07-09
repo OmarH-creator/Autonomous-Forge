@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-103 — 2026-07-09 — Persisted bundles need a replay summary
+
+Context: AUTO-101 can verify that a persisted maintenance evidence bundle still matches its source-report hashes, but maintainers still lacked one compact command that explains whether the saved patch, validation, commit, push, and post-push chain is internally complete and replayable.
+Decision: Add `forge maintenance-replay-summary` plus compatibility `forge-maintenance-replay-summary`. The command consumes one persisted bundle, reuses the bundle verifier to detect source-report drift, checks the bundle completion fields, safe reviewed paths, target path, validation steps, and expected evidence-chain stages, then reports `replayable` or `blocked` with blockers.
+Alternatives considered: Leave replay decisions to manual review, add replay output to `maintenance-bundle-verify`, require rerunning validation/workflows, poll GitHub Actions, inspect branch protection remotely, or defer this until a cryptographic attestation model exists.
+Consequences: Maintainers now have a deterministic local replay decision for saved maintenance evidence without adding writes, patch application, validation execution, commits, pushes, remote mutation, workflow reruns, polling, or environment reads. This is still evidence replay, not proof of current remote state, signer identity, or branch-protection compliance.
+Human decision still required: No.
+
 ## DEC-102 — 2026-07-09 — Push-readiness should require commit trust evidence
 
 Context: AUTO-102 added a local `forge commit-trust-review` checkpoint, but leaving `forge push-readiness` dependent only on commit verification and status evidence would let a ready push ignore unsigned, bad, expired, revoked, uncheckable, mismatched, or path-mismatched trust evidence.
