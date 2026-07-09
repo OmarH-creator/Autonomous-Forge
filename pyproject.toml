@@ -42,6 +42,7 @@ forge-maintenance-archive-package-verify = "autonomous_forge.maintenance_archive
 forge-maintenance-bundle-verify = "autonomous_forge.maintenance_bundle_verify_cli:main"
 forge-maintenance-evidence-bundle = "autonomous_forge.maintenance_evidence_bundle_cli:main"
 forge-maintenance-history-link-review = "autonomous_forge.maintenance_history_link_review_cli:main"
+forge-maintenance-preservation-completeness = "autonomous_forge.maintenance_preservation_completeness_cli:main"
 forge-maintenance-replay-policy-summary = "autonomous_forge.maintenance_replay_policy_summary_cli:main"
 forge-maintenance-replay-summary = "autonomous_forge.maintenance_replay_summary_cli:main"
 forge-maintenance-review-compare = "autonomous_forge.maintenance_review_compare_cli:main"
