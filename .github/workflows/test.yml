@@ -36,6 +36,7 @@ jobs:
         run: |
           forge --version
           forge change-readiness --help
+          forge commit-create --help
           forge commit-proposal-preview --help
           forge commit-readiness --help
           forge commit-status-review --help
@@ -51,6 +52,7 @@ jobs:
           forge patch-text-review --help
           forge post-apply-validation --help
           forge-change-readiness --help
+          forge-commit-create --help
           forge-commit-proposal-preview --help
           forge-commit-readiness --help
           forge-commit-status-review --help
