@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-129
+
+- Task ID: AUTO-129 — Archive manifest integrity gates
+- Summary: Hardened `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` so read-only manifest previews recompute current source-report SHA-256 values and byte counts, expose `archive_integrity` pass/fail/advisory gates, and block manifest readiness if preservation evidence is missing or drifted.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, archive manifest implementation/tests/docs, and maintenance review comparison dependencies. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the updated implementation and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for ready integrity summaries, source-report hash/byte verification, JSON output, text integrity gates, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a confirmation-gated local archive-manifest writer only after CI confirms the integrity-checked preview and the archive entry schema remains stable.
+
 ## 2026-07-09 — AUTO-128
 
 - Task ID: AUTO-128 — Maintenance archive manifest preview
@@ -17,15 +26,6 @@
 - Validation completed: Scratch syntax compilation passed for the updated implementation and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for selected preservation candidate ranking, JSON output, text output, blocked handoff behavior, and fail-closed `--require-all-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a guarded read-only archive-manifest preview for the selected preservation candidate before any write-capable archive step.
-
-## 2026-07-09 — AUTO-126
-
-- Task ID: AUTO-126 — Maintenance handoff context-consistency gate
-- Summary: Tightened `forge maintenance-review-handoff` so a ready handoff now requires the `.ai/run-history` pointer and replayed linked bundle to agree on reviewed paths, validation steps, and retained validation context fields. Linked replay output now carries the replayed bundle's reviewed paths, validation steps, and validation-context summary so the handoff can detect stale or manually edited pointers before preservation guidance reports ready.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, open issues, maintenance history-link review replay handoff code, maintenance review handoff code/CLI/tests/docs, and comparison docs. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the new helper logic. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for matched handoff context, mismatched retained validation context, mismatched reviewed paths, JSON output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Extend maintenance review comparison summaries so multi-run comparisons surface context-consistency drift directly.
 
 ## Historical note
 
