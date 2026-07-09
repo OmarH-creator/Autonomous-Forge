@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-118 — 2026-07-09 — Maintenance bundle creation should preserve validation context
+
+Context: AUTO-117 made `forge maintenance-replay-summary` report retained validation context when a persisted bundle includes it, but `forge maintenance-evidence-bundle` did not yet copy supported upstream validation-context fields into newly generated bundles or the optional run-history link pointer. That meant new bundles could lose implementation-plan context before replay review.
+Decision: Update maintenance bundle creation and history-link output to retain supported `validation_context` fields from upstream evidence: `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`. Malformed validation context now blocks bundle completion rather than being silently ignored.
+Alternatives considered: Preserve context only in the persisted bundle, preserve context only in the history link, defer to a new audit command, or ignore context until a larger replay redesign. Preserving it in both bundle and link keeps durable evidence and discoverability aligned; a separate command would add surface area and deferral would keep the replay-summary improvement underfed.
+Consequences: Newly generated bundles and history links can carry implementation-plan evidence into replay summaries. The retained context remains advisory JSON evidence only; the bundle still does not prove validation coverage for every planned file, step, or risk.
+Human decision still required: No.
+
 ## DEC-117 — 2026-07-09 — Maintenance replay summaries should expose retained validation context
 
 Context: AUTO-115 preserved implementation context under `record.validation_context`, and AUTO-116 exposed that retained context through run-history read/compare surfaces. Persisted maintenance bundles and replay summaries still centered on reviewed paths, validation steps, evidence-chain status, and source-report hashes, so maintainers could not tell from replay output whether a bundle preserved implementation-plan context.
