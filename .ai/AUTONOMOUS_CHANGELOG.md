@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-104
+
+- Task ID: AUTO-104 — Fast-forward-only push handoff guard
+- Summary: Hardened `forge push-handoff` so the explicitly confirmed push path now checks `git merge-base --is-ancestor <remote-sha> <verified-commit>` before any `git push` is attempted. Ready handoffs now report `fast_forward_checked`, confirmed pushes remain non-force, and non-fast-forward candidates are blocked deterministically before remote mutation.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, open issues, README/status, roadmap, state, changelog, decisions, push handoff implementation, tests, and focused docs. Work stayed directly on `main`. Branch search returned no active branch results. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 did not supersede this concrete push-safety hardening.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 9 tests, including the new non-fast-forward refusal case. Direct local checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add maintainer allowed-signer policy support for commit trust evidence.
+
 ## 2026-07-09 — AUTO-103
 
 - Task ID: AUTO-103 — Persisted maintenance replay summary
