@@ -68,6 +68,13 @@ def test_command_execution_handoff_blocks_missing_history(tmp_path):
     assert data["commands_allowed"] is False
     assert data["validation_execution"] == "not run"
     assert data["handoff_status"] == "blocked-by-readiness"
+    assert data["expected_file_changes"] == [
+        "src/autonomous_forge/command_execution_handoff.py",
+        "tests/test_command_execution_handoff.py",
+    ]
+    assert data["implementation_steps"][0] == "Combine validation orchestration readiness and command candidates."
+    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["risk_register"] == ["Do not execute validation commands."]
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
     assert data["candidate_commands"][0]["execution_status"] == "not run"
     assert data["expected_result_record_update"]["mutation_allowed"] is False
@@ -83,7 +90,7 @@ def test_command_execution_handoff_ready_after_clear_history(tmp_path):
     assert data["orchestration_status"] == "ready-for-manual-validation-review"
     assert data["expected_result_record_update"]["record_path"].endswith(".ai/run-history/passed.json")
     assert data["blockers"] == []
-    assert "explicit future executor confirmation before any command is run" in data["required_confirmation"]
+    assert "manual maintainer review of command candidates and implementation context" in data["required_confirmation"]
 
 
 def test_command_execution_handoff_formats_text(tmp_path):
@@ -101,6 +108,9 @@ def test_command_execution_handoff_formats_text(tmp_path):
     assert "Autonomous Forge command-execution handoff preview" in output
     assert "Handoff status: ready-for-manual-execution-review" in output
     assert "Selected task: AUTO-042 [P1/TODO] Add command-execution handoff preview" in output
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
+    assert "Risk register:" in output
     assert "- python -m pytest: eligibility=eligible preview; execution=not run" in output
     assert "Safety boundary: Command-execution handoff preview only" in output
 
@@ -123,6 +133,7 @@ def test_command_execution_handoff_supports_json(tmp_path):
     assert data["handoff_status"] == "ready-for-manual-execution-review"
     assert data["commands_allowed"] is False
     assert data["candidate_commands"][0]["execution_status"] == "not run"
+    assert data["expected_file_changes"][0] == "src/autonomous_forge/command_execution_handoff.py"
 
 
 def test_command_execution_handoff_cli_supports_json(tmp_path, capsys):
@@ -147,3 +158,4 @@ def test_command_execution_handoff_cli_supports_json(tmp_path, capsys):
     assert data["title"] == "Autonomous Forge command-execution handoff preview"
     assert data["handoff_status"] == "ready-for-manual-execution-review"
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
+    assert data["implementation_steps"][0] == "Combine validation orchestration readiness and command candidates."
