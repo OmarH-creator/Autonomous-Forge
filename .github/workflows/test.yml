@@ -52,6 +52,7 @@ jobs:
           forge patch-text-preflight --help
           forge patch-text-review --help
           forge post-apply-validation --help
+          forge push-readiness --help
           forge-change-readiness --help
           forge-commit-create --help
           forge-commit-proposal-preview --help
@@ -69,6 +70,7 @@ jobs:
           forge-patch-text-preflight --help
           forge-patch-text-review --help
           forge-post-apply-validation --help
+          forge-push-readiness --help
       - name: Validate repository planning inputs
         run: forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
       - name: Run tests
