@@ -8,7 +8,7 @@ from autonomous_forge.maintenance_archive_manifest_cli import main as archive_ma
 STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"]
 
 
-def write_replayable_bundle(tmp_path, bundle_id="AUTO-128", commit_sha="abc1234", *, reviewed_paths=None):
+def write_replayable_bundle(tmp_path, bundle_id="AUTO-129", commit_sha="abc1234", *, reviewed_paths=None):
     reviewed_paths = reviewed_paths or ["README.md"]
     validation_context = {
         "expected_file_changes": ["Update archive manifest command"],
@@ -57,7 +57,7 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-128", commit_sha="abc1234"
     return bundle_path, validation_context
 
 
-def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-128", commit_sha="abc1234", sha256=None):
+def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-129", commit_sha="abc1234", sha256=None):
     digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
     link = {
         "schema_version": "maintenance-bundle-history-link/v1",
@@ -100,10 +100,25 @@ def test_archive_manifest_preview_lists_candidate_evidence(tmp_path):
 
     assert data["manifest_status"] == "ready"
     assert data["write_allowed"] is False
-    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-128"
+    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-129"
     assert data["archive_entry_count"] == 7
     assert data["source_report_count"] == 5
+    assert data["archive_integrity"]["status"] == "passed"
+    assert data["archive_integrity"]["failed"] == 0
     assert [entry["kind"] for entry in data["archive_entries"][:2]] == ["run_history_link", "maintenance_bundle"]
+
+
+def test_archive_manifest_preview_verifies_source_report_hashes_and_bytes(tmp_path):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+
+    data = build_maintenance_archive_manifest_data([link], root=tmp_path)
+
+    source_reports = [entry for entry in data["archive_entries"] if entry["kind"] == "source_report"]
+    assert len(source_reports) == 5
+    assert all(entry["sha256_verified"] is True for entry in source_reports)
+    assert all(entry["bytes_verified"] is True for entry in source_reports)
+    assert all(entry["current_sha256"] == entry["sha256"] for entry in source_reports)
 
 
 def test_archive_manifest_preview_blocks_unready_comparison(tmp_path):
@@ -113,6 +128,7 @@ def test_archive_manifest_preview_blocks_unready_comparison(tmp_path):
     data = build_maintenance_archive_manifest_data([link], root=tmp_path)
 
     assert data["manifest_status"] == "blocked"
+    assert data["archive_integrity"]["status"] == "blocked"
     assert any("comparison is not ready" in blocker for blocker in data["archive_blockers"])
 
 
@@ -126,6 +142,20 @@ def test_archive_manifest_cli_json_ready(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["manifest_ready"] is True
     assert payload["archive_entry_count"] == 7
+    assert payload["archive_integrity"]["status"] == "passed"
+
+
+def test_archive_manifest_text_shows_integrity_gates(tmp_path, capsys):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+
+    status = archive_manifest_main(["--root", str(tmp_path), "--link", str(link)])
+
+    assert status == 0
+    output = capsys.readouterr().out
+    assert "Archive integrity: status=passed" in output
+    assert "sha256_verified=true" in output
+    assert "Archive integrity gates:" in output
 
 
 def test_archive_manifest_cli_require_ready_blocks(tmp_path, capsys):
