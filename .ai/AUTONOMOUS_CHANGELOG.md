@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-119
+
+- Task ID: AUTO-119 — Validation-context consistency checks in maintenance replay
+- Summary: Enhanced `forge maintenance-replay-summary` so replay summaries now expose `validation_context_consistency` and block replayability when retained expected file changes do not represent reviewed paths or retained validation steps are absent from the bundle's preserved validation steps.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap, state, changelog, decisions, maintenance replay implementation, focused tests, and maintenance bundle docs. Work stayed directly on `main`. Prior PRs remain merged/closed/obsolete; no open PR or branch required integration.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Focused replay tests were updated for consistent context, mismatched reviewed-path context, mismatched validation-step context, CLI JSON output, and primary-router text output. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a compact replay policy summary that shows passed, failed, and advisory replay gates for maintainers.
+
 ## 2026-07-09 — AUTO-118
 
 - Task ID: AUTO-118 — Validation-context-preserving maintenance bundle creation and history links
