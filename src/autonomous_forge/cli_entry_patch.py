@@ -19,6 +19,7 @@ from autonomous_forge.maintenance_archive_copy_verify_cli import main as _mainte
 from autonomous_forge.maintenance_archive_manifest_cli import main as _maintenance_archive_manifest_main
 from autonomous_forge.maintenance_archive_package_cli import main as _maintenance_archive_package_main
 from autonomous_forge.maintenance_archive_package_preview_cli import main as _maintenance_archive_package_preview_main
+from autonomous_forge.maintenance_archive_package_verify_cli import main as _maintenance_archive_package_verify_main
 from autonomous_forge.maintenance_bundle_verify_cli import main as _maintenance_bundle_verify_main
 from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
 from autonomous_forge.maintenance_history_link_review_cli import main as _maintenance_history_link_review_main
@@ -55,6 +56,7 @@ _EXTENSION_COMMANDS = {
     "maintenance-archive-manifest": _maintenance_archive_manifest_main,
     "maintenance-archive-package": _maintenance_archive_package_main,
     "maintenance-archive-package-preview": _maintenance_archive_package_preview_main,
+    "maintenance-archive-package-verify": _maintenance_archive_package_verify_main,
     "maintenance-bundle-verify": _maintenance_bundle_verify_main,
     "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
     "maintenance-history-link-review": _maintenance_history_link_review_main,
