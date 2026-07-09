@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-113
+
+- Task ID: AUTO-113 — Enriched executor handoff context
+- Summary: Enhanced `forge command-execution-handoff`, `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` so text and JSON now carry through structured validation context: expected file changes, implementation steps, validation steps, and policy-aware risk register. This keeps the policy-aware planning milestone moving into the executor review path instead of adding another standalone patch/audit/preflight command.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent issues/PR search, README/status, roadmap, state, changelog, decisions, executor handoff/gate/contract/dry-run implementation, focused tests, and docs. Work stayed directly on `main`. PR #11 is merged; PR #10 is closed and superseded by direct `main` work; PR #4 was already merged; PRs #2, #3, and #5 are closed or obsolete. Open issues #1, #6, and #9 did not supersede this continuation.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Carry enriched context into executor-run output and validation-result persistence.
+
 ## 2026-07-09 — AUTO-112
 
 - Task ID: AUTO-112 — Plan-enriched validation preview and orchestration artifacts
