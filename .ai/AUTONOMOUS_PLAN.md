@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, and create one explicitly confirmed local commit.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, and verify that created commit before any push workflow is considered.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
+Roadmap v3 now reaches guarded local commit creation and post-commit verification after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
 
 ## Prioritized roadmap
 
@@ -166,20 +166,23 @@ Expected files or areas: `src/autonomous_forge/commit_create.py`, `src/autonomou
 Acceptance criteria: Commit-create consumes ready commit-proposal-preview JSON, validates reviewed paths and disabled push/remote fields, requires `--confirm-commit-create`, checks local git status for reviewed paths, stages only reviewed paths, creates one local commit, reports the created commit SHA, supports `--require-created`, and never pushes or changes remotes.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation covered the new module and CLI; deterministic tests cover missing confirmation, guarded git command sequence, unready proposal blocking, no-change blocking, and unsafe path refusal. Direct repository checkout/test execution remained unavailable in this environment.
 Risks or assumptions: The command intentionally mutates local git state when explicitly confirmed, trusts supplied upstream proposal evidence, and does not sign, verify, or push commits.
-Notes: Next safe step is post-commit verification that checks created commit metadata and reviewed paths before any push workflow is considered.
+Notes: Completed before post-commit verification.
+
+### AUTO-095 — Post-commit verification
+Priority: P1
+Status: DONE
+Goal: Verify that a created local commit matches the reviewed commit-create report before any push-readiness workflow is considered.
+Why it matters: Once the product can create local commits, it needs a deterministic checkpoint that confirms the created commit SHA, message, and changed paths still match reviewed evidence.
+Scope: Add `forge commit-verify` and `forge-commit-verify`, deterministic core tests with a fake git runner, focused documentation, README usage, CI help-smoke coverage, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/commit_verify.py`, `src/autonomous_forge/commit_verify_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_commit_verify.py`, `docs/COMMIT_VERIFY.md`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Commit-verify consumes created commit-create JSON, validates safe reviewed paths and disabled push/remote fields, inspects one local commit with `git show` and `git diff-tree`, compares SHA, subject, reviewed body lines, and exact changed paths, supports `--require-verified`, and never stages, commits, pushes, changes remotes, or modifies the working tree.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests; deterministic tests cover uncreated reports, verified metadata/path inspection, unexpected paths, summary mismatch, and unsafe path refusal. Direct repository checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command trusts supplied commit-create evidence and local git output, and does not verify signatures, authorship, or workflow freshness.
+Notes: Next safe step is a push-readiness gate that requires verified commit evidence and fresh workflow status before any push command is considered.
 
 ## Future Ideas
 
 - Hash-linked local run reports.
 - Optional issue import.
 - Policy-aware changed-file summaries.
-- Explicit validation orchestration after validation plans are reviewable.
-- Post-commit verification before any push workflow.
-
-## Do Not Change Without Explicit Human Approval
-
-- Remote and branch settings.
-- Repository visibility and access controls.
-- Production infrastructure.
-- Features that change repository files outside documented safe paths.
-- Sensitive configuration handling, telemetry, analytics, billing, or deployment behavior.
+- Signed commit verification before any push workflow.
