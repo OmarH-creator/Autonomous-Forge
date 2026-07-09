@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, and verify that created commit before any push workflow is considered.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, and summarize push readiness before any push workflow is considered.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation and post-commit verification after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, and pre-push readiness review after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
 
 ## Prioritized roadmap
 
@@ -178,7 +178,19 @@ Expected files or areas: `src/autonomous_forge/commit_verify.py`, `src/autonomou
 Acceptance criteria: Commit-verify consumes created commit-create JSON, validates safe reviewed paths and disabled push/remote fields, inspects one local commit with `git show` and `git diff-tree`, compares SHA, subject, reviewed body lines, and exact changed paths, supports `--require-verified`, and never stages, commits, pushes, changes remotes, or modifies the working tree.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests; deterministic tests cover uncreated reports, verified metadata/path inspection, unexpected paths, summary mismatch, and unsafe path refusal. Direct repository checkout/test execution remained unavailable in this environment.
 Risks or assumptions: The command trusts supplied commit-create evidence and local git output, and does not verify signatures, authorship, or workflow freshness.
-Notes: Next safe step is a push-readiness gate that requires verified commit evidence and fresh workflow status before any push command is considered.
+Notes: Completed before push-readiness review.
+
+### AUTO-096 — Push-readiness gate
+Priority: P1
+Status: DONE
+Goal: Combine verified commit evidence with clear workflow status before any future push command is considered.
+Why it matters: After local commit creation and verification, maintainers need one deterministic pre-push gate that proves the verified commit still has clear status evidence while push authority remains disabled.
+Scope: Add `forge push-readiness` and `forge-push-readiness`, deterministic tests, focused documentation, README usage, CI help-smoke coverage, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/push_readiness.py`, `src/autonomous_forge/push_readiness_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_push_readiness.py`, `docs/PUSH_READINESS.md`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Push-readiness consumes commit-verify JSON and commit-status-review JSON, requires verified commit evidence, requires a matching status-review commit SHA, requires at least one successful status context and no failed/pending/unknown contexts, validates safe reviewed paths, supports `--require-ready`, and never runs git, calls networks, stages files, creates commits, pushes, changes remotes, or modifies files.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests before writing. Deterministic tests cover ready evidence, unverified commits, status SHA mismatch, unclear status evidence, unsafe paths, and repository-local JSON loading. Direct repository checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command trusts supplied commit-verify and status-review evidence, and it still does not prove signed commit identity or provide a push command.
+Notes: Next safe step is an explicitly confirmed, non-force local push handoff that consumes ready push-readiness evidence without changing remotes or protections.
 
 ## Future Ideas
 
