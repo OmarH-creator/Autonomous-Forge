@@ -32,10 +32,13 @@ The comparison reuses the supported single-record reader summary for both record
 - preflight overall status;
 - validation execution mode;
 - validation result;
+- retained validation context, including expected file changes, implementation steps, validation steps, and risk register when present;
 - changed-files summary;
 - commit field;
 - blockers;
 - safety notes.
+
+The compact before/after overview also lists which validation-context fields were present in each record so maintainers can spot missing or newly retained context without opening raw JSON.
 
 ## Safety checks
 
@@ -45,8 +48,9 @@ The command keeps the surface narrow:
 - Both paths must use a `.json` extension.
 - Both records must use the supported `run-history/v1` schema.
 - Malformed or unsupported records are refused with a clear error.
+- If present, `record.validation_context` must be a JSON object.
 - The command compares only explicit records; it does not scan the history directory or select records automatically.
 
 ## Current limitations
 
-This command does not verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, write indexes, mutate `.ai/run-history/`, enforce policy decisions, call networks, commit, or push.
+This command does not verify commits, check workflow status, inspect repository settings, run tests, inspect diffs, read changed-file contents, generate patches, infer success, write indexes, mutate `.ai/run-history/`, enforce policy decisions, call networks, commit, or push. Validation context differences are advisory evidence comparisons, not proof that validation covered every planned file, step, or risk.
