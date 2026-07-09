@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, and preserve implementation-grade plan fields through downstream proposal, validation-plan, validation-preview, validation-orchestration, executor handoff, executor-run, and validation-result-write artifacts.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, preserve implementation-grade plan fields through downstream proposal, validation-plan, validation-preview, validation-orchestration, executor handoff, executor-run, and validation-result-write artifacts, and expose retained validation context in run-history read/compare review surfaces.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, plan-enriched `forge propose` artifacts, plan/proposal-enriched `forge validate-plan` artifacts, enriched validation-preview/orchestration artifacts, enriched executor handoff/gate/contract/dry-run artifacts, enriched executor-run/result-persistence handoff artifacts, and validation-result writes that retain implementation context in persisted records. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, plan-enriched `forge propose` artifacts, plan/proposal-enriched `forge validate-plan` artifacts, enriched validation-preview/orchestration artifacts, enriched executor handoff/gate/contract/dry-run artifacts, enriched executor-run/result-persistence handoff artifacts, validation-result writes that retain implementation context in persisted records, and run-history read/compare surfaces that expose retained validation context. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -190,7 +190,19 @@ Expected files or areas: `src/autonomous_forge/validation_result_writer.py`, `te
 Acceptance criteria: Validation-result writes preserve existing implementation context in the saved record, report retained context fields through the Python API, keep CLI JSON backward-compatible, require explicit confirmation, and retain existing path/result safety checks.
 Validation: Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
 Risks or assumptions: Context fields are copied from trusted local run-history JSON and remain advisory; the writer does not verify that validation actually covered every retained field.
-Notes: Next safe step is exposing retained validation context in run-history read/compare surfaces so persisted evidence is easier to audit.
+Notes: Completed before validation-context-aware run-history review surfaces.
+
+### AUTO-116 — Validation-context-aware run-history read and compare
+Priority: P1
+Status: DONE
+Goal: Expose retained validation context in `forge run-history-read` and compare it in `forge run-history-compare`.
+Why it matters: AUTO-115 saved implementation context beside validation results, but maintainers still needed an audit surface that exposed that context without opening raw JSON.
+Scope: Update `src/autonomous_forge/run_history_reader.py` and `src/autonomous_forge/run_history_compare.py`; add focused tests; update run-history docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/run_history_reader.py`, `src/autonomous_forge/run_history_compare.py`, `tests/test_run_history_reader.py`, `tests/test_run_history_compare.py`, `docs/RUN_HISTORY_READS.md`, `docs/RUN_HISTORY_COMPARISONS.md`, README, and `.ai` records.
+Acceptance criteria: Single-record text/JSON summaries expose retained validation context when present, comparisons include validation context as a changed/unchanged field, malformed validation-context values fail closed, behavior remains read-only and deterministic, and focused tests cover the new surfaces.
+Validation: Scratch syntax compilation passed for the changed modules and focused tests. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+Risks or assumptions: Validation context remains advisory saved JSON evidence; read/compare surfaces do not prove validation coverage or verify commits, workflows, diffs, patches, or policy compliance.
+Notes: Next safe step is using retained validation context in maintenance bundle or replay review surfaces.
 
 ## Future Ideas
 
@@ -198,4 +210,4 @@ Notes: Next safe step is exposing retained validation context in run-history rea
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- Expose retained validation context in run-history read/compare surfaces.
+- Use retained validation context in maintenance bundle or replay review surfaces.
