@@ -62,9 +62,19 @@ STATUS_REVIEW = {
     "requires_attention": False,
 }
 
+BRANCH_PROTECTION = {
+    "branch": "main",
+    "protected": True,
+    "required_status_checks": {
+        "strict": True,
+        "contexts": ["Test"],
+        "checks": [{"context": "Test"}],
+    },
+}
 
-def test_build_push_readiness_data_reports_ready_from_verified_trusted_commit_and_clear_status():
-    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, COMMIT_TRUST_REPORT, STATUS_REVIEW)
+
+def test_build_push_readiness_data_reports_ready_from_verified_trusted_commit_clear_status_and_branch_policy():
+    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, COMMIT_TRUST_REPORT, STATUS_REVIEW, BRANCH_PROTECTION)
 
     assert data["push_readiness_status"] == "ready"
     assert data["push_ready"] is True
@@ -73,6 +83,9 @@ def test_build_push_readiness_data_reports_ready_from_verified_trusted_commit_an
     assert data["verified_commit"] == "abc1234"
     assert data["trusted_commit"] == "abc1234"
     assert data["signature_code"] == "G"
+    assert data["branch_protection_status"] == "clear"
+    assert data["required_status_contexts"] == ["Test"]
+    assert data["missing_required_status_contexts"] == []
     assert data["reviewed_paths"] == ["README.md", "src/autonomous_forge/push_readiness.py"]
 
 
@@ -81,6 +94,7 @@ def test_build_push_readiness_data_blocks_unverified_commit():
         {**COMMIT_VERIFY_REPORT, "verification_status": "blocked", "commit_verified": False},
         COMMIT_TRUST_REPORT,
         STATUS_REVIEW,
+        BRANCH_PROTECTION,
     )
 
     assert data["push_readiness_status"] == "blocked"
@@ -98,6 +112,7 @@ def test_build_push_readiness_data_blocks_untrusted_commit():
             "trust_blockers": ["commit signature is not trusted enough for automatic push readiness: no signature"],
         },
         STATUS_REVIEW,
+        BRANCH_PROTECTION,
     )
 
     assert data["push_readiness_status"] == "blocked"
@@ -110,6 +125,7 @@ def test_build_push_readiness_data_blocks_trust_sha_mismatch():
         COMMIT_VERIFY_REPORT,
         {**COMMIT_TRUST_REPORT, "inspected_commit": "def5678"},
         STATUS_REVIEW,
+        BRANCH_PROTECTION,
     )
 
     assert data["push_readiness_status"] == "blocked"
@@ -121,6 +137,7 @@ def test_build_push_readiness_data_blocks_trust_path_mismatch():
         COMMIT_VERIFY_REPORT,
         {**COMMIT_TRUST_REPORT, "reviewed_paths": ["README.md"]},
         STATUS_REVIEW,
+        BRANCH_PROTECTION,
     )
 
     assert data["push_readiness_status"] == "blocked"
@@ -128,7 +145,12 @@ def test_build_push_readiness_data_blocks_trust_path_mismatch():
 
 
 def test_build_push_readiness_data_blocks_status_sha_mismatch():
-    data = build_push_readiness_data(COMMIT_VERIFY_REPORT, COMMIT_TRUST_REPORT, {**STATUS_REVIEW, "commit_sha": "def5678"})
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        COMMIT_TRUST_REPORT,
+        {**STATUS_REVIEW, "commit_sha": "def5678"},
+        BRANCH_PROTECTION,
+    )
 
     assert data["push_readiness_status"] == "blocked"
     assert "commit status review SHA does not match verified commit" in data["push_readiness_blockers"]
@@ -145,6 +167,7 @@ def test_build_push_readiness_data_blocks_unclear_status():
             "review_blockers": ["one or more supplied status contexts failed or errored"],
             "summary": {"total": 1, "success": 0, "failure": 1, "pending": 0, "unknown": 0},
         },
+        BRANCH_PROTECTION,
     )
 
     assert data["push_readiness_status"] == "blocked"
@@ -152,16 +175,63 @@ def test_build_push_readiness_data_blocks_unclear_status():
     assert "commit status review includes failed, pending, or unknown contexts" in data["push_readiness_blockers"]
 
 
+def test_build_push_readiness_data_blocks_unprotected_branch():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        COMMIT_TRUST_REPORT,
+        STATUS_REVIEW,
+        {**BRANCH_PROTECTION, "protected": False},
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert data["branch_protection_status"] == "blocked"
+    assert "branch protection evidence does not show the branch as protected" in data["push_readiness_blockers"]
+
+
+def test_build_push_readiness_data_blocks_missing_required_context():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        COMMIT_TRUST_REPORT,
+        STATUS_REVIEW,
+        {
+            **BRANCH_PROTECTION,
+            "required_status_checks": {
+                "strict": True,
+                "contexts": ["Test", "Lint"],
+                "checks": [{"context": "Test"}, {"context": "Lint"}],
+            },
+        },
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert data["missing_required_status_contexts"] == ["Lint"]
+    assert "required branch status context missing from status review: Lint" in data["push_readiness_blockers"]
+
+
+def test_build_push_readiness_data_blocks_non_strict_branch_status_checks():
+    data = build_push_readiness_data(
+        COMMIT_VERIFY_REPORT,
+        COMMIT_TRUST_REPORT,
+        STATUS_REVIEW,
+        {**BRANCH_PROTECTION, "required_status_checks": {"strict": False, "contexts": ["Test"]}},
+    )
+
+    assert data["push_readiness_status"] == "blocked"
+    assert "branch protection evidence does not require up-to-date status checks" in data["push_readiness_blockers"]
+
+
 def test_read_push_readiness_refuses_unsafe_path(tmp_path):
     commit_verify = tmp_path / "commit-verify.json"
     commit_trust = tmp_path / "commit-trust.json"
     status_review = tmp_path / "status-review.json"
+    branch_protection = tmp_path / "branch-protection.json"
     commit_verify.write_text(json.dumps({**COMMIT_VERIFY_REPORT, "inspected_paths": ["../README.md"]}), encoding="utf-8")
     commit_trust.write_text(json.dumps(COMMIT_TRUST_REPORT), encoding="utf-8")
     status_review.write_text(json.dumps(STATUS_REVIEW), encoding="utf-8")
+    branch_protection.write_text(json.dumps(BRANCH_PROTECTION), encoding="utf-8")
 
     try:
-        read_push_readiness(commit_verify, commit_trust, status_review, root=tmp_path)
+        read_push_readiness(commit_verify, commit_trust, status_review, branch_protection, root=tmp_path)
     except PushReadinessError as exc:
         assert "unsafe reviewed path" in str(exc)
     else:  # pragma: no cover
@@ -172,11 +242,14 @@ def test_read_push_readiness_reads_repository_local_json(tmp_path):
     commit_verify = tmp_path / "commit-verify.json"
     commit_trust = tmp_path / "commit-trust.json"
     status_review = tmp_path / "status-review.json"
+    branch_protection = tmp_path / "branch-protection.json"
     commit_verify.write_text(json.dumps(COMMIT_VERIFY_REPORT), encoding="utf-8")
     commit_trust.write_text(json.dumps(COMMIT_TRUST_REPORT), encoding="utf-8")
     status_review.write_text(json.dumps(STATUS_REVIEW), encoding="utf-8")
+    branch_protection.write_text(json.dumps(BRANCH_PROTECTION), encoding="utf-8")
 
-    data = read_push_readiness(commit_verify, commit_trust, status_review, root=tmp_path)
+    data = read_push_readiness(commit_verify, commit_trust, status_review, branch_protection, root=tmp_path)
 
     assert data["push_ready"] is True
     assert data["summary"]["status_contexts"] == 1
+    assert data["summary"]["required_status_contexts"] == 1
