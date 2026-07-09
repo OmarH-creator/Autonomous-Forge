@@ -132,6 +132,64 @@ Exit codes:
 
 Safety limits: `forge validate-plan` reads local roadmap, policy, state-file presence, and path-presence signals only. It does not create files, run validation commands, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
 
+## `forge validation-preview`
+
+Purpose: classify validation command candidates from an enriched validation plan while preserving expected file changes, implementation steps, validation steps, and risk register entries for downstream executor review.
+
+Expected successful text output includes these stable sections:
+
+```text
+Autonomous Forge validation-run preview
+Mode: read-only
+Source: forge validate-plan structured data
+Validation execution: not run
+Commands allowed: false
+Selected task: AUTO-### [P#/TODO] ...
+Expected file changes:
+Implementation steps:
+Validation steps:
+Risk register:
+Validation command candidates:
+Blocked items:
+Risk notes:
+Safety boundary: Validation-run preview metadata only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `selected_task`, `validation_execution`, `commands_allowed`, `expected_file_changes`, `implementation_steps`, `validation_steps`, `risk_register`, `command_candidates`, `blocked_items`, `risk_notes`, `reason`, and `safety_boundary`.
+
+Safety limits: `forge validation-preview` reads validation-plan data only. It does not run commands, create files, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
+
+## `forge validation-orchestration`
+
+Purpose: combine an enriched validation plan, validation command preview, and saved run-history guards into one read-only orchestration artifact that still preserves implementation context.
+
+Expected successful text output includes these stable sections:
+
+```text
+Autonomous Forge validation orchestration preview
+Mode: read-only
+Source: validation plan, validation preview, and saved run-history guards
+Validation execution: not run
+Commands allowed: false
+Orchestration status: ready-for-manual-validation-review|needs-validation-context|needs-command-review|blocked
+Selected task: AUTO-### [P#/TODO] ...
+Expected file changes:
+Implementation steps:
+Validation steps:
+Risk register:
+Command candidate summary:
+History validation guard:
+Latest record path:
+Latest record validation guard:
+Blockers:
+Risk notes:
+Safety boundary: Validation orchestration preview only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `selected_task`, `validation_execution`, `commands_allowed`, `orchestration_status`, `expected_file_changes`, `implementation_steps`, `validation_steps`, `risk_register`, `command_candidate_summary`, `history_validation_guard`, `latest_record_validation_guard`, `latest_record_path`, `blockers`, `risk_notes`, and `safety_boundary`.
+
+Safety limits: `forge validation-orchestration` reads planning, validation-preview, and local run-history guard data only. It does not run commands, check workflow status, verify commits, change files, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
+
 ## `forge change-readiness`
 
 Purpose: combine clear supplied git-diff review JSON and clear supplied commit-status review JSON into one advisory change-readiness summary before any future patch-application workflow relies on the change.
