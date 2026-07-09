@@ -132,16 +132,88 @@ Validation: Static source/test/docs review completed through the GitHub reposito
 Risks or assumptions: Retained context is advisory JSON evidence; replay summaries do not prove validation covered every planned file, step, or risk.
 Notes: Completed before linked-bundle replay from history links.
 
-### AUTO-122 — Linked-bundle replay from history-link review through AUTO-128
+### AUTO-122 — Linked-bundle replay from history-link review
 Priority: P1
 Status: DONE
-Goal: Connect ready run-history pointers to hash-verified bundle replay, reviewer handoffs, comparison ranking, and archive-manifest previews.
-Why it matters: Maintainers need one workflow that starts from a small `.ai/run-history` pointer, checks pointer quality, verifies the referenced bundle hash, summarizes replay policy gates, ranks completed records, and previews the files that should be preserved together.
-Scope: Add linked-bundle replay from history links, reviewer-facing maintenance handoffs, strict context-consistency gates, maintenance review comparison, preservation-candidate ranking, archive-manifest preview, compatibility routes, tests, docs, README, and `.ai` records.
-Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `src/autonomous_forge/maintenance_review_handoff.py`, `src/autonomous_forge/maintenance_review_compare.py`, `src/autonomous_forge/maintenance_archive_manifest.py`, tests, docs, README, `.github/workflows/test.yml`, `pyproject.toml`, and `.ai` records.
-Acceptance criteria: Ready history links can verify linked bundles, handoffs fail closed on hash/context drift, comparison ranks ready preservation candidates deterministically, archive manifests list selected evidence entries without writing files, and strict flags return non-zero on blocked evidence.
-Validation: Static source/test/docs/workflow review completed through the GitHub repository API with scratch syntax compilation for focused changes. Direct full checkout/full pytest execution remained unavailable from this environment.
-Risks or assumptions: The workflow reviews persisted JSON evidence and recomputed hashes; it does not rerun validation, poll workflows, inspect live remotes, prove signer identity, prove coverage, or write archive files.
+Goal: Connect ready run-history pointers directly to hash-verified bundle replay.
+Why it matters: Maintainers need one workflow that starts from a small `.ai/run-history` pointer, checks pointer quality, verifies the referenced bundle hash, and summarizes replay policy gates without manually copying the bundle path into a separate command.
+Scope: Extend `forge maintenance-history-link-review` with `--verify-linked-bundle` and `--require-linked-replayable`, update the CLI, add deterministic tests, update docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `tests/test_maintenance_history_link_review.py`, `docs/MAINTENANCE_HISTORY_LINK_REVIEW.md`, README, and `.ai` records.
+Acceptance criteria: A ready history link can optionally verify the linked bundle SHA-256, run maintenance replay summary, surface replay status and replay policy counts, block hash mismatches, avoid replay when pointer gates fail, and return non-zero when linked replay is required but not replayable.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated CLI. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: Linked replay still trusts persisted JSON evidence and source-report hashes; it does not rerun validation, poll workflows, inspect live remotes, prove signer identity, or prove coverage.
+Notes: Completed before reviewer-facing maintenance preservation handoff.
+
+### AUTO-123 — Maintenance review handoff
+Priority: P1
+Status: DONE
+Goal: Produce one reviewer-facing preservation handoff from a run-history pointer and linked bundle replay.
+Why it matters: Maintainers need a single compact artifact that says whether a completed maintenance run is ready to preserve, which gates passed, which blockers remain, and what evidence should be kept together.
+Scope: Add `forge maintenance-review-handoff`, `forge-maintenance-review-handoff`, focused tests, docs, README usage, `pyproject.toml` script wiring, CLI routing, CI help smoke, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_review_handoff.py`, `src/autonomous_forge/maintenance_review_handoff_cli.py`, `tests/test_maintenance_review_handoff.py`, `docs/MAINTENANCE_REVIEW_HANDOFF.md`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: A ready run-history pointer with a hash-verified replayable linked bundle yields a ready handoff; hash mismatches or unready pointer quality block the handoff; JSON/text outputs remain deterministic; `--require-ready` fails closed; behavior is local-first and read-only.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused tests. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The handoff summarizes persisted JSON evidence and recomputed hashes; it does not rerun validation, inspect live remotes, poll workflow status, prove signer identity, or prove coverage.
+Notes: Completed before strict linked replay gate usability hardening.
+
+### AUTO-124 — Strict linked replay requirement usability hardening
+Priority: P1
+Status: DONE
+Goal: Make `--require-linked-replayable` self-sufficient by automatically performing linked-bundle verification.
+Why it matters: Strict callers expect a required replayable gate to verify replayability; requiring a second flag created avoidable user friction and a misleading fail-closed path.
+Scope: Update `forge maintenance-history-link-review` / `forge-maintenance-history-link-review`, focused tests, command docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `tests/test_maintenance_history_link_review.py`, `docs/MAINTENANCE_HISTORY_LINK_REVIEW.md`, README, and `.ai` records.
+Acceptance criteria: `--require-linked-replayable` implies linked-bundle verification, returns success for a ready replayable bundle, still fails closed for blocked or non-replayable linked evidence, and remains local-first/read-only.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated CLI and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The stricter flag still reviews persisted JSON evidence and recomputed hashes only; it does not rerun validation, poll workflows, or prove signer identity.
+Notes: Completed before comparison-oriented maintenance handoff summaries.
+
+### AUTO-125 — Maintenance review handoff comparison
+Priority: P1
+Status: DONE
+Goal: Compare multiple completed maintenance review handoffs without opening raw bundle JSON.
+Why it matters: Reviewers need a compact multi-run preservation triage surface before selecting which completed evidence records to retain or inspect deeper.
+Scope: Add `forge maintenance-review-compare`, `forge-maintenance-review-compare`, focused tests, docs, README usage, CLI routing, package scripts, CI help smoke, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_review_compare.py`, `src/autonomous_forge/maintenance_review_compare_cli.py`, `tests/test_maintenance_review_compare.py`, `docs/MAINTENANCE_REVIEW_COMPARE.md`, `docs/MAINTENANCE_REVIEW_HANDOFF.md`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Multiple run-history links can be compared; ready/blocked counts, failed handoff/replay gates, blocker counts, replay/hash status, reviewed-path counts, validation-step counts, and preservation next step are deterministic; `--require-all-ready` fails closed.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused tests. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: Comparison summaries trust each handoff's persisted JSON evidence and recomputed hashes; they do not rerun validation, poll workflows, or prove signer identity.
+Notes: Completed before history/bundle context drift hardening.
+
+### AUTO-126 — Maintenance handoff context-consistency gate
+Priority: P1
+Status: DONE
+Goal: Require reviewer-facing handoffs to prove the run-history pointer and replayed linked bundle preserve the same reviewed paths, validation steps, and retained validation context.
+Why it matters: A small history pointer can become stale or be edited independently from a hash-valid bundle; preservation guidance should fail closed when they no longer describe the same reviewed maintenance change.
+Scope: Extend linked replay output with replayed bundle review context, add a required `history_bundle_context` handoff gate, update focused tests, docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `src/autonomous_forge/maintenance_review_handoff.py`, `tests/test_maintenance_review_handoff.py`, `docs/MAINTENANCE_REVIEW_HANDOFF.md`, README, and `.ai` records.
+Acceptance criteria: Ready handoffs pass only when pointer and replayed bundle reviewed paths, validation steps, and retained context match; mismatches are surfaced as blockers; text/JSON output remains deterministic; `--require-ready` fails closed.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the new helper logic. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The context match is evidence consistency, not live validation coverage, signature identity, or workflow proof.
+Notes: Completed before preservation-candidate ranking in maintenance review comparisons.
+
+### AUTO-127 — Maintenance review preservation-candidate ranking
+Priority: P1
+Status: DONE
+Goal: Rank ready maintenance review comparison handoffs and select the strongest preservation candidate.
+Why it matters: Once multiple completed records can be compared, reviewers need a deterministic way to identify which ready evidence record should be preserved first without hiding blocked records.
+Scope: Extend `forge maintenance-review-compare` with `preservation_candidates`, `selected_preservation_candidate`, deterministic score signals, text/JSON output, focused tests, docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_review_compare.py`, `tests/test_maintenance_review_compare.py`, `docs/MAINTENANCE_REVIEW_COMPARE.md`, README, and `.ai` records.
+Acceptance criteria: Ready handoffs are ranked deterministically; the selected candidate favors verified replay, zero failed gates, fewer blockers, more reviewed paths and validation steps, and richer retained context; blocked records remain visible but are not selected; behavior stays read-only.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated implementation and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: Ranking is evidence triage over persisted JSON and recomputed hashes; it does not rerun validation, write archives, poll workflows, prove signer identity, or prove coverage.
+Notes: Completed before guarded archive-manifest previews.
+
+### AUTO-128 — Maintenance archive manifest preview
+Priority: P1
+Status: DONE
+Goal: Preview the exact evidence files that should be preserved for the selected maintenance preservation candidate.
+Why it matters: Reviewers need to see the run-history link, linked bundle, source reports, and commit target as one manifest before any write-capable archive step exists.
+Scope: Add `forge maintenance-archive-manifest`, `forge-maintenance-archive-manifest`, implementation, CLI routing, package script, focused tests, command docs, CI help smoke, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_archive_manifest.py`, `src/autonomous_forge/maintenance_archive_manifest_cli.py`, `tests/test_maintenance_archive_manifest.py`, `docs/MAINTENANCE_ARCHIVE_MANIFEST.md`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: A ready comparison with a selected preservation candidate yields a read-only manifest of the history link, bundle, source reports, commit target, blockers, and next step; blocked comparisons fail closed with `--require-ready`; unsafe paths are refused; no files are copied or written.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The manifest previews persisted JSON evidence and current local path metadata; it does not rerun validation, create archives, poll workflows, prove signer identity, or prove coverage.
 Notes: Completed before archive manifest integrity gates.
 
 ### AUTO-129 — Archive manifest integrity gates
