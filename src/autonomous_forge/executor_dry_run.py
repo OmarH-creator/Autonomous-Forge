@@ -64,6 +64,10 @@ def build_executor_dry_run_data(
         "confirmation_supplied": bool(confirm_executor_dry_run),
         "dry_run_status": "ready-to-run-if-executor-existed" if ready else "blocked",
         "dry_run_would_execute": bool(ready),
+        "expected_file_changes": list(contract_data.get("expected_file_changes", [])),
+        "implementation_steps": list(contract_data.get("implementation_steps", [])),
+        "validation_steps": list(contract_data.get("validation_steps", [])),
+        "risk_register": list(contract_data.get("risk_register", [])),
         "candidate": candidate,
         "block_reasons": block_reasons,
         "simulated_execution": {
@@ -104,6 +108,19 @@ def format_executor_dry_run(data: dict[str, Any]) -> str:
             "Selected task: "
             f"{selected['id']} [{selected['priority']}/{selected['status']}] {selected['title']}"
         )
+
+    lines.extend(
+        [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
+        ]
+    )
 
     candidate = data["candidate"]
     if candidate is None:
