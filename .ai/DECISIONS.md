@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-093 — 2026-07-09 — Commit metadata preview comes before commit creation
+
+Context: The workflow can now apply one explicitly confirmed replacement, record supplied post-apply validation evidence, review supplied or live-collected status evidence, and summarize commit readiness. Before any command creates commits, maintainers need a deterministic preview of the intended commit metadata that still cannot mutate Git state.
+Decision: Add `forge commit-proposal-preview` plus compatibility `forge-commit-proposal-preview`. The command consumes ready commit-readiness JSON and explicit summary/body metadata. It reports `ready` only when commit-readiness evidence is ready, read-only, blocker-free, contains reviewed paths and validation steps, and keeps commit authority disabled. It keeps `commit_allowed`, `commit_creation_allowed`, and `push_allowed` false.
+Alternatives considered: Move directly to a commit command, embed commit message text inside commit-readiness, rely on README guidance, infer metadata from diffs, or make the preview inspect repository contents.
+Consequences: Maintainers get a reviewable commit message artifact before any future commit workflow. The command does not prove the metadata is ideal, does not create commits, and still trusts supplied commit-readiness evidence.
+Human decision still required: No.
+
 ## DEC-092 — 2026-07-09 — Commit readiness remains advisory and non-committing
 
 Context: The workflow can now apply one explicitly confirmed replacement, record post-apply validation evidence, and review supplied or live-collected workflow status. Before any commit-oriented workflow exists, the product needed one deterministic checkpoint that combines validation, final diff, and status evidence without granting commit authority.
