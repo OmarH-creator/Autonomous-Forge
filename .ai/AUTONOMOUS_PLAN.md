@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, and preview commit metadata.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, and create one explicitly confirmed local commit.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded commit proposal preview after patch apply, post-apply validation, live/supplied status review, and commit readiness. Product commands still do not create commits or push changes.
+Roadmap v3 now reaches guarded local commit creation after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
 
 ## Prioritized roadmap
 
@@ -154,7 +154,19 @@ Expected files or areas: `src/autonomous_forge/commit_proposal_preview.py`, `src
 Acceptance criteria: Commit proposal preview consumes ready commit-readiness JSON plus explicit summary/body metadata; requires read-only ready evidence, reviewed paths, validation steps, blocker-free upstream evidence, and disabled commit authority; bounds metadata text, refuses simple secret-marker strings, supports `--require-ready`, and never stages files, creates commits, pushes, reads repository contents, runs commands, or changes files.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover ready metadata, blocked upstream evidence, unsafe summary format, secret-marker refusal, primary CLI JSON output, and fail-closed `--require-ready` behavior. Direct local checkout/test execution remained unavailable in this environment.
 Risks or assumptions: The command does not prove the metadata is the best commit message and still trusts supplied commit-readiness evidence.
-Notes: Next safe step is a separately confirmed commit creation workflow that requires ready commit proposal, final diff/status evidence, and explicit confirmation.
+Notes: Completed before guarded commit creation.
+
+### AUTO-094 — Guarded local commit creation
+Priority: P1
+Status: DONE
+Goal: Add the first explicitly confirmed local commit command that turns ready commit proposal evidence into one local git commit.
+Why it matters: The safe maintenance workflow needs a concrete step beyond metadata preview while still blocking pushes, remotes, and uncontrolled git operations.
+Scope: Add `forge commit-create` and `forge-commit-create`, deterministic core tests with a fake git runner, focused documentation, README usage, CI help-smoke coverage, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/commit_create.py`, `src/autonomous_forge/commit_create_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_commit_create.py`, `docs/COMMIT_CREATE.md`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Commit-create consumes ready commit-proposal-preview JSON, validates reviewed paths and disabled push/remote fields, requires `--confirm-commit-create`, checks local git status for reviewed paths, stages only reviewed paths, creates one local commit, reports the created commit SHA, supports `--require-created`, and never pushes or changes remotes.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation covered the new module and CLI; deterministic tests cover missing confirmation, guarded git command sequence, unready proposal blocking, no-change blocking, and unsafe path refusal. Direct repository checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command intentionally mutates local git state when explicitly confirmed, trusts supplied upstream proposal evidence, and does not sign, verify, or push commits.
+Notes: Next safe step is post-commit verification that checks created commit metadata and reviewed paths before any push workflow is considered.
 
 ## Future Ideas
 
@@ -162,7 +174,7 @@ Notes: Next safe step is a separately confirmed commit creation workflow that re
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Explicit validation orchestration after validation plans are reviewable.
-- Guarded commit creation after commit proposal preview.
+- Post-commit verification before any push workflow.
 
 ## Do Not Change Without Explicit Human Approval
 
