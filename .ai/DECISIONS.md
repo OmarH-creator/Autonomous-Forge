@@ -1,11 +1,11 @@
 # Autonomous Decisions
 
-## DEC-120 — 2026-07-09 — Replay policy gates should be compact and reviewer-friendly
+## DEC-120 — 2026-07-09 — Replay summaries should expose compact policy gates
 
-Context: AUTO-119 made replay summaries fail closed when retained validation context conflicts with reviewed paths or validation steps, but maintainers still had to read raw blockers and detailed replay output to understand which replayability gates passed, failed, or remained advisory.
-Decision: Add compact replay policy-gate summaries and expose them through `forge-maintenance-replay-policy-summary` for bundle-first review workflows. The gates are source-report integrity, bundle completion, evidence-chain status, reviewed-path presence, validation-step presence, and validation-context consistency.
-Alternatives considered: Leave replay policy only inside raw replay blockers, add a separate audit/preflight command, make missing validation context a hard blocker, or expand bundle verification instead. A compact policy-summary command improves reviewability without adding write authority; hard-blocking missing context would break older valid bundles.
-Consequences: Maintainers can triage persisted bundle replay quality from named pass/fail/advisory gates. The summary remains advisory persisted-evidence review and does not rerun validation, inspect diffs, verify branch protections, or prove validation coverage.
+Context: AUTO-119 made `forge maintenance-replay-summary` block replayability when retained validation context no longer matched reviewed paths or preserved validation steps. The output still required maintainers to interpret raw blockers, source-report summaries, and consistency fields to understand which replay checks passed, failed, or were advisory.
+Decision: Add a compact `replay_policy` summary to `forge maintenance-replay-summary` with deterministic gates for source-report integrity, bundle completion, evidence-chain status, path review, validation-step presence, and validation-context consistency. Gates report `passed`, `failed`, or `advisory` plus required/advisory severity and a short reason.
+Alternatives considered: Add a separate replay-policy command, expand only text output, or make missing validation context a hard failure. A separate command would add surface area, text-only output would leave JSON consumers without structured gates, and hard-failing missing context would break older valid bundles that predate context preservation.
+Consequences: Maintainers can quickly see why a persisted bundle is replayable or blocked without opening raw JSON. The gates summarize existing persisted evidence only; they do not rerun validation, poll workflows, verify signatures, inspect diffs, or prove actual validation coverage.
 Human decision still required: No.
 
 ## DEC-119 — 2026-07-09 — Maintenance replay should check retained context consistency
