@@ -6,6 +6,7 @@ import sys
 
 from autonomous_forge import __version__, cli_entry
 from autonomous_forge.change_readiness_cli import main as _change_readiness_main
+from autonomous_forge.commit_create_cli import main as _commit_create_main
 from autonomous_forge.commit_proposal_preview_cli import main as _commit_proposal_preview_main
 from autonomous_forge.commit_readiness_cli import main as _commit_readiness_main
 from autonomous_forge.commit_status_review_cli import main as _commit_status_review_main
@@ -24,6 +25,7 @@ from autonomous_forge.post_apply_validation_cli import main as _post_apply_valid
 
 _EXTENSION_COMMANDS = {
     "change-readiness": _change_readiness_main,
+    "commit-create": _commit_create_main,
     "commit-proposal-preview": _commit_proposal_preview_main,
     "commit-readiness": _commit_readiness_main,
     "commit-status-review": _commit_status_review_main,
