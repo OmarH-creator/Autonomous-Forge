@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-126
+
+- Task ID: AUTO-126 — Maintenance handoff context-consistency gate
+- Summary: Tightened `forge maintenance-review-handoff` so a ready handoff now requires the `.ai/run-history` pointer and replayed linked bundle to agree on reviewed paths, validation steps, and retained validation context fields. Linked replay output now carries the replayed bundle's reviewed paths, validation steps, and validation-context summary so the handoff can detect stale or manually edited pointers before preservation guidance reports ready.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, open issues, maintenance history-link review replay code, maintenance review handoff implementation/tests/docs, and comparison documentation. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the new helper logic. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for matched handoff context, mismatched retained validation context, mismatched reviewed paths, JSON output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Extend maintenance review comparison summaries so multi-run comparisons surface context-consistency drift directly.
+
 ## 2026-07-09 — AUTO-125
 
 - Task ID: AUTO-125 — Maintenance review handoff comparison
