@@ -40,6 +40,7 @@ jobs:
           forge commit-proposal-preview --help
           forge commit-readiness --help
           forge commit-status-review --help
+          forge commit-trust-review --help
           forge commit-verify --help
           forge git-diff-review --help
           forge maintenance-bundle-verify --help
@@ -62,6 +63,7 @@ jobs:
           forge-commit-proposal-preview --help
           forge-commit-readiness --help
           forge-commit-status-review --help
+          forge-commit-trust-review --help
           forge-commit-verify --help
           forge-git-diff-review --help
           forge-maintenance-bundle-verify --help
