@@ -31,11 +31,36 @@ The compatibility script is also available:
 forge-maintenance-review-handoff --help
 ```
 
+## Compare multiple handoffs
+
+`forge maintenance-review-compare` compares multiple run-history links by building the same read-only handoff for each link and summarizing the set.
+
+```bash
+forge maintenance-review-compare \
+  --link .ai/run-history/AUTO-120-link.json \
+  --link .ai/run-history/AUTO-121-link.json \
+  --require-all-ready
+```
+
+The comparison reports ready/blocked counts, failed handoff gates, failed replay-policy gates, replay/hash status, blocker counts, reviewed-path counts, validation-step counts, and the next preservation action for the group. JSON output is available for local dashboards or further review tooling:
+
+```bash
+forge maintenance-review-compare \
+  --link .ai/run-history/AUTO-120-link.json \
+  --format json
+```
+
+The compatibility script is also available:
+
+```bash
+forge-maintenance-review-compare --help
+```
+
 ## Safety boundary
 
-The command reads one repository-local history link plus its linked bundle evidence. It recomputes the linked bundle hash and reuses maintenance replay summaries, but it does not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity.
+Both commands read repository-local history links plus linked bundle evidence. They recompute linked bundle hashes and reuse maintenance replay summaries, but they do not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity.
 
 ## Exit codes
 
-- `0`: the handoff was generated.
-- `2`: input was invalid, unsafe, unreadable, or `--require-ready` was supplied and required handoff gates failed.
+- `0`: the handoff or comparison was generated.
+- `2`: input was invalid, unsafe, unreadable, or a strict readiness flag was supplied and required gates failed.
