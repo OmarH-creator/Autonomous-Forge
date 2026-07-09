@@ -42,6 +42,8 @@ def test_executor_run_blocks_before_subprocess_without_confirmation(tmp_path):
     assert data["execution_status"] == "blocked-not-run"
     assert data["validation_execution"] == "not run"
     assert data["persistence_handoff"]["available"] is False
+    assert data["expected_file_changes"]
+    assert data["persistence_handoff"]["expected_file_changes"] == data["expected_file_changes"]
     assert "missing --confirm-executor-dry-run" in data["block_reasons"]
 
 
@@ -75,6 +77,29 @@ def test_executor_run_executes_exact_candidate_with_no_shell_runner(tmp_path):
 
 
 
+def test_executor_run_preserves_context_in_output_and_persistence_handoff(tmp_path):
+    def fake_runner(args, **kwargs):
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="ok\n", stderr="")
+
+    data = build_executor_run_data(
+        _ready_contract(tmp_path),
+        root=tmp_path,
+        requested_command="python -m pytest",
+        confirm_executor_dry_run=True,
+        runner=fake_runner,
+    )
+
+    assert data["expected_file_changes"]
+    assert data["implementation_steps"]
+    assert data["validation_steps"]
+    assert data["risk_register"]
+    assert data["persistence_handoff"]["expected_file_changes"] == data["expected_file_changes"]
+    assert data["persistence_handoff"]["implementation_steps"] == data["implementation_steps"]
+    assert data["persistence_handoff"]["validation_steps"] == data["validation_steps"]
+    assert data["persistence_handoff"]["risk_register"] == data["risk_register"]
+
+
+
 def test_executor_run_reports_failed_observed_exit_code(tmp_path):
     state = _ready_state(tmp_path)
 
@@ -97,6 +122,8 @@ def test_executor_run_reports_failed_observed_exit_code(tmp_path):
     assert data["validation_result"] == "failed"
     assert data["return_code"] == 5
     assert data["stderr"]["text"] == "no tests\n"
+    assert data["expected_file_changes"]
+    assert data["persistence_handoff"]["validation_steps"] == data["validation_steps"]
 
 
 
@@ -119,6 +146,7 @@ def test_executor_run_reports_launch_failure_as_failed_result(tmp_path):
     assert data["return_code"] is None
     assert data["persistence_handoff"]["available"] is True
     assert data["persistence_handoff"]["validation_result"] == "failed"
+    assert data["persistence_handoff"]["risk_register"] == data["risk_register"]
     assert "return_code=none" in data["persistence_handoff"]["validation_note"]
     assert "--result failed" in data["persistence_handoff"]["write_command"]
     assert "FileNotFoundError" in data["stderr"]["text"]
@@ -180,6 +208,11 @@ def test_executor_run_text_includes_persistence_handoff_command(tmp_path):
         runner=fake_runner,
     )
 
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
+    assert "Validation steps:" in output
+    assert "Risk register:" in output
+    assert "Persistence handoff context:" in output
     assert "Persistence handoff available: true" in output
     assert "Persistence handoff command: forge validation-result-write" in output
     assert "--confirm-write" in output
