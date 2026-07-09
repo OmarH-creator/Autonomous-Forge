@@ -58,9 +58,66 @@ def test_review_commit_trust_accepts_good_signature(tmp_path):
     assert data["signature_code"] == "G"
     assert data["signer"] == "Ada Lovelace"
     assert data["key_fingerprint"] == "ABCDEF123456"
+    assert data["allowed_signer_policy_checked"] is False
+    assert data["signer_allowed"] is None
     assert data["push_allowed"] is False
     assert runner.commands[0][3] == "show"
     assert "push" not in " ".join(runner.commands[0])
+
+
+def test_review_commit_trust_accepts_allowed_signer_policy_match(tmp_path):
+    report = tmp_path / "commit-verify.json"
+    report.write_text(json.dumps(COMMIT_VERIFY_REPORT), encoding="utf-8")
+    policy = tmp_path / "allowed-signers.json"
+    policy.write_text(
+        json.dumps({"allowed_signers": [{"signer": "Ada Lovelace", "key_fingerprint": "ABCDEF123456"}]}),
+        encoding="utf-8",
+    )
+
+    data = review_commit_trust_from_report(
+        report,
+        root=tmp_path,
+        allowed_signers_path=policy,
+        runner=FakeRunner(signature_code="G", signer="Ada Lovelace", fingerprint="ABCDEF123456"),
+    )
+
+    assert data["trust_status"] == "trusted"
+    assert data["allowed_signer_policy_checked"] is True
+    assert data["allowed_signer_count"] == 1
+    assert data["signer_allowed"] is True
+
+
+def test_review_commit_trust_blocks_allowed_signer_policy_mismatch(tmp_path):
+    report = tmp_path / "commit-verify.json"
+    report.write_text(json.dumps(COMMIT_VERIFY_REPORT), encoding="utf-8")
+    policy = tmp_path / "allowed-signers.json"
+    policy.write_text(
+        json.dumps({"allowed_signers": [{"signer": "Grace Hopper", "key_fingerprint": "999999"}]}),
+        encoding="utf-8",
+    )
+
+    data = review_commit_trust_from_report(
+        report,
+        root=tmp_path,
+        allowed_signers_path=policy,
+        runner=FakeRunner(signature_code="G", signer="Ada Lovelace", fingerprint="ABCDEF123456"),
+    )
+
+    assert data["trust_status"] == "blocked"
+    assert data["signer_allowed"] is False
+    assert "commit signer is not listed in the allowed-signer policy" in data["trust_blockers"]
+
+
+def test_review_commit_trust_blocks_empty_allowed_signer_policy(tmp_path):
+    report = tmp_path / "commit-verify.json"
+    report.write_text(json.dumps(COMMIT_VERIFY_REPORT), encoding="utf-8")
+    policy = tmp_path / "allowed-signers.json"
+    policy.write_text(json.dumps({"allowed_signers": []}), encoding="utf-8")
+
+    data = review_commit_trust_from_report(report, root=tmp_path, allowed_signers_path=policy, runner=FakeRunner())
+
+    assert data["trust_status"] == "blocked"
+    assert "allowed-signer policy must contain a non-empty allowed_signers list" in data["trust_blockers"]
 
 
 def test_review_commit_trust_blocks_unsigned_commit(tmp_path):
