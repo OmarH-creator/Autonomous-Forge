@@ -216,3 +216,26 @@ def test_history_link_review_cli_requires_linked_replayable(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "Linked bundle replay:" in output
     assert "status=verified" in output
+
+
+def test_history_link_review_require_linked_replayable_implies_verification(tmp_path, capsys):
+    bundle_path, _ = write_replayable_bundle(tmp_path)
+    path = write_link(tmp_path, link_for_bundle(bundle_path, tmp_path))
+
+    status = history_link_review_main(
+        [
+            "--root",
+            str(tmp_path),
+            "--link",
+            str(path),
+            "--require-linked-replayable",
+            "--format",
+            "json",
+        ]
+    )
+
+    assert status == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["linked_bundle_replay"]["requested"] is True
+    assert data["linked_bundle_replay"]["status"] == "verified"
+    assert data["linked_bundle_replay"]["replay_complete"] is True
