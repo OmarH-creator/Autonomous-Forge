@@ -52,6 +52,44 @@ Exit codes:
 
 Safety limits: `forge plan` reads local roadmap, policy, state-file presence, and documentation-presence signals only. It does not create files, run validation commands, inspect diffs, generate patches, stage, commit, push, call networks, read environment variables, enforce policy decisions, or mutate repository state.
 
+## `forge propose`
+
+Purpose: turn the selected `forge plan` task into a reviewable change proposal that preserves the plan's expected file changes, implementation steps, validation steps, and risk register for downstream review.
+
+Inputs:
+
+- `--plan`: roadmap Markdown file, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--policy`: repository policy Markdown file, defaulting to `.forge/policy.md`.
+- `--state`: autonomous state file path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--root`: repository root used for plan documentation-presence signals, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable sections:
+
+```text
+Autonomous Forge change proposal
+Mode: read-only
+Source: forge plan structured data
+Selected task: AUTO-### [P#/TODO] ...
+Expected file changes:
+Implementation steps:
+Planned file areas:
+Planned operations:
+Validation steps:
+Risk register:
+Blocked items:
+Safety boundary: Proposal output only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `selected_task`, `planned_file_areas`, `planned_operations`, `expected_file_changes`, `implementation_steps`, `validation_steps`, `task_validation`, `policy`, `approval_required_items`, `risk_register`, `risk_notes`, `blocked_items`, `reason`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the proposal is produced.
+- `2` when the roadmap or policy input is malformed, missing, unreadable, or an unsupported output format is requested.
+
+Safety limits: `forge propose` reads local roadmap, policy, state-file presence, and documentation-presence signals through the same planner data used by `forge plan`. It does not create files, run validation commands, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
+
 ## `forge change-readiness`
 
 Purpose: combine clear supplied git-diff review JSON and clear supplied commit-status review JSON into one advisory change-readiness summary before any future patch-application workflow relies on the change.
