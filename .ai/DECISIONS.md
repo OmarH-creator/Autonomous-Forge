@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-136 — 2026-07-10 — Archive package writing must reuse ready previews and require confirmation
+
+Context: AUTO-135 made archive-package metadata reviewable but did not create compressed archives. The next safe product step is a bounded package writer that does not bypass the preview, manifest, copy-verification, destination, and overwrite gates already established.
+Decision: Add `forge maintenance-archive-package` and `forge-maintenance-archive-package` as explicitly confirmed local package-writing commands. The command reuses the ready archive-package preview, requires `--confirm-package`, refuses unready previews and existing package destinations, constrains package paths to the repository root, and writes exactly one `.tar.gz`, `.tgz`, `.tar`, or `.zip` archive from the verified archive root.
+Alternatives considered: Keep packaging manual, let the preview command write with another flag, or silently overwrite existing packages. Manual packaging leaves avoidable preservation mistakes, mixing preview and write behavior would blur the safety boundary, and overwriting packages would undermine durable evidence preservation.
+Consequences: Maintainers can now create one bounded archive package after reviewing a ready preview. The command still does not stage, commit, push, rerun validation, poll workflows, change remotes, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-135 — 2026-07-09 — Archive packaging needs a verified metadata preview before writing archives
 
 Context: AUTO-134 made copied archive roots re-verifiable, but moving directly to tar/zip creation would introduce package path, format, overwrite, extra-file, and parent-directory risks before reviewers can inspect the intended archive metadata.
@@ -14,14 +22,6 @@ Context: AUTO-133 added a bounded archive-copy command, but after copying there 
 Decision: Add `forge maintenance-archive-copy-verify` and `forge-maintenance-archive-copy-verify` as read-only post-copy verification commands. The command first verifies the written manifest, constrains the archive root to the repository, maps each manifest entry to `ARCHIVE_ROOT/<entry path>`, recomputes copied file byte counts and SHA-256 values where expected digests are present, and fails closed with `--require-verified` when copied evidence is missing or drifted.
 Alternatives considered: Trust copy output, move directly to compressed archive packaging, or fold verification into the copy command only. Trusting copy output misses later drift/deletion, packaging is premature without a stable verification surface, and copy-only verification would not help reviewers recheck archives after time has passed.
 Consequences: Maintainers can now verify a copied evidence root before any archive-package writer exists. The command does not copy files, write archives, stage, commit, push, rerun validation, poll workflows, change remotes, or prove signer identity.
-Human decision still required: No.
-
-## DEC-133 — 2026-07-09 — Archive-copy execution must be confirmation-gated and overwrite-safe
-
-Context: AUTO-132 made archive-copy destination layouts reviewable, but preservation still required manual copying after a ready preview. The next useful step is bounded local copy execution that gathers verified evidence files together without becoming an uncontrolled archive writer.
-Decision: Add `forge maintenance-archive-copy` and `forge-maintenance-archive-copy` as explicitly confirmed local copy commands. The command reuses written-manifest verification and archive-copy-preview readiness, requires `--confirm-copy`, refuses blocked previews, refuses existing destinations, constrains all source and destination paths to the repository root, and only creates missing destination parents when `--create-parents` is explicitly supplied.
-Alternatives considered: Keep copying manual, create compressed archives immediately, or silently create parents and overwrite files. Manual copying keeps avoidable preservation mistakes, compressed archives are premature before post-copy verification exists, and implicit directory creation/overwrites would undermine safety and evidence durability.
-Consequences: Maintainers can now perform a bounded local evidence copy after reviewing a ready plan. The command still does not create compressed archives, stage, commit, push, rerun validation, poll workflows, change remotes, or prove signer identity.
 Human decision still required: No.
 
 ## Historical decisions
