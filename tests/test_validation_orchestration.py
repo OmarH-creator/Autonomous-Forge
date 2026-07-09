@@ -58,6 +58,10 @@ def test_build_validation_orchestration_preview_blocks_missing_history(tmp_path)
     assert data["title"] == "Autonomous Forge validation orchestration preview"
     assert data["validation_execution"] == "not run"
     assert data["commands_allowed"] is False
+    assert data["expected_file_changes"]
+    assert data["implementation_steps"]
+    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["risk_register"]
     assert data["command_candidate_summary"]["eligible_preview"] == 1
     assert data["history_validation_guard"]["overall_status"] == "no-records"
     assert data["orchestration_status"] == "needs-validation-context"
@@ -101,6 +105,10 @@ def test_build_validation_orchestration_preview_formats_text(tmp_path):
     assert "Autonomous Forge validation orchestration preview" in output
     assert "Selected task: AUTO-040 [P1/TODO] Add validation orchestration preview" in output
     assert "Orchestration status: ready-for-manual-validation-review" in output
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
+    assert "Validation steps:" in output
+    assert "Risk register:" in output
     assert "Latest record validation guard: clear" in output
     assert "Safety boundary: Validation orchestration preview only" in output
 
@@ -120,6 +128,10 @@ def test_build_validation_orchestration_preview_supports_json(tmp_path):
     data = json.loads(output)
 
     assert data["selected_task"]["id"] == "AUTO-040"
+    assert data["expected_file_changes"]
+    assert data["implementation_steps"]
+    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["risk_register"]
     assert data["history_validation_guard"]["overall_status"] == "clear"
     assert data["commands_allowed"] is False
     assert data["validation_execution"] == "not run"
