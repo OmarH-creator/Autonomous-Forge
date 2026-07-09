@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, summarize push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, and preserve hash-linked durable maintenance evidence bundles.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, summarize push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, and verify persisted bundle source-report integrity.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, and SHA-256 source-report fingerprints for those bundles after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not force-push, push tags, change remotes, change branch protections, verify commit signatures, cryptographically verify identity, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, and persisted bundle source-report verification. Product commands still do not force-push, push tags, change remotes, change branch protections, verify commit signatures, cryptographically verify identity, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -118,7 +118,19 @@ Expected files or areas: `src/autonomous_forge/maintenance_evidence_bundle.py`, 
 Acceptance criteria: Bundles built from local JSON inputs include five source-report fingerprints, malformed hashes are refused, missing hash stages block complete status when hashes are supplied, and persisted bundles still require explicit confirmation.
 Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module. Focused scratch pytest for `tests/test_maintenance_evidence_bundle.py` passed with 9 tests.
 Risks or assumptions: SHA-256 fingerprints detect byte drift only; they do not sign evidence, prove author identity, rerun workflows, verify commit signatures, or replace human review.
-Notes: Next safe step is a compact persisted-bundle verification command that recomputes source-report hashes and reports drift.
+Notes: Completed before persisted-bundle verification.
+
+### AUTO-101 — Persisted maintenance bundle verification
+Priority: P1
+Status: DONE
+Goal: Verify persisted maintenance evidence bundles against their recorded source-report fingerprints.
+Why it matters: After a bundle is saved, maintainers need a deterministic way to detect if any source evidence report has changed, been swapped, or no longer matches the byte stream used to create the bundle.
+Scope: Add `forge maintenance-bundle-verify` and compatibility `forge-maintenance-bundle-verify`; read one persisted bundle and the repository-local source reports named inside it; recompute byte counts and SHA-256 hashes; report verified or drifted status with blockers; update tests, docs, README, CI smoke, and project memory.
+Expected files or areas: `src/autonomous_forge/maintenance_bundle_verify.py`, `src/autonomous_forge/maintenance_bundle_verify_cli.py`, `tests/test_maintenance_bundle_verify.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Matching source reports verify, drifted reports are reported without mutation, unsafe out-of-root paths are refused, missing stages are refused, `--require-verified` fails closed, and the command performs no writes, patching, validation execution, commit, push, or remote operations.
+Validation: Scratch syntax compilation covered the new module and CLI. Focused scratch pytest for `tests/test_maintenance_bundle_verify.py` passed with 6 tests. Static source/test/docs/workflow review completed through the GitHub repository API.
+Risks or assumptions: Verification detects local byte drift only. It does not sign bundles, prove author identity, verify commit signatures, rerun workflows, or establish a cryptographic trust model.
+Notes: Next safe step is a commit trust checkpoint or local replay summary using the verified bundle.
 
 ## Future Ideas
 
@@ -126,4 +138,4 @@ Notes: Next safe step is a compact persisted-bundle verification command that re
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Signed commit verification before any push workflow.
-- Persisted maintenance evidence bundle verification against source-report fingerprints.
+- End-to-end local evidence replay summary using verified persisted bundles.
