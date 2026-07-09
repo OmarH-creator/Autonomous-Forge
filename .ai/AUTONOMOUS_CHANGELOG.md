@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-133
+
+- Task ID: AUTO-133 — Confirmation-gated archive-copy execution
+- Summary: Added `forge maintenance-archive-copy` and `forge-maintenance-archive-copy`, a confirmation-gated local copy command that verifies a written archive manifest through manifest and archive-copy-preview readiness gates, refuses unsafe paths and overwrites, requires `--confirm-copy`, requires explicit missing-parent creation with `--create-parents`, copies only repository-local evidence entries, and reports copied-file SHA-256 values and byte counts.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, open and closed PRs, open issues, branch search, archive manifest implementation/CLI/tests/docs, archive-copy preview implementation/CLI/tests/docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for missing confirmation refusal, successful confirmed copy with explicit parent creation, missing-parent refusal, overwrite refusal, JSON CLI output, and CLI confirmation refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add post-copy archive verification that reopens a copied archive root and verifies copied-file hashes and byte counts against the written manifest before any compressed archive packaging exists.
+
 ## 2026-07-09 — AUTO-132
 
 - Task ID: AUTO-132 — Guarded archive-copy preview
