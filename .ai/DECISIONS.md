@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-127 — 2026-07-09 — Comparison output should identify the strongest ready preservation candidate
+
+Context: AUTO-125 introduced multi-handoff comparison and AUTO-126 made individual handoffs fail closed when history pointers drift from replayed bundles. The comparison could show ready and blocked records, but reviewers still had to manually decide which ready evidence record should be preserved first.
+Decision: Extend `forge maintenance-review-compare` with deterministic `preservation_candidates` and a `selected_preservation_candidate`. The ranking only considers ready handoffs with no failed handoff or replay-policy gates, then favors verified linked-bundle replay, fewer blockers, more reviewed paths, more validation steps, richer retained validation context, and stable commit/bundle/link tie-breakers.
+Alternatives considered: Leave selection to manual review, select the newest commit only, or add a write-capable archive immediately. Manual review keeps avoidable friction, newest-commit selection can ignore evidence quality, and writing archives is premature before a reviewable candidate-selection surface exists.
+Consequences: Reviewers get a compact recommendation while blocked records and blockers remain visible. The command remains read-only and still does not rerun validation, poll workflows, inspect live remotes, change files, stage, commit, push, write archive manifests, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-126 — 2026-07-09 — Handoffs should fail closed when history links drift from replayed bundles
 
 Context: AUTO-123 created a single reviewer-facing handoff from a run-history pointer and linked bundle replay, and AUTO-125 added multi-handoff comparison. The handoff verified pointer quality, bundle hash, and replay policy, but it did not explicitly prove that the small history pointer and the replayed bundle still described the same reviewed paths, validation steps, and retained implementation context.
