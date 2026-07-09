@@ -24,6 +24,14 @@ Alternatives considered: Leave selection to manual review, select the newest com
 Consequences: Reviewers get a compact recommendation while blocked records and blockers remain visible. The command remains read-only and still does not rerun validation, poll workflows, inspect live remotes, change files, stage, commit, push, write archive manifests, or prove signer identity.
 Human decision still required: No.
 
+## DEC-126 — 2026-07-09 — Handoffs should fail closed when history links drift from replayed bundles
+
+Context: AUTO-123 created a single reviewer-facing handoff from a run-history pointer and linked bundle replay, and AUTO-125 added multi-handoff comparison. The handoff verified pointer quality, bundle hash, and replay policy, but it did not explicitly prove that the small history pointer and the replayed bundle still described the same reviewed paths, validation steps, and retained implementation context.
+Decision: Require `forge maintenance-review-handoff` to compare run-history pointer review context against the replayed linked bundle before reporting ready. The linked replay payload now exposes reviewed paths, validation steps, and validation-context summary so the handoff can add a required `history_bundle_context` gate.
+Alternatives considered: Trust the hash-valid bundle alone, keep context drift as an advisory, or push this only into comparison summaries. Trusting only the bundle ignores stale pointer metadata, advisory-only drift could let a misleading preservation handoff pass, and comparison summaries depend on single-handoff correctness first.
+Consequences: Reviewer handoffs fail closed if the pointer and linked bundle disagree on replay-critical review context. The command remains read-only and still does not rerun validation, poll workflows, inspect live remotes, stage, commit, push, or prove signer identity.
+Human decision still required: No.
+
 ## Historical decisions
 
 Older autonomous decision entries remain available in repository history.
