@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-094 — 2026-07-09 — Commit creation must be explicit, local, and non-pushing
+
+Context: The workflow can now apply one explicitly confirmed replacement, record supplied post-apply validation evidence, review supplied or live-collected status evidence, summarize commit readiness, and preview commit metadata. The next valuable step is moving beyond metadata preview into actual local commit creation without creating a push bot.
+Decision: Add `forge commit-create` plus compatibility `forge-commit-create`. The command consumes ready commit-proposal-preview JSON, validates safe reviewed paths and disabled push/remote fields, requires `--confirm-commit-create`, checks local git status for reviewed paths, stages only reviewed paths, runs one local `git commit` with the reviewed message, reports the created commit SHA, and keeps `push_allowed` and `remote_changes_allowed` false.
+Alternatives considered: Keep commit creation manual only, create a push workflow immediately, add commit creation inside commit-proposal-preview, infer commit metadata from diffs, or allow broad `git add .` behavior.
+Consequences: Maintainers now have a concrete local commit step in the safe end-to-end workflow. The command intentionally mutates local git state only after explicit confirmation, still trusts supplied upstream evidence, and does not sign, verify, or push commits.
+Human decision still required: No.
+
 ## DEC-093 — 2026-07-09 — Commit metadata preview comes before commit creation
 
 Context: The workflow can now apply one explicitly confirmed replacement, record supplied post-apply validation evidence, review supplied or live-collected status evidence, and summarize commit readiness. Before any command creates commits, maintainers need a deterministic preview of the intended commit metadata that still cannot mutate Git state.
