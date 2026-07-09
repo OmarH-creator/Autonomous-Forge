@@ -9,12 +9,19 @@ from autonomous_forge.maintenance_replay_summary_cli import main as replay_main
 STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"]
 
 
-def _write_bundle_fixture(tmp_path, *, complete=True):
+def _write_bundle_fixture(tmp_path, *, complete=True, validation_context=None):
     reports = {}
     for stage in STAGES:
         path = tmp_path / f"{stage}.json"
         path.write_text(json.dumps({"stage": stage, "ok": True}), encoding="utf-8")
         reports[stage] = path
+    if validation_context is None:
+        validation_context = {
+            "expected_file_changes": ["Update README.md status"],
+            "implementation_steps": ["Inspect persisted validation context", "Expose context in replay output"],
+            "validation_steps": ["python -m pytest tests/test_maintenance_replay_summary.py"],
+            "risk_register": ["Context remains advisory"],
+        }
     bundle = {
         "title": "Autonomous Forge maintenance evidence bundle",
         "bundle_id": "AUTO-103",
@@ -23,6 +30,7 @@ def _write_bundle_fixture(tmp_path, *, complete=True):
         "target_path": "README.md",
         "reviewed_paths": ["README.md"],
         "validation_steps": ["python -m pytest"],
+        "validation_context": validation_context,
         "commit_sha": "abc1234",
         "remote": "origin",
         "branch": "main",
@@ -60,6 +68,35 @@ def test_build_maintenance_replay_summary_reports_replayable_bundle(tmp_path):
     assert data["replay_blockers"] == []
 
 
+def test_build_maintenance_replay_summary_reports_validation_context(tmp_path):
+    bundle_path, _ = _write_bundle_fixture(tmp_path)
+
+    data = build_maintenance_replay_summary_data(bundle_path, root=tmp_path)
+
+    assert data["validation_context"] == {
+        "present": True,
+        "fields": ["expected_file_changes", "implementation_steps", "validation_steps", "risk_register"],
+        "field_counts": {
+            "expected_file_changes": 1,
+            "implementation_steps": 2,
+            "validation_steps": 1,
+            "risk_register": 1,
+        },
+        "total_items": 5,
+    }
+    assert data["summary"]["validation_context_fields"] == 4
+    assert data["summary"]["validation_context_items"] == 5
+
+
+def test_build_maintenance_replay_summary_blocks_malformed_validation_context(tmp_path):
+    bundle_path, _ = _write_bundle_fixture(tmp_path, validation_context={"expected_file_changes": "README.md"})
+
+    data = build_maintenance_replay_summary_data(bundle_path, root=tmp_path)
+
+    assert data["replay_status"] == "blocked"
+    assert any("validation_context.expected_file_changes must be a list" in blocker for blocker in data["replay_blockers"])
+
+
 def test_build_maintenance_replay_summary_blocks_drifted_source_report(tmp_path):
     bundle_path, reports = _write_bundle_fixture(tmp_path)
     reports["patch_apply"].write_text(json.dumps({"stage": "patch_apply", "changed": True}), encoding="utf-8")
@@ -89,7 +126,9 @@ def test_maintenance_replay_summary_cli_json_and_require_replayable(tmp_path, ca
     )
 
     assert exit_code == 0
-    assert json.loads(capsys.readouterr().out)["replay_complete"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["replay_complete"] is True
+    assert payload["validation_context"]["present"] is True
 
 
 def test_maintenance_replay_summary_cli_require_replayable_fails_on_blocked(tmp_path, capsys):
@@ -108,4 +147,6 @@ def test_primary_forge_router_delegates_maintenance_replay_summary(tmp_path, cap
     exit_code = forge_main(["maintenance-replay-summary", "--root", str(tmp_path), "--bundle", str(bundle_path)])
 
     assert exit_code == 0
-    assert "Replay status: replayable" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Replay status: replayable" in output
+    assert "Validation context:" in output
