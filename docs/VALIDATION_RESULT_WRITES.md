@@ -14,6 +14,7 @@ The command and writer:
 - refuse malformed records and unsupported schemas through the preview/reader path;
 - write only the selected run-history record;
 - update the record validation fields from a supplied external observation;
+- retain implementation-grade context fields already present on the record in `record.validation_context`, including `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`;
 - do not run validation commands, check workflow status, verify commits, inspect diffs, generate patches, infer success, enforce policy, commit, push, call networks, or scan history recursively.
 
 ## CLI
@@ -74,6 +75,8 @@ write_validation_result_attachment(
 )
 ```
 
+When the source record already contains implementation context, the Python result includes `validation_context` and `validation_context_retained`, and the saved record receives the same context under `record.validation_context`.
+
 ## Persisted fields
 
 The writer updates:
@@ -81,7 +84,9 @@ The writer updates:
 - `record.validation_execution`
 - `record.validation_result`
 - `record.validation_note`
+- `record.validation_context`, when implementation context exists on the source record
+- top-level `validation_context_retained`
 - top-level `persistence`
-- `safety_notes`, with an additional note that the result was supplied externally
+- `safety_notes`, with an additional note that the result was supplied externally and, when applicable, that implementation context was retained
 
 This is intentionally smaller than a validation executor. It records an already-observed result; it does not create or verify that result.
