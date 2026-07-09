@@ -52,6 +52,17 @@ forge maintenance-archive-manifest \
   --require-ready
 ```
 
+Preview where the verified manifest entries would be copied without copying them:
+
+```bash
+forge maintenance-archive-copy-preview \
+  --manifest .ai/archives/AUTO-120-manifest.json \
+  --archive-root .ai/archive-copies/AUTO-120 \
+  --require-ready
+```
+
+See `docs/MAINTENANCE_ARCHIVE_COPY_PREVIEW.md` for the dedicated copy-preview contract.
+
 Use JSON output for local dashboards or follow-on review tooling:
 
 ```bash
