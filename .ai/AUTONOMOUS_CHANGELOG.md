@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-132
+
+- Task ID: AUTO-132 — Guarded archive-copy preview
+- Summary: Added `forge maintenance-archive-copy-preview` and `forge-maintenance-archive-copy-preview`, a read-only preview that verifies a written archive manifest, maps each evidence entry under a repository-local `--archive-root`, reports source-to-destination copy plans, and blocks unsafe destination layouts before any copy command exists.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, branch search, archive manifest implementation/CLI/tests/docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for ready source-to-destination mapping, existing-destination blocking, JSON CLI output, fail-closed `--require-ready` behavior when manifest verification fails, and outside-root archive-root refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a confirmation-gated archive-copy command that copies only ready previewed entries, refuses overwrites, and records copied-file hashes.
+
 ## 2026-07-09 — AUTO-131
 
 - Task ID: AUTO-131 — Written archive-manifest verification
@@ -26,15 +35,6 @@
 - Validation completed: Scratch syntax compilation passed for the updated implementation and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for ready integrity summaries, source-report hash/byte verification, JSON output, text integrity gates, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a confirmation-gated local archive-manifest writer only after CI confirms the integrity-checked preview and the archive entry schema remains stable.
-
-## 2026-07-09 — AUTO-128
-
-- Task ID: AUTO-128 — Maintenance archive manifest preview
-- Summary: Added `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest`, a guarded read-only preview that takes one or more `.ai/run-history/` links, reuses maintenance review comparison, selects the strongest ready preservation candidate, reads the linked bundle, and lists the run-history link, maintenance bundle, source reports, commit target, blockers, and next preservation guidance.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, open issues, maintenance review comparison implementation/tests/docs, and maintenance handoff context gates. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for ready manifest previews, blocked comparison behavior, JSON CLI output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a confirmation-gated local archive-manifest writer only after CI confirms the preview command and the archive-entry schema remains stable.
 
 ## Historical note
 
