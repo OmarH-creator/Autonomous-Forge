@@ -47,6 +47,7 @@ jobs:
           forge maintenance-evidence-bundle --help
           forge maintenance-history-link-review --help
           forge maintenance-replay-summary --help
+          forge maintenance-review-compare --help
           forge maintenance-review-handoff --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
@@ -73,6 +74,7 @@ jobs:
           forge-maintenance-evidence-bundle --help
           forge-maintenance-history-link-review --help
           forge-maintenance-replay-summary --help
+          forge-maintenance-review-compare --help
           forge-maintenance-review-handoff --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
