@@ -2,7 +2,7 @@
 
 `forge maintenance-history-link-review` reviews one persisted `.ai/run-history` maintenance bundle link before a maintainer uses it for deeper bundle replay verification.
 
-The command is local-first and read-only. It reads one repository-local JSON pointer, validates the history-link schema, and reports whether the pointer contains the durable information needed to continue the maintenance evidence workflow. When `--verify-linked-bundle` is supplied, it also reads the repository-local bundle referenced by the pointer, verifies the bundle SHA-256 against the pointer, and runs the existing maintenance replay summary so pointer review and hash-linked replay can happen in one command.
+The command is local-first and read-only. It reads one repository-local JSON pointer, validates the history-link schema, and reports whether the pointer contains the durable information needed to continue the maintenance evidence workflow. When `--verify-linked-bundle` is supplied, it also reads the repository-local bundle referenced by the pointer, verifies the bundle SHA-256 against the pointer, and runs the existing maintenance replay summary so pointer review and hash-linked replay can happen in one command. `--require-linked-replayable` implies the linked-bundle verification step so strict callers do not need to pass both flags.
 
 ## Example
 
@@ -17,7 +17,6 @@ Verify the linked bundle and require replayable evidence:
 ```bash
 forge maintenance-history-link-review \
   --link .ai/run-history/AUTO-120-link.json \
-  --verify-linked-bundle \
   --require-linked-replayable
 ```
 
@@ -45,14 +44,14 @@ Missing retained validation context is advisory so older links can still be revi
 
 ## Linked bundle replay
 
-With `--verify-linked-bundle`, the command performs the next replay step only after the history link passes required pointer gates. It:
+With `--verify-linked-bundle`, the command performs the next replay step only after the history link passes required pointer gates. `--require-linked-replayable` runs the same linked-bundle verification automatically and returns exit code 2 unless the linked bundle is verified and replayable. The linked replay path:
 
 1. constrains the linked bundle path to the configured repository root;
 2. recomputes the linked bundle SHA-256 and compares it with `bundle_sha256` from the history link;
 3. runs `maintenance-replay-summary` against the linked bundle;
 4. surfaces replay status, replay policy gate counts, source-report summary, validation-context consistency, and linked replay blockers in the same text/JSON output.
 
-`--require-linked-replayable` returns exit code 2 unless linked-bundle verification was requested and the replay summary reports replayable evidence.
+`--require-linked-replayable` returns exit code 2 unless linked-bundle verification confirms replayable evidence.
 
 ## Safety boundary
 
