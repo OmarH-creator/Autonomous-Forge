@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-10 — AUTO-136
+
+- Task ID: AUTO-136 — Confirmation-gated archive-package writer
+- Summary: Added `forge maintenance-archive-package` and `forge-maintenance-archive-package`, an explicitly confirmation-gated package writer that reuses the ready archive-package preview, verifies the written manifest and copied archive root, refuses unready previews and overwrites, and writes exactly one repository-local `.tar.gz`, `.tgz`, `.tar`, or `.zip` package.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, TODO search, archive package preview implementation, archive copy verification helper tests, package scripts, docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for missing confirmation refusal, successful `.tar.gz` writing, successful `.zip` writing, overwrite refusal, JSON CLI success, and CLI confirmation refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a read-only archive-package verification command that reopens a written package and compares its entries, byte counts, and SHA-256 values against the manifest-backed copied archive root.
+
 ## 2026-07-09 — AUTO-135
 
 - Task ID: AUTO-135 — Archive package metadata preview
@@ -17,15 +26,6 @@
 - Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for verified copied entries, missing copied-entry blocking, drift blocking, JSON CLI success, and fail-closed `--require-verified` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add an archive packaging preview that summarizes verified archive-root contents and intended package metadata before any compressed archive writer exists.
-
-## 2026-07-09 — AUTO-133
-
-- Task ID: AUTO-133 — Confirmation-gated archive-copy execution
-- Summary: Added `forge maintenance-archive-copy` and `forge-maintenance-archive-copy`, a confirmation-gated local copy command that verifies a written archive manifest through manifest and archive-copy-preview readiness gates, refuses unsafe paths and overwrites, requires `--confirm-copy`, requires explicit missing-parent creation with `--create-parents`, copies only repository-local evidence entries, and reports copied-file SHA-256 values and byte counts.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, open and closed PRs, open issues, branch search, archive manifest implementation/CLI/tests/docs, archive-copy preview implementation/CLI/tests/docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for missing confirmation refusal, successful confirmed copy with explicit parent creation, missing-parent refusal, overwrite refusal, JSON CLI output, and CLI confirmation refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add post-copy archive verification that reopens a copied archive root and verifies copied-file hashes and byte counts against the written manifest before any compressed archive packaging exists.
 
 ## Historical note
 
