@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, write and verify confirmed archive-manifest JSON records, and preview archive-copy destinations without requiring uncontrolled autonomous behavior.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, write and verify confirmed archive-manifest JSON records, preview archive-copy destinations, and copy verified evidence locally with explicit confirmation without requiring uncontrolled autonomous behavior.
 
 ## Product scope and non-goals
 
-The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, polling service, cryptographic identity authority, or archive-copy system unless a future command adds explicit confirmation-gated archive-copy behavior.
+The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, polling service, cryptographic identity authority, or archive-packaging system unless a future command adds explicit confirmation-gated archive packaging.
 
 ## Current architecture
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, confirmation-gated local archive-manifest JSON writes, written archive-manifest verification, and guarded archive-copy previews. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, copy evidence files, or create archive files.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, confirmation-gated local archive-manifest JSON writes, written archive-manifest verification, guarded archive-copy previews, and explicitly confirmed local archive-copy execution. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, verify copied archive roots after copy, or create compressed archive files.
 
 ## Prioritized roadmap
 
@@ -190,7 +190,19 @@ Expected files or areas: `src/autonomous_forge/maintenance_archive_copy_preview.
 Acceptance criteria: The command verifies the written manifest first, maps every entry under a repository-local archive root, blocks outside-root destinations, duplicate destinations, source-equals-destination mappings, and existing destinations, supports text/JSON output and `--require-ready`, and remains read-only.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: The preview plans future copy targets but does not create directories, copy evidence, create archives, rerun validation, poll workflows, prove signer identity, or prove coverage.
-Notes: Next safe step is a confirmation-gated archive-copy command that copies only ready previewed entries without overwriting files.
+Notes: Completed before confirmation-gated archive-copy execution.
+
+### AUTO-133 — Confirmation-gated archive-copy execution
+Priority: P1
+Status: DONE
+Goal: Copy verified archive-manifest evidence into a repository-local archive root only after explicit confirmation.
+Why it matters: The preservation workflow must move beyond preview into a bounded local write that actually gathers evidence files together while still refusing unsafe paths and overwrites.
+Scope: Add `forge maintenance-archive-copy` / `forge-maintenance-archive-copy`, reuse manifest verification and copy-preview gates, require `--confirm-copy`, require explicit parent creation with `--create-parents`, refuse overwrites, add focused tests, docs, README, CI help smoke, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_archive_copy.py`, `src/autonomous_forge/maintenance_archive_copy_cli.py`, `tests/test_maintenance_archive_copy.py`, `docs/MAINTENANCE_ARCHIVE_COPY.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Copying requires explicit confirmation; all blockers are checked before copying begins; destinations stay under the repository root; missing parent directories require explicit permission; existing destination files are refused; copied entries report byte counts and SHA-256 values; text/JSON output is deterministic.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The command copies repository-local evidence files but does not create compressed archives, stage, commit, push, rerun validation, poll workflows, prove signer identity, or prove coverage.
+Notes: Next safe step is post-copy verification that reopens a copied archive root and verifies copied evidence hashes against the written manifest.
 
 ## Future Ideas
 
@@ -200,4 +212,4 @@ Notes: Next safe step is a confirmation-gated archive-copy command that copies o
 - Branch protection and workflow-status replay summaries.
 - Combined history-link replay handoff.
 - Maintenance handoff comparison summaries.
-- Confirmation-gated archive-copy command.
+- Post-copy archive verification.
