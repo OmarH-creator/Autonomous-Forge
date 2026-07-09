@@ -1,8 +1,10 @@
-# Maintenance archive manifest preview
+# Maintenance archive manifest
 
-`forge maintenance-archive-manifest` builds a read-only archive manifest preview for the strongest ready preservation candidate selected from one or more `.ai/run-history/` links.
+`forge maintenance-archive-manifest` builds an archive manifest for the strongest ready preservation candidate selected from one or more `.ai/run-history/` links.
 
-It is intended for reviewers who already have completed maintenance evidence bundles and want one compact list of the files that should be preserved together before any write-capable archive step exists. The command reuses `forge maintenance-review-compare`, selects the best ready candidate, reads the linked bundle, and lists:
+By default, it remains a preview. With both `--output` and `--confirm-write`, it writes one repository-local JSON manifest that lists the evidence files that should be preserved together. It does not copy those files or create an archive.
+
+The command reuses `forge maintenance-review-compare`, selects the best ready candidate, reads the linked bundle, and lists:
 
 - the selected run-history link;
 - the selected maintenance bundle;
@@ -15,6 +17,8 @@ It is intended for reviewers who already have completed maintenance evidence bun
 
 ## Usage
 
+Preview a manifest:
+
 ```bash
 forge maintenance-archive-manifest \
   --link .ai/run-history/AUTO-120-link.json \
@@ -26,6 +30,17 @@ Use `--require-ready` when the preview should fail closed unless the comparison 
 ```bash
 forge maintenance-archive-manifest \
   --link .ai/run-history/AUTO-120-link.json \
+  --require-ready
+```
+
+Write a ready manifest only after explicit confirmation:
+
+```bash
+mkdir -p .ai/archives
+forge maintenance-archive-manifest \
+  --link .ai/run-history/AUTO-120-link.json \
+  --output .ai/archives/AUTO-120-manifest.json \
+  --confirm-write \
   --require-ready
 ```
 
@@ -45,17 +60,29 @@ forge-maintenance-archive-manifest --help
 
 ## Integrity gates
 
-The manifest preview recomputes local SHA-256 values for the selected maintenance bundle and source reports. Source reports also compare current byte counts to the values recorded in the bundle. The output includes an `archive_integrity` object in JSON and an `Archive integrity` line in text output.
+The command recomputes local SHA-256 values for the selected maintenance bundle and source reports. Source reports also compare current byte counts to the values recorded in the bundle. The output includes an `archive_integrity` object in JSON and an `Archive integrity` line in text output.
 
-A ready manifest requires zero failed integrity gates. Missing files, source-report hash drift, or byte-count drift block readiness before a future archive writer can safely use the manifest.
+A ready manifest requires zero failed integrity gates. Missing files, source-report hash drift, or byte-count drift block readiness before the manifest can be written.
 
-The run-history link is still listed as an advisory entry because the linked bundle and replay gates already verify the hash-linked evidence chain. The preview does not invent a new expected digest for the link itself.
+The run-history link is still listed as an advisory entry because the linked bundle and replay gates already verify the hash-linked evidence chain. The command does not invent a new expected digest for the link itself.
+
+## Confirmed write behavior
+
+Writing requires all of the following:
+
+- `--output` must point to a repository-local JSON path under `--root`;
+- the output parent directory must already exist;
+- the output file must not already exist;
+- the manifest must be ready;
+- `--confirm-write` must be supplied.
+
+The written JSON contains the same selected candidate, archive entries, integrity gates, blockers, and preservation guidance as the preview, plus `manifest_written: true` and `manifest_path`.
 
 ## Safety boundary
 
-The command reads repository-local history links, linked bundle JSON, and source-report metadata. It recomputes local path existence, byte counts, and source-report hashes, but it does not copy files, write archive manifests, create archives, change files, stage, commit, push, poll workflows, inspect live remotes, or prove signer identity.
+The command reads repository-local history links, linked bundle JSON, and source-report metadata. It recomputes local path existence, byte counts, and source-report hashes. With `--output --confirm-write`, it writes exactly one manifest JSON file. It does not copy evidence files, create archives, change source evidence, stage, commit, push, poll workflows, inspect live remotes, or prove signer identity.
 
 ## Exit codes
 
-- `0`: the manifest preview was generated.
-- `2`: an input was invalid, unsafe, unreadable, or `--require-ready` was supplied and the preview was blocked.
+- `0`: the manifest preview or confirmed write completed.
+- `2`: an input was invalid, unsafe, unreadable, a write was requested without confirmation, or `--require-ready` was supplied and the manifest was blocked.
