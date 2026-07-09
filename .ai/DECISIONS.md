@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-123 — 2026-07-09 — Completed maintenance evidence needs a single reviewer handoff
+
+Context: AUTO-122 allowed `forge maintenance-history-link-review` to verify a linked bundle and run replay summary, but the output still remained primarily a pointer/replay review rather than a final reviewer-facing preservation handoff.
+Decision: Add `forge maintenance-review-handoff` and `forge-maintenance-review-handoff` as read-only commands that start from one run-history link, reuse linked-bundle replay verification, compute explicit handoff gates, and emit preservation guidance for the completed maintenance evidence record.
+Alternatives considered: Keep using `maintenance-history-link-review --verify-linked-bundle`, fold handoff wording into the history-link command, or add a write-capable archive step. Reusing the existing command would leave preservation guidance implicit, folding more behavior into it would blur pointer review versus final handoff, and write-capable archiving would be premature without a stronger evidence comparison surface.
+Consequences: Maintainers get one compact handoff for completed evidence preservation. The command remains evidence-review only: it does not rerun validation, poll workflows, inspect live remotes, change files, stage, commit, push, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-122 — 2026-07-09 — History-link review should optionally verify linked bundle replay
 
 Context: AUTO-121 added a pointer-level history-link quality review, but a maintainer still had to copy the linked bundle path into `forge maintenance-replay-summary` to verify the actual bundle hash, source-report hashes, replay status, replay policy gates, and validation-context consistency.
