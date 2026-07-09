@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, and preserve implementation-grade plan fields through downstream proposal artifacts.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, and preserve implementation-grade plan fields through downstream proposal and validation-plan artifacts.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, and plan-enriched `forge propose` artifacts. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, plan-enriched `forge propose` artifacts, and plan/proposal-enriched `forge validate-plan` artifacts. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -130,7 +130,19 @@ Expected files or areas: `src/autonomous_forge/proposal.py`, `tests/test_proposa
 Acceptance criteria: Proposal text includes expected file changes, implementation steps, validation steps, and risk register sections; JSON output includes matching structured fields while preserving planned file/operation fields; behavior remains local-first, read-only, deterministic, and covered by tests.
 Validation: Scratch syntax compilation passed for the updated proposal module and proposal tests before repository writes. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
 Risks or assumptions: Proposal artifacts trust the planner's deterministic field normalization and remain advisory only.
-Notes: Next safe step is carrying enriched plan/proposal fields into validation-plan artifacts.
+Notes: Completed before plan-enriched validation plans.
+
+### AUTO-111 — Plan-enriched validation plan artifacts
+Priority: P1
+Status: DONE
+Goal: Carry implementation-grade `forge plan` and `forge propose` fields into `forge validate-plan` artifacts.
+Why it matters: Validation handoff should preserve expected file changes, implementation steps, validation steps, and risk register entries before moving toward validation preview and executor orchestration.
+Scope: Update `src/autonomous_forge/validation.py` to consume `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` from proposal data; keep backward-compatible `expected_file_areas` and advisory path checks; update validation tests, command docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/validation.py`, `tests/test_validation.py`, `docs/COMMANDS.md`, README, and `.ai` records.
+Acceptance criteria: Validation-plan text includes expected file changes, implementation steps, validation steps, risk register, expected file areas, and path checks; JSON output includes matching structured fields while preserving existing path-check keys; behavior remains local-first, read-only, deterministic, and covered by tests.
+Validation: Scratch syntax compilation passed for the updated validation module and validation tests before repository writes. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+Risks or assumptions: Validation-plan artifacts trust the proposal's deterministic planner field propagation and remain advisory only.
+Notes: Next safe step is carrying enriched validation-plan fields into validation-preview and orchestration artifacts.
 
 ## Future Ideas
 
@@ -138,4 +150,4 @@ Notes: Next safe step is carrying enriched plan/proposal fields into validation-
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- Carry enriched plan fields into downstream validation artifacts.
+- Carry enriched plan fields into downstream validation-preview and orchestration artifacts.
