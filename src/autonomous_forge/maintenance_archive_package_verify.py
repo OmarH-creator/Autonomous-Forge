@@ -75,6 +75,17 @@ def _zip_package_entries(package_path: Path) -> tuple[list[dict[str, Any]], list
     return entries, blockers
 
 
+def _preview_blockers_for_verification(preview: dict[str, Any]) -> list[str]:
+    """Keep preview blockers except the expected existing-package blocker."""
+    blockers: list[str] = []
+    for blocker in preview.get("package_blockers") or []:
+        blocker_text = str(blocker)
+        if blocker_text.startswith("package destination already exists:"):
+            continue
+        blockers.append(blocker_text)
+    return blockers
+
+
 def build_maintenance_archive_package_verify_data(
     manifest_path: Path,
     *,
@@ -91,7 +102,7 @@ def build_maintenance_archive_package_verify_data(
     )
     root_resolved = root.resolve()
     package_resolved = _resolved_repo_path(package_path, root=root, label="package")
-    blockers = list(preview.get("package_blockers") or [])
+    blockers = _preview_blockers_for_verification(preview)
     if not package_resolved.exists():
         blockers.append(f"package file is missing: {package_resolved.relative_to(root_resolved).as_posix()}")
         package_entries: list[dict[str, Any]] = []
