@@ -11,6 +11,20 @@ from autonomous_forge.validation_result_writer import (
 from tests.test_run_history_reader import VALID_PAYLOAD
 
 
+ENRICHED_CONTEXT = {
+    "expected_file_changes": ["src/autonomous_forge/example.py"],
+    "implementation_steps": ["Preserve implementation context in persisted validation results."],
+    "validation_steps": ["python -m pytest tests/test_validation_result_writer.py -q"],
+    "risk_register": ["Context is advisory and copied from the existing run-history record."],
+}
+
+
+def _enriched_payload():
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    payload["record"].update(ENRICHED_CONTEXT)
+    return payload
+
+
 def _write_record(root, name="record.json", payload=None):
     path = root / ".ai" / "run-history" / name
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -34,6 +48,16 @@ def test_build_validation_result_write_payload_updates_only_validation_fields(tm
     assert payload["record"]["validation_note"] == "pytest passed"
     assert payload["record"]["commit"] == "none"
     assert payload["persistence"] == "validation result attached by explicit request"
+
+
+def test_build_validation_result_write_payload_retains_enriched_context(tmp_path):
+    record = _write_record(tmp_path, payload=_enriched_payload())
+
+    payload = build_validation_result_write_payload(record, root=tmp_path, result="passed")
+
+    assert payload["record"]["validation_context"] == ENRICHED_CONTEXT
+    assert payload["validation_context_retained"] == sorted(ENRICHED_CONTEXT)
+    assert "implementation context fields were retained" in payload["safety_notes"][-1]
 
 
 def test_write_validation_result_attachment_requires_confirmation(tmp_path):
@@ -62,6 +86,22 @@ def test_write_validation_result_attachment_persists_supplied_result(tmp_path):
     assert saved["record"]["validation_execution"] == "external_result_attached"
     assert saved["record"]["validation_result"] == "skipped"
     assert saved["record"]["validation_note"] == "manual skip"
+
+
+def test_write_validation_result_attachment_returns_retained_context(tmp_path):
+    record = _write_record(tmp_path, payload=_enriched_payload())
+
+    result = write_validation_result_attachment(
+        record,
+        root=tmp_path,
+        result="passed",
+        confirm_write=True,
+    )
+
+    saved = json.loads(record.read_text(encoding="utf-8"))
+    assert result["validation_context"] == ENRICHED_CONTEXT
+    assert result["validation_context_retained"] == sorted(ENRICHED_CONTEXT)
+    assert saved["record"]["validation_context"] == ENRICHED_CONTEXT
 
 
 def test_write_validation_result_attachment_keeps_not_run_execution(tmp_path):
