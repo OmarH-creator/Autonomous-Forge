@@ -77,3 +77,19 @@ def test_primary_forge_patch_proposal_review_fails_blocked_evidence(tmp_path, ca
 def test_primary_forge_router_preserves_existing_commands(capsys):
     assert main(["--version"]) == 0
     assert capsys.readouterr().out.strip().startswith("Autonomous Forge ")
+
+
+def test_primary_forge_router_exposes_replay_policy_summary_help(capsys):
+    assert main(["maintenance-replay-policy-summary", "--help"]) == 0
+
+    help_text = capsys.readouterr().out
+    assert "maintenance-replay-policy-summary" in help_text
+    assert "--bundle" in help_text
+
+
+def test_primary_forge_router_exposes_preservation_completeness_help(capsys):
+    assert main(["maintenance-preservation-completeness", "--help"]) == 0
+
+    help_text = capsys.readouterr().out
+    assert "maintenance-preservation-completeness" in help_text
+    assert "--require-workflow-fresh" in help_text
