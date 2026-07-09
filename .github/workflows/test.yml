@@ -53,6 +53,7 @@ jobs:
           forge maintenance-bundle-verify --help
           forge maintenance-evidence-bundle --help
           forge maintenance-history-link-review --help
+          forge maintenance-preservation-completeness --help
           forge maintenance-replay-summary --help
           forge maintenance-review-compare --help
           forge maintenance-review-handoff --help
@@ -87,6 +88,7 @@ jobs:
           forge-maintenance-bundle-verify --help
           forge-maintenance-evidence-bundle --help
           forge-maintenance-history-link-review --help
+          forge-maintenance-preservation-completeness --help
           forge-maintenance-replay-summary --help
           forge-maintenance-review-compare --help
           forge-maintenance-review-handoff --help
