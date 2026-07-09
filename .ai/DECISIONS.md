@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-133 — 2026-07-09 — Archive-copy execution must be confirmation-gated and overwrite-safe
+
+Context: AUTO-132 made archive-copy destination layouts reviewable, but preservation still required manual copying after a ready preview. The next useful step is bounded local copy execution that gathers verified evidence files together without becoming an uncontrolled archive writer.
+Decision: Add `forge maintenance-archive-copy` and `forge-maintenance-archive-copy` as explicitly confirmed local copy commands. The command reuses written-manifest verification and archive-copy-preview readiness, requires `--confirm-copy`, refuses blocked previews, refuses existing destinations, constrains all source and destination paths to the repository root, and only creates missing destination parents when `--create-parents` is explicitly supplied.
+Alternatives considered: Keep copying manual, create compressed archives immediately, or silently create parents and overwrite files. Manual copying keeps avoidable preservation mistakes, compressed archives are premature before post-copy verification exists, and implicit directory creation/overwrites would undermine safety and evidence durability.
+Consequences: Maintainers can now perform a bounded local evidence copy after reviewing a ready plan. The command still does not create compressed archives, stage, commit, push, rerun validation, poll workflows, change remotes, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-132 — 2026-07-09 — Archive-copy behavior needs a read-only destination preview first
 
 Context: AUTO-131 made written archive manifests re-verifiable, but moving directly to file copying would introduce destination path, collision, parent-directory, and overwrite risks before reviewers can inspect the planned layout.
