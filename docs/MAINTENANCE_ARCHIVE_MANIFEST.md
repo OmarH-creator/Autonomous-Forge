@@ -61,7 +61,21 @@ forge maintenance-archive-copy-preview \
   --require-ready
 ```
 
-See `docs/MAINTENANCE_ARCHIVE_COPY_PREVIEW.md` for the dedicated copy-preview contract.
+Copy verified entries after explicit confirmation, then verify the copied archive root:
+
+```bash
+forge maintenance-archive-copy \
+  --manifest .ai/archives/AUTO-120-manifest.json \
+  --archive-root .ai/archive-copies/AUTO-120 \
+  --confirm-copy \
+  --create-parents
+forge maintenance-archive-copy-verify \
+  --manifest .ai/archives/AUTO-120-manifest.json \
+  --archive-root .ai/archive-copies/AUTO-120 \
+  --require-verified
+```
+
+See `docs/MAINTENANCE_ARCHIVE_COPY_PREVIEW.md` for the dedicated copy-preview contract and `docs/MAINTENANCE_ARCHIVE_COPY_VERIFY.md` for the post-copy verification contract.
 
 Use JSON output for local dashboards or follow-on review tooling:
 
