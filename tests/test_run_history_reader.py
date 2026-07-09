@@ -42,11 +42,25 @@ VALID_PAYLOAD = {
 }
 
 
+VALIDATION_CONTEXT = {
+    "expected_file_changes": ["src/autonomous_forge/example.py"],
+    "implementation_steps": ["Preserve validation context in persisted evidence."],
+    "validation_steps": ["python -m pytest tests/test_run_history_reader.py"],
+    "risk_register": ["Context is advisory and copied from trusted local JSON."],
+}
+
+
 def _write_record(root, name="record.json", payload=VALID_PAYLOAD):
     path = root / ".ai" / "run-history" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
+
+
+def _payload_with_validation_context(context=VALIDATION_CONTEXT):
+    payload = json.loads(json.dumps(VALID_PAYLOAD))
+    payload["record"]["validation_context"] = context
+    return payload
 
 
 def test_summarize_run_history_record_returns_core_fields():
@@ -60,6 +74,28 @@ def test_summarize_run_history_record_returns_core_fields():
     assert summary["persistence"] == "written by explicit request"
 
 
+def test_summarize_run_history_record_exposes_validation_context():
+    summary = summarize_run_history_record(
+        _payload_with_validation_context(),
+        source_path=".ai/run-history/record.json",
+    )
+
+    assert summary["validation_context"] == VALIDATION_CONTEXT
+    assert summary["validation_context_fields"] == [
+        "expected_file_changes",
+        "implementation_steps",
+        "validation_steps",
+        "risk_register",
+    ]
+
+
+def test_summarize_run_history_record_refuses_malformed_validation_context():
+    payload = _payload_with_validation_context(context=["not", "an", "object"])
+
+    with pytest.raises(RunHistoryReadError, match="record.validation_context must be an object"):
+        summarize_run_history_record(payload, source_path=".ai/run-history/record.json")
+
+
 def test_read_run_history_record_formats_text(tmp_path):
     path = _write_record(tmp_path)
 
@@ -67,8 +103,21 @@ def test_read_run_history_record_formats_text(tmp_path):
 
     assert "Autonomous Forge run-history record" in output
     assert "Selected task: AUTO-031 [P1/TODO] Add local run-history reader" in output
+    assert "Validation context:" in output
+    assert "- none" in output
     assert "Preflight summary:" in output
     assert "Safety boundary: Run-history read output only" in output
+
+
+def test_read_run_history_record_formats_validation_context_text(tmp_path):
+    path = _write_record(tmp_path, payload=_payload_with_validation_context())
+
+    output = read_run_history_record(path, root=tmp_path)
+
+    assert "Validation context:" in output
+    assert "- expected_file_changes:" in output
+    assert "src/autonomous_forge/example.py" in output
+    assert "- risk_register:" in output
 
 
 def test_read_run_history_record_formats_json(tmp_path):
@@ -80,6 +129,16 @@ def test_read_run_history_record_formats_json(tmp_path):
     assert data["mode"] == "read-only"
     assert data["task"]["id"] == "AUTO-031"
     assert data["preflight_summary"]["overall_status"] == "ready for opt-in persistence design"
+
+
+def test_read_run_history_record_formats_validation_context_json(tmp_path):
+    path = _write_record(tmp_path, payload=_payload_with_validation_context())
+
+    output = read_run_history_record(path, root=tmp_path, output_format="json")
+    data = json.loads(output)
+
+    assert data["validation_context"] == VALIDATION_CONTEXT
+    assert data["validation_context_fields"] == list(VALIDATION_CONTEXT)
 
 
 def test_read_run_history_record_refuses_path_outside_history_dir(tmp_path):
