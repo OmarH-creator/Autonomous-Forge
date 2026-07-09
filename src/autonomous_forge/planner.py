@@ -66,6 +66,60 @@ def _documentation_signals(root: Path) -> tuple[dict[str, str], ...]:
     )
 
 
+def _split_reviewable_items(value: str) -> list[str]:
+    """Split compact roadmap prose into stable review bullets without inventing content."""
+    cleaned = value.strip().rstrip(".")
+    if not cleaned or cleaned == "not documented":
+        return []
+    if ";" in cleaned:
+        parts = cleaned.split(";")
+    elif "," in cleaned:
+        parts = cleaned.split(",")
+    else:
+        parts = [cleaned]
+    return [part.strip().strip("`") for part in parts if part.strip()]
+
+
+def _implementation_steps(task: PlanTask, details: TaskDetails) -> list[str]:
+    """Build a concrete, deterministic implementation checklist for the selected task."""
+    return [
+        (
+            f"Inspect roadmap task {task.task_id}, repository policy, state file, "
+            "and documented command contracts before editing."
+        ),
+        f"Limit the implementation scope to: {details.scope}",
+        f"Update the expected file areas only when needed: {details.expected_files}",
+        f"Satisfy the documented acceptance criteria: {details.acceptance_criteria}",
+        "Run or document the strongest practical validation steps before committing.",
+    ]
+
+
+def _risk_register(details: TaskDetails, policy: RepositoryPolicy) -> list[dict[str, str]]:
+    """Build stable risk entries from roadmap and policy text."""
+    risks = _split_reviewable_items(details.risks) or ["No roadmap risk was documented."]
+    return [
+        {
+            "source": "roadmap",
+            "risk": risk,
+            "mitigation": (
+                "Keep the change bounded to the selected task and validate "
+                "the documented acceptance criteria."
+            ),
+        }
+        for risk in risks
+    ] + [
+        {
+            "source": "policy",
+            "risk": item,
+            "mitigation": (
+                "Do not perform this action inside forge plan; require separate "
+                "explicit human approval if future work reaches it."
+            ),
+        }
+        for item in policy.approval_required
+    ]
+
+
 def build_repository_plan_data(
     plan_text: str,
     policy_text: str,
@@ -87,10 +141,14 @@ def build_repository_plan_data(
         "policy": {
             "allowed_paths": list(policy.allowed_paths),
             "prohibited_paths": list(policy.prohibited_paths),
-            "human_approval_required": list(policy.approval_required),
+            "human_approval_required": list(policy.apval_required),
             "validation_expectations": list(policy.validation_expectations),
         },
         "selected_task": None,
+        "implementation_steps": [],
+        "expected_file_changes": [],
+        "validation_steps": list(policy.validation_expectations),
+        "risk_register": [],
         "reason": "no eligible TODO task found.",
         "safety_boundary": (
             "Plan output only; no files are changed, commands are run, "
@@ -102,6 +160,11 @@ def build_repository_plan_data(
         return data
 
     details = _task_details(plan_text, selected)
+    roadmap_validation = _split_reviewable_items(details.validation)
+    validation_steps = roadmap_validation + [
+        step for step in policy.validation_expectations if step not in roadmap_validation
+    ]
+    expected_files = _split_reviewable_items(details.expected_files)
     data["selected_task"] = {
         "id": selected.task_id,
         "priority": selected.priority,
@@ -115,6 +178,10 @@ def build_repository_plan_data(
         "validation": details.validation,
         "risks_or_assumptions": details.risks,
     }
+    data["implementation_steps"] = _implementation_steps(selected, details)
+    data["expected_file_changes"] = expected_files
+    data["validation_steps"] = validation_steps
+    data["risk_register"] = _risk_register(details, policy)
     data["reason"] = "highest-priority eligible TODO task; ties preserve roadmap source order."
     return data
 
@@ -154,8 +221,18 @@ def format_repository_plan(data: dict[str, Any]) -> str:
             f"Why it matters: {selected['why_it_matters']}",
             f"Scope: {selected['scope']}",
             f"Expected files or areas: {selected['expected_files_or_areas']}",
+            "Expected file changes:",
+            *[f"- {path}" for path in data["expected_file_changes"] or ["none documented"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
             f"Acceptance criteria: {selected['acceptance_criteria']}",
-            f"Validation: {selected['validation']}",
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"] or ["none documented"]],
+            "Risk register:",
+            *[
+                f"- {item['source']}: {item['risk']} Mitigation: {item['mitigation']}"
+                for item in data["risk_register"]
+            ],
             f"Risks or assumptions: {selected['risks_or_assumptions']}",
             f"Safety boundary: {data['safety_boundary']}",
         ]
