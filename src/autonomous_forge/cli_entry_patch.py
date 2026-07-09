@@ -13,6 +13,7 @@ from autonomous_forge.commit_status_review_cli import main as _commit_status_rev
 from autonomous_forge.commit_trust_review_cli import main as _commit_trust_review_main
 from autonomous_forge.commit_verify_cli import main as _commit_verify_main
 from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
+from autonomous_forge.maintenance_archive_copy_preview_cli import main as _maintenance_archive_copy_preview_main
 from autonomous_forge.maintenance_archive_manifest_cli import main as _maintenance_archive_manifest_main
 from autonomous_forge.maintenance_bundle_verify_cli import main as _maintenance_bundle_verify_main
 from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
@@ -44,6 +45,7 @@ _EXTENSION_COMMANDS = {
     "commit-trust-review": _commit_trust_review_main,
     "commit-verify": _commit_verify_main,
     "git-diff-review": _git_diff_review_main,
+    "maintenance-archive-copy-preview": _maintenance_archive_copy_preview_main,
     "maintenance-archive-manifest": _maintenance_archive_manifest_main,
     "maintenance-bundle-verify": _maintenance_bundle_verify_main,
     "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
