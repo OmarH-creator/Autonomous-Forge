@@ -14,6 +14,18 @@ forge maintenance-archive-package-preview \
 
 Use `--format json` for machine-readable output.
 
+A ready preview can be passed to the confirmation-gated writer:
+
+```bash
+forge maintenance-archive-package \
+  --manifest .ai/archives/AUTO-120-manifest.json \
+  --archive-root .ai/archive-copies/AUTO-120 \
+  --package .ai/archive-packages/AUTO-120.tar.gz \
+  --confirm-package
+```
+
+See `docs/MAINTENANCE_ARCHIVE_PACKAGE.md` for the write-capable package contract.
+
 ## Safety boundary
 
 The preview verifies copied evidence existence, byte counts, SHA-256 values, package destination safety, and unmanifested archive-root files. It does not create tar/zip files, copy files, write manifests, stage, commit, push, poll workflows, rerun validation, or prove signer identity.
@@ -30,4 +42,4 @@ The preview is ready only when:
 - the package destination does not already exist; and
 - the archive root contains no unmanifested files.
 
-A future package writer should reuse this evidence and add an explicit confirmation flag before writing any compressed archive.
+The package writer reuses this evidence, requires `--confirm-package`, refuses overwrites again immediately before writing, and creates exactly one repository-local archive package.
