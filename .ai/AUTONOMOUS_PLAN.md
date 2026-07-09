@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, and summarize push readiness before any push workflow is considered.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, summarize push readiness, and run an explicitly confirmed non-force push handoff with local ref checks.
 
 ## Product scope and non-goals
 
-The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, or push bot.
+The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, or remote-configuration manager.
 
 ## Current architecture
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, and pre-push readiness review after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not push changes, change remotes, verify commit signatures, or cryptographically verify commit identity.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, pre-push readiness review, and explicitly confirmed non-force push handoff after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not force-push, push tags, change remotes, change branch protections, verify commit signatures, or cryptographically verify commit identity.
 
 ## Prioritized roadmap
 
@@ -190,7 +190,19 @@ Expected files or areas: `src/autonomous_forge/push_readiness.py`, `src/autonomo
 Acceptance criteria: Push-readiness consumes commit-verify JSON and commit-status-review JSON, requires verified commit evidence, requires a matching status-review commit SHA, requires at least one successful status context and no failed/pending/unknown contexts, validates safe reviewed paths, supports `--require-ready`, and never runs git, calls networks, stages files, creates commits, pushes, changes remotes, or modifies files.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests before writing. Deterministic tests cover ready evidence, unverified commits, status SHA mismatch, unclear status evidence, unsafe paths, and repository-local JSON loading. Direct repository checkout/test execution remained unavailable in this environment.
 Risks or assumptions: The command trusts supplied commit-verify and status-review evidence, and it still does not prove signed commit identity or provide a push command.
-Notes: Next safe step is an explicitly confirmed, non-force local push handoff that consumes ready push-readiness evidence without changing remotes or protections.
+Notes: Completed before push-handoff.
+
+### AUTO-097 — Explicitly confirmed non-force push handoff
+Priority: P1
+Status: DONE
+Goal: Add a guarded local push handoff that consumes ready push-readiness evidence and can push exactly one verified commit to one branch after explicit confirmation.
+Why it matters: The end-to-end maintenance workflow needs a concrete remote handoff beyond evidence review while still refusing force-pushes, tags, remote configuration changes, and branch-protection changes.
+Scope: Add `forge push-handoff` and `forge-push-handoff`, deterministic fake-git tests, focused documentation, README usage, CI help-smoke coverage, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/push_handoff.py`, `src/autonomous_forge/push_handoff_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `tests/test_push_handoff.py`, `docs/PUSH_HANDOFF.md`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Push-handoff consumes ready push-readiness JSON, validates safe branch and remote names, checks local branch, `HEAD`, upstream, and remote branch refs, reports a ready handoff without pushing by default, runs one non-force `git push <remote> <commit>:refs/heads/<branch>` only with `--confirm-push`, supports `--require-pushed`, and never stages files, creates commits, force-pushes, pushes tags, changes remotes, or changes branch protections.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests; focused pytest for `tests/test_push_handoff.py` passed locally in scratch with 8 tests. Direct full repository checkout/test execution remained unavailable in this environment.
+Risks or assumptions: The command intentionally mutates the configured remote only after explicit confirmation, trusts supplied push-readiness evidence and local git output, and does not perform post-push status verification.
+Notes: Next safe step is post-push verification that confirms the pushed commit appears on the requested remote branch and has fresh workflow/status evidence.
 
 ## Future Ideas
 
