@@ -57,12 +57,16 @@ def test_build_change_proposal_data_uses_structured_plan_data(tmp_path):
         "tests",
         "README",
     ]
-    assert proposal["validation_steps"] == ["Run targeted tests.", "Run full pytest."]
+    assert proposal["expected_file_changes"] == proposal["planned_file_areas"]
+    assert proposal["implementation_steps"] == plan_data["implementation_steps"]
+    assert proposal["validation_steps"] == ["Run pytest", "Run targeted tests.", "Run full pytest."]
     assert proposal["task_validation"] == "Run pytest."
     assert proposal["approval_required_items"] == [
         "Adding network access.",
         "Running external commands from product code.",
     ]
+    assert proposal["risk_register"] == plan_data["risk_register"]
+    assert proposal["risk_notes"][0].startswith("roadmap: Proposal output must not imply")
     assert proposal["blocked_items"] == ["none"]
     assert proposal["safety_boundary"].startswith("Proposal output only")
 
@@ -81,10 +85,14 @@ def test_build_change_proposal_formats_reviewable_output(tmp_path):
     assert "Autonomous Forge change proposal" in output
     assert "Mode: read-only" in output
     assert "Selected task: AUTO-020 [P1/TODO] Generate reviewable change proposals" in output
+    assert "Expected file changes:" in output
     assert "- src/autonomous_forge/proposal.py" in output
-    assert "- Review and update src/autonomous_forge/cli.py if needed" in output
+    assert "Implementation steps:" in output
+    assert "- Inspect roadmap task AUTO-020" in output
+    assert "- Update the expected file areas only when needed" in output
     assert "Task validation: Run pytest." in output
     assert "Approval-required items:" in output
+    assert "Risk register:" in output
     assert "Blocked items:\n- none" in output
     assert "Safety boundary: Proposal output only" in output
 
@@ -111,11 +119,13 @@ def test_build_change_proposal_formats_json_output(tmp_path):
         "tests",
         "README",
     ]
-    assert data["planned_operations"][0] == (
-        "Review and update src/autonomous_forge/proposal.py if needed for the selected task."
-    )
-    assert data["validation_steps"] == ["Run targeted tests.", "Run full pytest."]
+    assert data["expected_file_changes"] == data["planned_file_areas"]
+    assert data["planned_operations"] == data["implementation_steps"]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-020")
+    assert data["validation_steps"] == ["Run pytest", "Run targeted tests.", "Run full pytest."]
     assert data["policy"]["prohibited_paths"] == [".env", ".github/workflows/**"]
+    assert data["risk_register"][0]["source"] == "roadmap"
+    assert data["risk_register"][-1]["source"] == "policy"
     assert data["blocked_items"] == ["none"]
     assert data["safety_boundary"].startswith("Proposal output only")
 
@@ -139,8 +149,11 @@ def test_propose_command_prints_change_proposal(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "Autonomous Forge change proposal" in output
     assert "Selected task: AUTO-020 [P1/TODO] Generate reviewable change proposals" in output
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
     assert "Validation steps:" in output
     assert "Policy prohibited paths:" in output
+    assert "Risk register:" in output
     assert "Proposal output only" in output
 
 
@@ -164,6 +177,13 @@ def test_propose_command_prints_json_change_proposal(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["title"] == "Autonomous Forge change proposal"
     assert data["selected_task"]["id"] == "AUTO-020"
+    assert data["expected_file_changes"] == [
+        "src/autonomous_forge/proposal.py",
+        "src/autonomous_forge/cli.py",
+        "tests",
+        "README",
+    ]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-020")
     assert data["approval_required_items"] == [
         "Adding network access.",
         "Running external commands from product code.",
