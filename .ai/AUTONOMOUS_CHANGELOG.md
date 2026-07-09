@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-124
+
+- Task ID: AUTO-124 — Strict linked replay requirement usability hardening
+- Summary: Tightened `forge maintenance-history-link-review` and `forge-maintenance-history-link-review` so `--require-linked-replayable` now implies linked-bundle verification. Strict callers no longer need to pass both `--verify-linked-bundle` and `--require-linked-replayable`; the command verifies the linked bundle SHA-256, runs maintenance replay summary, and succeeds only when the linked replay is verified and replayable.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, maintenance history-link review CLI/tests/docs, maintenance review handoff surfaces, and maintenance replay code. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the updated CLI and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for `--require-linked-replayable` without `--verify-linked-bundle`. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add comparison-oriented maintenance handoff summaries so reviewers can compare completed run handoffs without opening raw bundle JSON.
+
 ## 2026-07-09 — AUTO-123
 
 - Task ID: AUTO-123 — Maintenance review handoff
