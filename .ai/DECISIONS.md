@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-131 — 2026-07-09 — Written archive manifests must be re-verifiable before archive-copy behavior
+
+Context: AUTO-130 made ready archive manifests durable by writing one repository-local JSON file, but a written manifest can become stale if listed evidence files are edited, deleted, or moved before preservation.
+Decision: Extend `forge maintenance-archive-manifest` with `--manifest` verification mode. The command reads one written manifest, requires `manifest_written=true`, refuses link/write flag combinations, constrains listed entries to the repository root, recomputes current SHA-256 values and byte counts, and fails closed with `--require-ready` when evidence has drifted.
+Alternatives considered: Move directly to archive-copy behavior, trust the written manifest forever, or add a separate standalone verifier command. Copy behavior is premature before verification exists, trusting old manifests would preserve stale evidence, and a separate command would duplicate the existing archive-manifest output/format contract.
+Consequences: Maintainers can verify a persisted manifest immediately before manual preservation or future copy planning while the workflow remains bounded. The command does not copy evidence files, create archives, mutate evidence, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-130 — 2026-07-09 — Archive manifests may be written only through a narrow confirmed JSON writer
 
 Context: AUTO-129 made archive-manifest previews verify source-report hashes and byte counts, leaving the next preservation step manual. Reviewers still needed a durable manifest file that records the selected ready preservation candidate without copying evidence or creating an archive.
