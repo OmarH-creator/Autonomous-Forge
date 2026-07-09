@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize trusted push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, and verify persisted bundle source-report integrity.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize trusted push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
 
 ## Product scope and non-goals
 
-The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, or cryptographic identity authority.
+The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, polling service, or cryptographic identity authority.
 
 ## Current architecture
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, trusted pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, and persisted bundle source-report verification. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, trusted pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -142,7 +142,19 @@ Expected files or areas: `src/autonomous_forge/commit_trust_review.py`, `src/aut
 Acceptance criteria: Trusted signature codes `G` and `U` can pass, unsigned/untrusted/mismatched commits block, push-readiness requires trusted commit evidence matching the verified commit and reviewed paths, `--require-trusted` and `--require-ready` fail closed, and no command stages files, creates commits, pushes, changes remotes, reruns workflows, or changes branch protection.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover commit trust review and push-readiness blockers for untrusted, mismatched, and unclear evidence. Direct full repository checkout/full pytest execution remained unavailable in this environment.
 Risks or assumptions: Local git signature metadata is a trust checkpoint, not a complete cryptographic identity policy. `G` and `U` are treated as trusted enough for this local gate, but human policy may still require stricter signer/key rules.
-Notes: Next safe step is an end-to-end local evidence replay summary using verified persisted bundles.
+Notes: Completed before replay summaries for persisted maintenance evidence.
+
+### AUTO-103 — Persisted maintenance replay summary
+Priority: P1
+Status: DONE
+Goal: Add a replay summary for verified persisted maintenance evidence bundles.
+Why it matters: After a completed maintenance loop is bundled and hash-verified, maintainers need one compact decision explaining whether the recorded patch, validation, commit, push, and post-push evidence chain is still internally complete and replayable.
+Scope: Add `forge maintenance-replay-summary` and compatibility `forge-maintenance-replay-summary`; verify source-report hashes through the existing bundle verifier; inspect the persisted bundle status, reviewed paths, validation steps, target path, and expected evidence-chain stages; report replayable or blocked; update tests, docs, README, CI smoke, and project memory.
+Expected files or areas: `src/autonomous_forge/maintenance_replay_summary.py`, `src/autonomous_forge/maintenance_replay_summary_cli.py`, `tests/test_maintenance_replay_summary.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Verified complete bundles report replayable, drifted source reports block, incomplete or status-mismatched evidence chains block, unsafe reviewed paths are refused through existing bundle safety checks, `--require-replayable` fails closed, and no command writes files, applies patches, runs validation, stages, commits, pushes, changes remotes, changes protections, reruns workflows, polls remote status, or reads environment variables.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover replayable, drifted, incomplete, CLI fail-closed, and primary-router paths. Direct full repository checkout/full pytest execution remained unavailable in this environment.
+Risks or assumptions: Replay summaries rely on persisted JSON evidence and source-report hashes; they do not rerun workflows, prove remote state, enforce signer identity, or establish cryptographic attestation.
+Notes: Next safe step is maintainer allowed-signer policy support for commit trust evidence.
 
 ## Future Ideas
 
@@ -150,4 +162,4 @@ Notes: Next safe step is an end-to-end local evidence replay summary using verif
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- End-to-end local evidence replay summary using verified persisted bundles.
+- Maintainer allowed-signer policy support for commit trust evidence.
