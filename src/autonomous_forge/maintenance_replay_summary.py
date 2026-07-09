@@ -172,6 +172,109 @@ def _chain_statuses(bundle: dict[str, Any], blockers: list[str]) -> list[dict[st
     return chain
 
 
+def _gate(name: str, status: str, *, severity: str, reason: str) -> dict[str, str]:
+    return {"name": name, "status": status, "severity": severity, "reason": reason}
+
+
+def _replay_policy_summary(
+    *,
+    verification: dict[str, Any],
+    bundle: dict[str, Any],
+    chain: list[dict[str, str]],
+    reviewed_paths: list[str],
+    target_path: str,
+    validation_steps: list[str],
+    validation_context: dict[str, Any],
+    validation_context_consistency: dict[str, Any],
+) -> dict[str, Any]:
+    """Return compact pass/fail/advisory replay gates for operator review."""
+    gates: list[dict[str, str]] = []
+    source_verified = verification.get("verification_status") == "verified" and verification.get("bundle_verified") is True
+    gates.append(
+        _gate(
+            "source_report_integrity",
+            "passed" if source_verified else "failed",
+            severity="required",
+            reason="all recorded source-report hashes and byte counts still match"
+            if source_verified
+            else "persisted source-report hashes or byte counts did not verify",
+        )
+    )
+
+    bundle_complete = bundle.get("bundle_status") == "complete" and bundle.get("bundle_complete") is True
+    gates.append(
+        _gate(
+            "bundle_completion",
+            "passed" if bundle_complete else "failed",
+            severity="required",
+            reason="bundle is marked complete" if bundle_complete else "bundle is not marked complete",
+        )
+    )
+
+    chain_complete = len(chain) == len(_REQUIRED_CHAIN) and all(item["status"] == item["expected_status"] for item in chain)
+    gates.append(
+        _gate(
+            "evidence_chain",
+            "passed" if chain_complete else "failed",
+            severity="required",
+            reason="all required evidence stages have expected statuses"
+            if chain_complete
+            else "one or more evidence stages are missing or have unexpected status",
+        )
+    )
+
+    path_reviewed = bool(reviewed_paths) and bool(target_path) and target_path in reviewed_paths
+    gates.append(
+        _gate(
+            "path_review",
+            "passed" if path_reviewed else "failed",
+            severity="required",
+            reason="target path is included in reviewed paths"
+            if path_reviewed
+            else "target path is missing from reviewed paths or reviewed paths are empty",
+        )
+    )
+
+    has_validation_steps = bool(validation_steps)
+    gates.append(
+        _gate(
+            "validation_steps",
+            "passed" if has_validation_steps else "failed",
+            severity="required",
+            reason="bundle preserves validation steps" if has_validation_steps else "bundle lacks validation steps",
+        )
+    )
+
+    consistency_status = _clean_text(validation_context_consistency.get("status"))
+    if not validation_context.get("present"):
+        gates.append(
+            _gate(
+                "validation_context_consistency",
+                "advisory",
+                severity="advisory",
+                reason="no retained validation context was provided by this bundle",
+            )
+        )
+    else:
+        gates.append(
+            _gate(
+                "validation_context_consistency",
+                "passed" if consistency_status == "consistent" else "failed",
+                severity="required",
+                reason="retained validation context matches reviewed paths and validation steps"
+                if consistency_status == "consistent"
+                else "retained validation context does not match reviewed paths or validation steps",
+            )
+        )
+
+    return {
+        "gates": gates,
+        "passed": sum(1 for gate in gates if gate["status"] == "passed"),
+        "failed": sum(1 for gate in gates if gate["status"] == "failed"),
+        "advisory": sum(1 for gate in gates if gate["status"] == "advisory"),
+    }
+
+
 def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
     """Build a deterministic replay summary for a persisted maintenance evidence bundle."""
     verification = build_maintenance_bundle_verification_data(bundle_path, root=root)
@@ -209,6 +312,16 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         validation_steps=validation_steps,
         blockers=blockers,
     )
+    replay_policy = _replay_policy_summary(
+        verification=verification,
+        bundle=bundle,
+        chain=chain,
+        reviewed_paths=reviewed_paths,
+        target_path=target_path,
+        validation_steps=validation_steps,
+        validation_context=validation_context,
+        validation_context_consistency=validation_context_consistency,
+    )
     replay_status = "replayable" if not blockers else "blocked"
     verified_reports = verification.get("verified_reports") if isinstance(verification.get("verified_reports"), list) else []
     return {
@@ -228,6 +341,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         "validation_steps": validation_steps,
         "validation_context": validation_context,
         "validation_context_consistency": validation_context_consistency,
+        "replay_policy": replay_policy,
         "evidence_chain": chain,
         "source_report_summary": {
             "source_reports": len(verified_reports),
@@ -241,6 +355,9 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
             "validation_context_fields": len(validation_context["fields"]),
             "validation_context_items": validation_context["total_items"],
             "validation_context_consistency": validation_context_consistency["status"],
+            "replay_policy_passed": replay_policy["passed"],
+            "replay_policy_failed": replay_policy["failed"],
+            "replay_policy_advisory": replay_policy["advisory"],
             "evidence_stages": len(chain),
             "source_reports": len(verified_reports),
             "blockers": len(blockers),
@@ -258,6 +375,7 @@ def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
     """Format a maintenance replay summary as stable text."""
     context = data["validation_context"]
     consistency = data["validation_context_consistency"]
+    replay_policy = data["replay_policy"]
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -286,6 +404,12 @@ def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
         *[
             f"- retained validation step not in bundle: {step}"
             for step in consistency["retained_validation_steps_not_in_bundle"]
+        ],
+        "Replay policy gates:",
+        f"- passed={replay_policy['passed']} failed={replay_policy['failed']} advisory={replay_policy['advisory']}",
+        *[
+            f"- {gate['name']}: {gate['status']} ({gate['severity']}) - {gate['reason']}"
+            for gate in replay_policy["gates"]
         ],
         "Evidence chain:",
         *[f"- {item['stage']}: {item['status']} (expected {item['expected_status']})" for item in data["evidence_chain"]],
