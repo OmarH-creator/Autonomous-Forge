@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-093
+
+- Task ID: AUTO-093 — Commit proposal preview
+- Summary: Added `forge commit-proposal-preview` and compatibility `forge-commit-proposal-preview`, a guarded metadata-preview command that consumes ready `forge commit-readiness --format json` evidence plus explicit commit summary/body metadata. It produces deterministic commit message metadata, keeps `commit_allowed`, `commit_creation_allowed`, and `push_allowed` false, bounds metadata text, refuses simple secret-marker strings, and supports `--require-ready` for fail-closed automation.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, open issues, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, command router, workflow, commit-readiness implementation, tests, and docs. Work stayed directly on `main`. PR #11 was already merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic tests for ready commit proposal metadata, blocked upstream evidence, unsafe summary format, secret-marker refusal, primary CLI JSON output, and `--require-ready` fail-closed behavior. CI smoke now checks primary and compatibility help routes. Direct local checkout/test execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a separately confirmed commit creation workflow that requires ready commit proposal, final diff/status evidence, clean local state, and explicit confirmation before creating a local commit.
+
 ## 2026-07-09 — AUTO-092
 
 - Task ID: AUTO-092 — Commit-readiness summary
