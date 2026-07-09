@@ -7,6 +7,7 @@ The command is meant for the end of a completed maintenance cycle, after a bundl
 - history-link quality gates;
 - linked bundle SHA-256 verification;
 - linked bundle replay status and compact replay policy counts;
+- run-history pointer versus linked-bundle consistency for reviewed paths, validation steps, and retained validation context;
 - reviewed paths, validation steps, retained validation context, blockers, and preservation guidance.
 
 ## Usage
@@ -31,6 +32,16 @@ The compatibility script is also available:
 forge-maintenance-review-handoff --help
 ```
 
+## Context consistency
+
+A ready handoff now requires the small run-history pointer and the replayed linked bundle to agree on replay-critical review context:
+
+- `reviewed_paths` must match;
+- `validation_steps` must match;
+- retained `validation_context.expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` must match the linked bundle replay summary.
+
+This catches stale or manually edited history pointers that still reference a hash-valid bundle but no longer describe the same reviewed change.
+
 ## Compare multiple handoffs
 
 `forge maintenance-review-compare` compares multiple run-history links by building the same read-only handoff for each link and summarizing the set.
@@ -42,7 +53,7 @@ forge maintenance-review-compare \
   --require-all-ready
 ```
 
-The comparison reports ready/blocked counts, failed handoff gates, failed replay-policy gates, replay/hash status, blocker counts, reviewed-path counts, validation-step counts, and the next preservation action for the group. JSON output is available for local dashboards or further review tooling:
+The comparison reports ready/blocked counts, failed handoff gates, failed replay-policy gates, replay/hash status, blocker counts, reviewed-path counts, validation-step counts, context-consistency mismatches, and the next preservation action for the group. JSON output is available for local dashboards or further review tooling:
 
 ```bash
 forge maintenance-review-compare \
