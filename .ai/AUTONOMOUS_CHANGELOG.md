@@ -2,12 +2,12 @@
 
 ## 2026-07-09 — AUTO-102
 
-- Task ID: AUTO-102 — Local commit trust review
-- Summary: Added `forge commit-trust-review` and compatibility `forge-commit-trust-review`. The command consumes verified `commit-verify` JSON, inspects the same local commit with `git show --format=%H%x00%G?%x00%GS%x00%GF`, and reports trusted or blocked status before any push-readiness workflow relies on the commit. It blocks unsigned, bad, expired, revoked, uncheckable, and mismatched commit trust metadata while preserving `push_allowed=false`.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, open issues, README/status, roadmap, state, changelog, decisions, pyproject, workflow, command router, commit verification implementation, and maintenance bundle verifier status. Work stayed directly on `main`. Branch search returned no active branch results. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 are product/discussion requests and did not supersede this trust milestone.
-- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests. Focused scratch pytest for `tests/test_commit_trust_review.py` passed with 5 tests. Direct local checkout/full pytest execution remained unavailable in this environment.
+- Task ID: AUTO-102 — Commit trust review and trusted push-readiness
+- Summary: Completed the commit-trust milestone by integrating `forge commit-trust-review` into `forge push-readiness`. Push-readiness now consumes `commit-verify`, `commit-trust-review`, and `commit-status-review` JSON reports and only reports ready when the same commit and reviewed paths are verified, trusted, and clear. It blocks untrusted signature metadata, trust SHA mismatches, trust path mismatches, status blockers, and unsafe paths while preserving `push_allowed=false`.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, open issues, README/status, roadmap, state, changelog, decisions, pyproject, workflow, command router, commit trust implementation, push-readiness implementation, docs, and tests. Work stayed directly on `main`. Branch search returned no active branch results. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 are product/discussion requests and did not supersede this trusted push-readiness milestone.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests now cover push-readiness blockers for untrusted commit evidence, trust SHA mismatch, trust path mismatch, unclear status evidence, and unsafe reviewed paths. Direct local checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
-- Follow-up notes: Integrate `forge commit-trust-review` into `forge push-readiness` so push readiness can require verified commit content, trusted commit metadata, and clear workflow status together.
+- Follow-up notes: Add an end-to-end local evidence replay summary using verified persisted bundles.
 
 ## 2026-07-09 — AUTO-101
 
