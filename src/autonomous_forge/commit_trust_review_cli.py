@@ -23,9 +23,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", default=".", help="repository root used to constrain supplied evidence inputs")
     parser.add_argument("--commit-verify", required=True, help="repository-local commit-verify JSON report")
     parser.add_argument(
+        "--allowed-signers",
+        help="optional repository-local JSON policy with allowed_signers entries for signer and/or key_fingerprint",
+    )
+    parser.add_argument(
         "--require-trusted",
         action="store_true",
-        help="return exit code 2 unless git signature metadata is trusted",
+        help="return exit code 2 unless git signature metadata is trusted and any supplied signer policy passes",
     )
     parser.add_argument(
         "--format",
@@ -41,7 +45,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        data = review_commit_trust_from_report(Path(args.commit_verify), root=Path(args.root))
+        data = review_commit_trust_from_report(
+            Path(args.commit_verify),
+            root=Path(args.root),
+            allowed_signers_path=Path(args.allowed_signers) if args.allowed_signers else None,
+        )
     except FileNotFoundError as exc:
         print(f"Commit-trust-review input not found: {exc.filename}")
         return 2
