@@ -56,6 +56,20 @@ forge maintenance-bundle-verify \
 
 The command reports `verification_status: verified` when all five source reports still match. If a source report was edited, swapped, regenerated, deleted, moved outside the repository root, or no longer has the expected byte count/hash, it reports blockers and exits non-zero when `--require-verified` is supplied.
 
+## Replay a verified persisted bundle
+
+`forge maintenance-replay-summary` first performs the same source-report verification as `forge maintenance-bundle-verify`, then summarizes whether the persisted bundle is still internally complete and replayable:
+
+```bash
+forge maintenance-replay-summary \
+  --root . \
+  --bundle .ai/run-history/AUTO-100-bundle.json \
+  --require-replayable \
+  --format json
+```
+
+A replayable bundle must still verify all source-report hashes, report `bundle_status: complete`, include the expected patch, validation, commit, push, and post-push stages, preserve at least one reviewed path and validation step, and keep the target path inside the reviewed-path set. The command does not rerun the evidence chain; it gives maintainers a compact replay decision from persisted evidence.
+
 ## Hash-linked source reports
 
 Each bundle records a `source_reports` array with the stage name, repository-local input path, byte count, and SHA-256 digest for every source JSON report. This makes the durable bundle easier to audit later: if any source report is edited, replaced, or regenerated, maintainers can recompute the digest and detect that the preserved bundle no longer matches the report bytes used at bundle creation time.
@@ -67,6 +81,8 @@ The hashes are provenance fingerprints for stale-report detection. They do not p
 The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, and records bounded SHA-256 source-report fingerprints. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied and the bundle is complete.
 
 The verifier reads only one repository-local persisted bundle and the repository-local source reports named by that bundle. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables.
+
+The replay summary reads only one repository-local persisted bundle and the source reports needed for hash verification. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, poll remote status, or read environment variables.
 
 ## Completion rules
 
@@ -82,3 +98,5 @@ A bundle is `complete` only when:
 When any stage is missing, stale, unsafe, or inconsistent, the command reports `bundle_status: blocked` and lists blockers. Use `--require-complete` or `--require-written` when automation should fail closed.
 
 A persisted bundle verifies only when all five source-report entries are present, point to regular repository-local files, and the observed byte count and SHA-256 digest exactly match the preserved bundle metadata. Use `--require-verified` when automation should fail closed on drift.
+
+A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, and records validation steps. Use `--require-replayable` when automation should fail closed on replay blockers.
