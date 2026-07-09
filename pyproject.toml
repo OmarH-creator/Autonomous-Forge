@@ -38,6 +38,7 @@ forge-maintenance-archive-copy-verify = "autonomous_forge.maintenance_archive_co
 forge-maintenance-archive-manifest = "autonomous_forge.maintenance_archive_manifest_cli:main"
 forge-maintenance-archive-package = "autonomous_forge.maintenance_archive_package_cli:main"
 forge-maintenance-archive-package-preview = "autonomous_forge.maintenance_archive_package_preview_cli:main"
+forge-maintenance-archive-package-verify = "autonomous_forge.maintenance_archive_package_verify_cli:main"
 forge-maintenance-bundle-verify = "autonomous_forge.maintenance_bundle_verify_cli:main"
 forge-maintenance-evidence-bundle = "autonomous_forge.maintenance_evidence_bundle_cli:main"
 forge-maintenance-history-link-review = "autonomous_forge.maintenance_history_link_review_cli:main"
