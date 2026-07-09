@@ -42,6 +42,7 @@ jobs:
           forge commit-status-review --help
           forge commit-verify --help
           forge git-diff-review --help
+          forge maintenance-evidence-bundle --help
           forge patch-application-audit --help
           forge patch-application-preflight --help
           forge patch-application-readiness --help
@@ -62,6 +63,7 @@ jobs:
           forge-commit-status-review --help
           forge-commit-verify --help
           forge-git-diff-review --help
+          forge-maintenance-evidence-bundle --help
           forge-patch-application-audit --help
           forge-patch-application-preflight --help
           forge-patch-application-readiness --help
