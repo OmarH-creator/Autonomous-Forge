@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize trusted push readiness, run an explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run an explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, trusted pre-push readiness review, explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -96,65 +96,17 @@ Validation: Static source/test/docs/workflow review completed through the GitHub
 Risks or assumptions: Commands intentionally mutate local files, local commits, or remote branches only when explicitly confirmed. They trust supplied evidence and local git/GitHub CLI output; they do not verify signatures, authorship, cryptographic trust, or workflow correctness beyond supplied status fields.
 Notes: Completed before durable maintenance evidence bundling.
 
-### AUTO-099 — Durable maintenance evidence bundle
+### AUTO-099 — Durable maintenance evidence bundle through AUTO-103
 Priority: P1
 Status: DONE
-Goal: Add a durable evidence bundle that links completed patch apply, post-apply validation, commit verification, push handoff, and post-push verification reports.
-Why it matters: Maintainers need one portable run artifact that ties the safe end-to-end maintenance loop together after the patch, validation, commit, push, and post-push gates have completed.
-Scope: Add `forge maintenance-evidence-bundle`, compatibility route, deterministic tests, docs, README workflow examples, CI help smoke, and project-memory updates.
+Goal: Add durable evidence bundling, bundle source-report fingerprinting, persisted bundle verification, and replay summaries.
+Why it matters: Maintainers need one portable run artifact and later verification/replay checks that tie the safe end-to-end maintenance loop together after patch, validation, commit, push, and post-push gates have completed.
+Scope: Add `forge maintenance-evidence-bundle`, `forge maintenance-bundle-verify`, `forge maintenance-replay-summary`, compatibility routes, deterministic tests, docs, README workflow examples, CI help smoke, and project-memory updates.
 Expected files or areas: `src/autonomous_forge/`, `tests/`, `docs/`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
-Acceptance criteria: The bundle requires completed evidence, validates matching commit and reviewed paths across the chain, reports blockers for inconsistent evidence, and writes one bounded JSON bundle only with explicit confirmation.
-Validation: Scratch syntax compilation covered the new module, CLI, and tests. Focused scratch pytest for `tests/test_maintenance_evidence_bundle.py` passed with 7 tests. Static source/test/docs/workflow review completed through the GitHub repository API; CI smoke covers primary and compatibility help routes.
-Risks or assumptions: Bundles trust supplied JSON evidence and do not verify signatures, rerun workflows, or prove cryptographic identity.
-Notes: Completed before hash-linked source-report fingerprints.
-
-### AUTO-100 — Hash-linked maintenance evidence bundle integrity
-Priority: P1
-Status: DONE
-Goal: Add source-report fingerprints to durable maintenance evidence bundles.
-Why it matters: A durable bundle should preserve enough provenance to detect when the source JSON reports used to build it have later been edited, swapped, or regenerated.
-Scope: Extend `forge maintenance-evidence-bundle` data with deterministic `source_reports` entries containing stage, repository-local path, byte count, and SHA-256 digest for each source evidence report; add validation for malformed or incomplete source-report hash metadata; update focused tests, docs, README, and project memory.
-Expected files or areas: `src/autonomous_forge/maintenance_evidence_bundle.py`, `tests/test_maintenance_evidence_bundle.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, README, and `.ai` records.
-Acceptance criteria: Bundles built from local JSON inputs include five source-report fingerprints, malformed hashes are refused, missing hash stages block complete status when hashes are supplied, and persisted bundles still require explicit confirmation.
-Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module. Focused scratch pytest for `tests/test_maintenance_evidence_bundle.py` passed with 9 tests.
-Risks or assumptions: SHA-256 fingerprints detect byte drift only; they do not sign evidence, prove author identity, rerun workflows, verify commit signatures, or replace human review.
-Notes: Completed before persisted-bundle verification.
-
-### AUTO-101 — Persisted maintenance bundle verification
-Priority: P1
-Status: DONE
-Goal: Verify persisted maintenance evidence bundles against their recorded source-report fingerprints.
-Why it matters: After a bundle is saved, maintainers need a deterministic way to detect if any source evidence report has changed, been swapped, or no longer matches the byte stream used to create the bundle.
-Scope: Add `forge maintenance-bundle-verify` and compatibility `forge-maintenance-bundle-verify`; read one persisted bundle and the repository-local source reports named inside it; recompute byte counts and SHA-256 hashes; report verified or drifted status with blockers; update tests, docs, README, CI smoke, and project memory.
-Expected files or areas: `src/autonomous_forge/maintenance_bundle_verify.py`, `src/autonomous_forge/maintenance_bundle_verify_cli.py`, `tests/test_maintenance_bundle_verify.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
-Acceptance criteria: Matching source reports verify, drifted reports are reported without mutation, unsafe out-of-root paths are refused, missing stages are refused, `--require-verified` fails closed, and the command performs no writes, patching, validation execution, commit, push, or remote operations.
-Validation: Scratch syntax compilation covered the new module and CLI. Focused scratch pytest for `tests/test_maintenance_bundle_verify.py` passed with 6 tests. Static source/test/docs/workflow review completed through the GitHub repository API.
-Risks or assumptions: Verification detects local byte drift only. It does not sign bundles, prove author identity, verify commit signatures, rerun workflows, or establish a cryptographic trust model.
-Notes: Completed before commit trust review.
-
-### AUTO-102 — Commit trust review and trusted push-readiness
-Priority: P1
-Status: DONE
-Goal: Add a local commit trust checkpoint and require that trust evidence in push-readiness.
-Why it matters: A safe push workflow should not rely only on commit content and workflow status; it should also have an explicit checkpoint for local git signature/trust metadata before a push handoff is considered ready.
-Scope: Add `forge commit-trust-review` and compatibility `forge-commit-trust-review`; inspect one verified commit with bounded `git show` signature metadata; block unsigned, bad, expired, revoked, uncheckable, mismatched, or path-mismatched trust evidence; integrate commit-trust-review JSON into `forge push-readiness`; update tests, docs, README, workflow smoke coverage, and project memory.
-Expected files or areas: `src/autonomous_forge/commit_trust_review.py`, `src/autonomous_forge/commit_trust_review_cli.py`, `src/autonomous_forge/push_readiness.py`, `src/autonomous_forge/push_readiness_cli.py`, `tests/test_commit_trust_review.py`, `tests/test_push_readiness.py`, `docs/PUSH_READINESS.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
-Acceptance criteria: Trusted signature codes `G` and `U` can pass, unsigned/untrusted/mismatched commits block, push-readiness requires trusted commit evidence matching the verified commit and reviewed paths, `--require-trusted` and `--require-ready` fail closed, and no command stages files, creates commits, pushes, changes remotes, reruns workflows, or changes branch protection.
-Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover commit trust review and push-readiness blockers for untrusted, mismatched, and unclear evidence. Direct full repository checkout/full pytest execution remained unavailable in this environment.
-Risks or assumptions: Local git signature metadata is a trust checkpoint, not a complete cryptographic identity policy. `G` and `U` are treated as trusted enough for this local gate, but human policy may still require stricter signer/key rules.
-Notes: Completed before replay summaries for persisted maintenance evidence.
-
-### AUTO-103 — Persisted maintenance replay summary
-Priority: P1
-Status: DONE
-Goal: Add a replay summary for verified persisted maintenance evidence bundles.
-Why it matters: After a completed maintenance loop is bundled and hash-verified, maintainers need one compact decision explaining whether the recorded patch, validation, commit, push, and post-push evidence chain is internally complete and replayable.
-Scope: Add `forge maintenance-replay-summary` and compatibility `forge-maintenance-replay-summary`; verify source-report hashes through the existing bundle verifier; inspect the persisted bundle status, reviewed paths, validation steps, target path, and expected evidence-chain stages; report replayable or blocked; update tests, docs, README, CI smoke, and project memory.
-Expected files or areas: `src/autonomous_forge/maintenance_replay_summary.py`, `src/autonomous_forge/maintenance_replay_summary_cli.py`, `tests/test_maintenance_replay_summary.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
-Acceptance criteria: Verified complete bundles report replayable, drifted source reports block, incomplete or status-mismatched evidence chains block, unsafe reviewed paths are refused through existing bundle safety checks, `--require-replayable` fails closed, and no command writes files, applies patches, runs validation, stages, commits, pushes, changes remotes, changes protections, reruns workflows, polls remote status, or reads environment variables.
-Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover replayable, drifted, incomplete, CLI fail-closed, and primary-router paths. Direct full repository checkout/full pytest execution remained unavailable in this environment.
-Risks or assumptions: Replay summaries rely on persisted JSON evidence and source-report hashes; they do not rerun workflows, prove remote state, enforce signer identity, or establish cryptographic attestation.
-Notes: Completed before fast-forward push-handoff hardening.
+Acceptance criteria: Bundles require completed evidence, validate matching commit and reviewed paths across the chain, record SHA-256 source-report fingerprints, detect later drift, summarize replayability, and write bounded JSON only with explicit confirmation.
+Validation: Scratch syntax compilation and focused pytest covered the bundle, verification, and replay-summary tests across AUTO-099 through AUTO-103. Static source/test/docs/workflow review completed through the GitHub repository API.
+Risks or assumptions: Bundles trust supplied JSON evidence and source-report hashes; they do not sign evidence, prove author identity, rerun workflows, or establish a cryptographic trust model.
+Notes: Completed before push trust hardening.
 
 ### AUTO-104 — Fast-forward-only push handoff guard
 Priority: P1
@@ -166,7 +118,31 @@ Expected files or areas: `src/autonomous_forge/push_handoff.py`, `tests/test_pus
 Acceptance criteria: Ready and confirmed handoffs check fast-forward ancestry, already-pushed commits remain blocked, divergent remote history blocks before push execution, wrong branch/unready evidence skips the ancestry check, and no force-push, tag push, remote mutation, branch-protection mutation, staging, commit creation, shell execution, or environment reads are introduced.
 Validation: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 9 tests, including ready, confirmed push, non-fast-forward refusal, wrong branch, already-pushed commit, git failure, unsafe branch, and local JSON loading cases. Direct full repository checkout/full pytest execution remained unavailable in this environment.
 Risks or assumptions: The fast-forward check uses local remote-tracking refs; maintainers should refresh refs before the handoff when remote state may have changed. The command still does not verify branch protection or enforce a full signer allowlist.
-Notes: Next safe step is maintainer allowed-signer policy support for commit trust evidence.
+Notes: Completed before maintainer allowed-signer policy support.
+
+### AUTO-105 — Maintainer allowed-signer trust policy
+Priority: P1
+Status: DONE
+Goal: Let commit trust review enforce a repository-local allowed-signer policy before push-readiness can pass.
+Why it matters: A safe push workflow should not treat every locally trusted signature as equally acceptable for a repository; maintainers need a bounded way to express allowed signer names and key fingerprints.
+Scope: Extend `forge commit-trust-review` with `--allowed-signers` JSON input; validate a non-empty `allowed_signers` list; refuse wildcard identity values; block trusted signatures that do not match an allowed signer or key fingerprint; update tests, docs, README, and project memory.
+Expected files or areas: `src/autonomous_forge/commit_trust_review.py`, `src/autonomous_forge/commit_trust_review_cli.py`, `tests/test_commit_trust_review.py`, `docs/COMMIT_TRUST_REVIEW.md`, README, and `.ai` records.
+Acceptance criteria: Allowed signer matches pass, mismatches block, malformed/empty policies block, unsigned/bad/mismatched commits still block, and no staging, commit, push, network, branch-protection mutation, workflow rerun, or environment-read behavior is introduced.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation and focused scratch pytest for `tests/test_commit_trust_review.py` passed with 8 tests.
+Risks or assumptions: Policy matching uses exact local git signer/key strings and does not manage keys, call GitHub signing APIs, prove organization membership, or replace human maintainer review.
+Notes: Completed before branch-protection-aware push readiness.
+
+### AUTO-106 — Branch-protection-aware push readiness
+Priority: P1
+Status: DONE
+Goal: Require supplied branch-protection/status-policy evidence before push-readiness can pass.
+Why it matters: A safe push workflow should verify that the target branch is protected and that all required status contexts were observed as clear before any push handoff is considered ready.
+Scope: Extend `forge push-readiness` and its CLI with required `--branch-protection` JSON; check protected branch name, strict/up-to-date required status checks, required contexts/checks, and missing required status contexts against supplied status-review evidence; update deterministic tests, docs, README, and project memory.
+Expected files or areas: `src/autonomous_forge/push_readiness.py`, `src/autonomous_forge/push_readiness_cli.py`, `tests/test_push_readiness.py`, `docs/PUSH_READINESS.md`, README, and `.ai` records.
+Acceptance criteria: Ready evidence requires protected branch evidence, strict required status checks, matching branch, at least one required context, every required context present in status-review evidence, and no verification/trust/status blockers. Unprotected, non-strict, branch-mismatched, missing-context, untrusted, unverified, unclear, or unsafe evidence blocks while `push_allowed` remains false.
+Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module and CLI. Focused scratch pytest for `tests/test_push_readiness.py` passed with 12 tests.
+Risks or assumptions: The branch-protection check trusts supplied JSON and exact status-context names. It does not call GitHub, prove current branch rules, change protection, rerun workflows, poll remote status, or replace human review.
+Notes: Next safe step is requiring branch-protection-aware push-readiness explicitly in the push-handoff boundary and linking completed pushed bundles into durable run history.
 
 ## Future Ideas
 
@@ -174,4 +150,4 @@ Notes: Next safe step is maintainer allowed-signer policy support for commit tru
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- Maintainer allowed-signer policy support for commit trust evidence.
+- Durable run-history linkage for completed pushed maintenance bundles.
