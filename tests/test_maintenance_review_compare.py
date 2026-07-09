@@ -8,7 +8,23 @@ from autonomous_forge.maintenance_review_compare_cli import main as compare_main
 STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"]
 
 
-def write_replayable_bundle(tmp_path, bundle_id="AUTO-125", commit_sha="abc1234"):
+def write_replayable_bundle(
+    tmp_path,
+    bundle_id="AUTO-125",
+    commit_sha="abc1234",
+    *,
+    reviewed_paths=None,
+    validation_steps=None,
+    validation_context=None,
+):
+    reviewed_paths = reviewed_paths or ["README.md"]
+    validation_steps = validation_steps or ["python -m pytest"]
+    validation_context = validation_context or {
+        "expected_file_changes": ["Update README.md status"],
+        "implementation_steps": ["build comparison handoff"],
+        "validation_steps": ["python -m pytest"],
+        "risk_register": ["linked evidence may drift"],
+    }
     reports = {}
     for stage in STAGES:
         path = tmp_path / f"{bundle_id}-{stage}.json"
@@ -19,15 +35,10 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-125", commit_sha="abc1234"
         "bundle_id": bundle_id,
         "bundle_status": "complete",
         "bundle_complete": True,
-        "target_path": "README.md",
-        "reviewed_paths": ["README.md"],
-        "validation_steps": ["python -m pytest"],
-        "validation_context": {
-            "expected_file_changes": ["Update README.md status"],
-            "implementation_steps": ["build comparison handoff"],
-            "validation_steps": ["python -m pytest"],
-            "risk_register": ["linked evidence may drift"],
-        },
+        "target_path": reviewed_paths[0],
+        "reviewed_paths": reviewed_paths,
+        "validation_steps": validation_steps,
+        "validation_context": validation_context,
         "commit_sha": commit_sha,
         "remote": "origin",
         "branch": "main",
@@ -55,8 +66,27 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-125", commit_sha="abc1234"
     return bundle_path
 
 
-def write_link(tmp_path, bundle_path, *, bundle_id="AUTO-125", sha256=None, history_link_written=True):
+def write_link(
+    tmp_path,
+    bundle_path,
+    *,
+    bundle_id="AUTO-125",
+    commit_sha="abc1234",
+    sha256=None,
+    history_link_written=True,
+    reviewed_paths=None,
+    validation_steps=None,
+    validation_context=None,
+):
     digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    reviewed_paths = reviewed_paths or ["README.md"]
+    validation_steps = validation_steps or ["python -m pytest"]
+    validation_context = validation_context or {
+        "expected_file_changes": ["Update README.md status"],
+        "implementation_steps": ["build comparison handoff"],
+        "validation_steps": ["python -m pytest"],
+        "risk_register": ["linked evidence may drift"],
+    }
     link = {
         "schema_version": "maintenance-bundle-history-link/v1",
         "title": "Autonomous Forge maintenance bundle history link",
@@ -65,18 +95,13 @@ def write_link(tmp_path, bundle_path, *, bundle_id="AUTO-125", sha256=None, hist
         "bundle_path": bundle_path.relative_to(tmp_path).as_posix(),
         "bundle_sha256": digest,
         "bundle_bytes": bundle_path.stat().st_size,
-        "commit_sha": "abc1234",
+        "commit_sha": commit_sha,
         "remote": "origin",
         "branch": "main",
         "remote_ref": "origin/main",
-        "reviewed_paths": ["README.md"],
-        "validation_steps": ["python -m pytest"],
-        "validation_context": {
-            "expected_file_changes": ["Update README.md status"],
-            "implementation_steps": ["build comparison handoff"],
-            "validation_steps": ["python -m pytest"],
-            "risk_register": ["linked evidence may drift"],
-        },
+        "reviewed_paths": reviewed_paths,
+        "validation_steps": validation_steps,
+        "validation_context": validation_context,
         "source_reports": [
             {"stage": "patch_apply", "path": "patch_apply.json", "sha256": "b" * 64, "bytes": 100},
             {"stage": "post_apply_validation", "path": "post_apply_validation.json", "sha256": "c" * 64, "bytes": 101},
@@ -98,8 +123,8 @@ def write_link(tmp_path, bundle_path, *, bundle_id="AUTO-125", sha256=None, hist
 def test_review_compare_summarizes_ready_handoffs(tmp_path):
     first_bundle = write_replayable_bundle(tmp_path, "AUTO-125", "abc1234")
     second_bundle = write_replayable_bundle(tmp_path, "AUTO-126", "def5678")
-    first_link = write_link(tmp_path, first_bundle, bundle_id="AUTO-125")
-    second_link = write_link(tmp_path, second_bundle, bundle_id="AUTO-126")
+    first_link = write_link(tmp_path, first_bundle, bundle_id="AUTO-125", commit_sha="abc1234")
+    second_link = write_link(tmp_path, second_bundle, bundle_id="AUTO-126", commit_sha="def5678")
 
     data = build_maintenance_review_compare_data([first_link, second_link], root=tmp_path)
 
@@ -109,6 +134,45 @@ def test_review_compare_summarizes_ready_handoffs(tmp_path):
     assert data["failed_handoff_gate_count"] == 0
     assert data["handoffs"][0]["replay_status"] == "replayable"
     assert data["handoffs"][1]["handoff_ready"] is True
+
+
+def test_review_compare_selects_best_preservation_candidate(tmp_path):
+    small_context = {
+        "expected_file_changes": ["Update README.md status"],
+        "implementation_steps": ["build comparison handoff"],
+        "validation_steps": ["python -m pytest"],
+        "risk_register": ["linked evidence may drift"],
+    }
+    larger_context = {
+        "expected_file_changes": ["Update README.md status", "Update docs"],
+        "implementation_steps": ["build comparison handoff", "rank ready handoffs"],
+        "validation_steps": ["python -m pytest", "forge maintenance-review-compare --format json"],
+        "risk_register": ["linked evidence may drift", "ranking could hide blocked records"],
+    }
+    first_bundle = write_replayable_bundle(tmp_path, "AUTO-125", "abc1234", validation_context=small_context)
+    second_bundle = write_replayable_bundle(
+        tmp_path,
+        "AUTO-126",
+        "def5678",
+        reviewed_paths=["README.md", "docs/MAINTENANCE_REVIEW_COMPARE.md"],
+        validation_context=larger_context,
+    )
+    first_link = write_link(tmp_path, first_bundle, bundle_id="AUTO-125", commit_sha="abc1234", validation_context=small_context)
+    second_link = write_link(
+        tmp_path,
+        second_bundle,
+        bundle_id="AUTO-126",
+        commit_sha="def5678",
+        reviewed_paths=["README.md", "docs/MAINTENANCE_REVIEW_COMPARE.md"],
+        validation_context=larger_context,
+    )
+
+    data = build_maintenance_review_compare_data([first_link, second_link], root=tmp_path)
+
+    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-126"
+    assert data["preservation_candidates"][0]["rank"] == 1
+    assert data["preservation_candidates"][0]["reviewed_path_count"] == 2
+    assert data["preservation_candidates"][0]["validation_context_counts"]["risk_register"] == 2
 
 
 def test_review_compare_blocks_when_one_handoff_blocks(tmp_path):
@@ -123,6 +187,7 @@ def test_review_compare_blocks_when_one_handoff_blocks(tmp_path):
     assert data["ready_count"] == 1
     assert data["blocked_count"] == 1
     assert data["failed_handoff_gate_count"] >= 1
+    assert data["selected_preservation_candidate"]["bundle_id"] == "AUTO-125"
     assert any("linked bundle SHA-256 does not match" in blocker for blocker in data["comparison_blockers"])
 
 
@@ -136,6 +201,19 @@ def test_review_compare_cli_json_ready(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["comparison_status"] == "ready"
     assert payload["handoffs"][0]["bundle_id"] == "AUTO-125"
+    assert payload["selected_preservation_candidate"]["bundle_id"] == "AUTO-125"
+
+
+def test_review_compare_cli_text_includes_preservation_candidate(tmp_path, capsys):
+    bundle = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle)
+
+    status = compare_main(["--root", str(tmp_path), "--link", str(link)])
+
+    assert status == 0
+    output = capsys.readouterr().out
+    assert "Selected preservation candidate: AUTO-125" in output
+    assert "Preservation candidates:" in output
 
 
 def test_review_compare_cli_require_all_ready_blocks(tmp_path, capsys):
