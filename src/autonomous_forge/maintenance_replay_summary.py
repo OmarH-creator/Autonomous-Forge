@@ -15,6 +15,12 @@ _REQUIRED_CHAIN = [
     ("push_handoff", "pushed"),
     ("post_push_verify", "verified"),
 ]
+_CONTEXT_FIELDS = (
+    "expected_file_changes",
+    "implementation_steps",
+    "validation_steps",
+    "risk_register",
+)
 _SAFE_BOUNDARY = (
     "Maintenance replay summary reads one persisted maintenance evidence bundle and recomputes its source-report "
     "fingerprints through the bundle verifier, then summarizes whether the recorded evidence chain is still complete "
@@ -49,6 +55,43 @@ def _clean_text_list(value: Any, *, label: str, blockers: list[str]) -> list[str
         seen.add(text)
         cleaned.append(text)
     return cleaned
+
+
+def _clean_context_list(value: Any, *, field: str, blockers: list[str]) -> list[str]:
+    if not isinstance(value, list):
+        blockers.append(f"validation_context.{field} must be a list")
+        return []
+    cleaned = [_clean_text(item) for item in value if _clean_text(item)]
+    if len(cleaned) != len(value):
+        blockers.append(f"validation_context.{field} contains empty entries")
+    return cleaned
+
+
+def _validation_context_summary(value: Any, blockers: list[str]) -> dict[str, Any]:
+    """Return a compact, deterministic summary of retained implementation context."""
+    if value in (None, {}):
+        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0}
+    if not isinstance(value, dict):
+        blockers.append("validation_context must be an object when present")
+        return {"present": False, "fields": [], "field_counts": {}, "total_items": 0}
+
+    fields: list[str] = []
+    field_counts: dict[str, int] = {}
+    unexpected = sorted(str(field) for field in value if field not in _CONTEXT_FIELDS)
+    if unexpected:
+        blockers.append(f"validation_context contains unexpected fields: {', '.join(unexpected)}")
+    for field in _CONTEXT_FIELDS:
+        if field not in value:
+            continue
+        cleaned = _clean_context_list(value[field], field=field, blockers=blockers)
+        fields.append(field)
+        field_counts[field] = len(cleaned)
+    return {
+        "present": bool(fields),
+        "fields": fields,
+        "field_counts": field_counts,
+        "total_items": sum(field_counts.values()),
+    }
 
 
 def _chain_statuses(bundle: dict[str, Any], blockers: list[str]) -> list[dict[str, str]]:
@@ -112,6 +155,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
     if not validation_steps:
         blockers.append("bundle lacks validation steps")
     chain = _chain_statuses(bundle, blockers)
+    validation_context = _validation_context_summary(bundle.get("validation_context"), blockers)
     replay_status = "replayable" if not blockers else "blocked"
     verified_reports = verification.get("verified_reports") if isinstance(verification.get("verified_reports"), list) else []
     return {
@@ -129,6 +173,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         "target_path": target_path,
         "reviewed_paths": reviewed_paths,
         "validation_steps": validation_steps,
+        "validation_context": validation_context,
         "evidence_chain": chain,
         "source_report_summary": {
             "source_reports": len(verified_reports),
@@ -139,6 +184,8 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
         "summary": {
             "reviewed_paths": len(reviewed_paths),
             "validation_steps": len(validation_steps),
+            "validation_context_fields": len(validation_context["fields"]),
+            "validation_context_items": validation_context["total_items"],
             "evidence_stages": len(chain),
             "source_reports": len(verified_reports),
             "blockers": len(blockers),
@@ -154,6 +201,7 @@ def build_maintenance_replay_summary_data(bundle_path: Path, *, root: Path = Pat
 
 def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
     """Format a maintenance replay summary as stable text."""
+    context = data["validation_context"]
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -170,6 +218,9 @@ def format_maintenance_replay_summary(data: dict[str, Any]) -> str:
         *[f"- {path}" for path in data["reviewed_paths"] or ["none"]],
         "Validation steps:",
         *[f"- {step}" for step in data["validation_steps"] or ["none"]],
+        "Validation context:",
+        f"- present={str(context['present']).lower()} fields={','.join(context['fields']) or 'none'} total_items={context['total_items']}",
+        *[f"- {field}: {count}" for field, count in context["field_counts"].items()],
         "Evidence chain:",
         *[f"- {item['stage']}: {item['status']} (expected {item['expected_status']})" for item in data["evidence_chain"]],
         "Source reports:",
