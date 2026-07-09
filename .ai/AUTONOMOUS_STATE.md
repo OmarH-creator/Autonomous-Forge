@@ -1,15 +1,15 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-126 — Maintenance handoff context-consistency gate
+- Current task ID: AUTO-127 — Maintenance review preservation-candidate ranking
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-07-09T19:36:37+04:00
+- Last run timestamp: 2026-07-09T20:03:10+04:00
 - Last successful implementation commit hash: pending final commit
-- Latest run summary: Tightened `forge maintenance-review-handoff` so a ready reviewer handoff now requires the run-history pointer and replayed linked bundle to agree on reviewed paths, validation steps, and retained validation context. The linked replay payload now exposes reviewed paths, validation steps, and summarized retained context for downstream handoff checks, and stale or manually edited pointers fail closed before preservation guidance reports ready.
-- Files changed in the latest run: `src/autonomous_forge/maintenance_history_link_review_cli.py`, `src/autonomous_forge/maintenance_review_handoff.py`, `tests/test_maintenance_review_handoff.py`, `docs/MAINTENANCE_REVIEW_HANDOFF.md`, README, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/AUTONOMOUS_PLAN.md`, and `.ai/DECISIONS.md`.
-- Validation commands and results: Repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, open issues, maintenance history-link review replay handoff code, maintenance review handoff code/CLI/tests/docs, and comparison docs were inspected. Scratch syntax compilation passed for the new helper logic. Direct full checkout/full pytest execution remains unavailable from this environment, so final verification must rely on CI once visible.
+- Latest run summary: Extended `forge maintenance-review-compare` so ready maintenance review handoffs are ranked as preservation candidates and the strongest ready evidence record is selected deterministically. The ranking favors verified linked-bundle replay, zero failed handoff/replay gates, fewer blockers, more reviewed paths and validation steps, and richer retained validation context while keeping blocked handoffs and blockers visible.
+- Files changed in the latest run: `src/autonomous_forge/maintenance_review_compare.py`, `tests/test_maintenance_review_compare.py`, `docs/MAINTENANCE_REVIEW_COMPARE.md`, README, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/AUTONOMOUS_PLAN.md`, and `.ai/DECISIONS.md`.
+- Validation commands and results: Repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, maintenance review comparison implementation/tests/docs, and maintenance review handoff context gates were inspected. Scratch syntax compilation passed for the updated comparison implementation and focused test content. Direct full checkout/full pytest execution remains unavailable from this environment, so final verification must rely on CI once visible.
 - Branch and PR assessment: Stayed directly on `main`. Branch search returned no active branch results. Recent PRs remain merged, closed, or obsolete; no open PR or branch required integration.
-- Current blockers: Full repository checkout and full pytest execution remain unavailable from this environment; final GitHub workflow status may lag the pushed commit. Handoff readiness still summarizes persisted JSON evidence and source-report hashes; it does not rerun validation, poll workflow completion, or prove signature identity.
-- Known risks and assumptions: A matched history/bundle context proves the pointer and replayed bundle describe the same retained evidence fields; it is not proof that validation covered every file, step, or risk.
-- Recommended next task: Carry the new history/bundle context-consistency gate into maintenance review comparison summaries so multi-run reviews expose pointer/bundle drift directly.
+- Current blockers: Full repository checkout and full pytest execution remain unavailable from this environment; final GitHub workflow status may lag the pushed commit. Preservation candidate ranking is evidence triage only and does not rerun validation, write archive manifests, poll workflow completion, or prove signature identity.
+- Known risks and assumptions: Ranking relies on persisted JSON evidence, recomputed bundle hashes, and retained context counts; it can guide preservation review but cannot prove validation coverage or evidence authenticity beyond the existing gates.
+- Recommended next task: Add a guarded read-only archive-manifest preview that packages the selected preservation candidate, run-history link, bundle, source reports, and commit target for review before any write-capable archive step exists.
