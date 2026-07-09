@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, write and verify confirmed archive-manifest JSON records, preview archive-copy destinations, copy verified evidence locally with explicit confirmation, verify copied archive roots, and preview archive-package metadata before compressed archive writing without requiring uncontrolled autonomous behavior.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, hand off preservation guidance, compare completed handoffs, rank ready preservation candidates, prepare integrity-checked archive manifests, write and verify confirmed archive-manifest JSON records, preview archive-copy destinations, copy verified evidence locally with explicit confirmation, verify copied archive roots, preview archive-package metadata, and create one confirmed repository-local archive package without requiring uncontrolled autonomous behavior.
 
 ## Product scope and non-goals
 
-The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, polling service, cryptographic identity authority, or archive-packaging writer unless a future command adds explicit confirmation-gated archive packaging.
+The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, polling service, cryptographic identity authority, or package-verification authority unless a future command adds explicit read-only package verification.
 
 ## Current architecture
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, confirmation-gated local archive-manifest JSON writes, written archive-manifest verification, guarded archive-copy previews, explicitly confirmed local archive-copy execution, post-copy archive-root verification, and archive-package metadata previews. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, create compressed archive files, or prove archive-package metadata beyond local preview inputs.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, strict linked-bundle replay verification from a ready history pointer, reviewer-facing maintenance preservation handoffs with history/bundle context consistency, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking for ready handoffs, integrity-checked archive-manifest previews, confirmation-gated local archive-manifest JSON writes, written archive-manifest verification, guarded archive-copy previews, explicitly confirmed local archive-copy execution, post-copy archive-root verification, archive-package metadata previews, and explicitly confirmed local archive-package writing. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, verify written package contents after creation, or prove archive-package coverage beyond local manifest/copy evidence.
 
 ## Prioritized roadmap
 
@@ -87,8 +87,8 @@ Notes: Completed before confirmed patch application.
 ### AUTO-088 — Explicitly confirmed guarded patch apply through AUTO-098
 Priority: P1
 Status: DONE
-Goal: Complete a guarded local maintenance loop from patch application through validation, local commit creation, push handoff, and post-push verification.
-Why it matters: The workflow needs concrete, auditable transitions from proposed file change to validated local change, reviewed commit, guarded push, and post-push evidence without becoming an uncontrolled bot.
+Goal: Complete a guarded local maintenance loop from patch application through validation, local commit creation, push handoff, and post-push evidence without becoming an uncontrolled bot.
+Why it matters: The workflow needs concrete, auditable transitions from proposed file change to validated local change, reviewed commit, guarded push, and post-push evidence.
 Scope: Add `forge patch-apply`, `forge post-apply-validation`, commit/push readiness and handoff commands, compatibility routes, tests, focused docs, README usage, CI help-smoke coverage, and project-memory updates.
 Expected files or areas: `src/autonomous_forge/`, `tests/`, `docs/`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
 Acceptance criteria: Write-capable commands require explicit confirmation, stage/push only reviewed paths or commits, never force-push or mutate remote configuration, and verification gates fail closed when required evidence is missing, stale, unsafe, or unclear.
@@ -168,6 +168,18 @@ Validation: Static source/test/docs/workflow review completed through the GitHub
 Risks or assumptions: The preview trusts repository-local JSON evidence and recomputed local hashes; it does not create compressed archives, prove signer identity, prove validation coverage, or prevent a future writer from needing its own confirmation and overwrite gates.
 Notes: Completed before confirmation-gated archive-package writing.
 
+### AUTO-136 — Confirmation-gated archive-package writer
+Priority: P1
+Status: DONE
+Goal: Create exactly one repository-local compressed archive from a ready archive-package preview after explicit confirmation.
+Why it matters: Maintainers can now preserve copied maintenance evidence as a bounded package without manually assembling tar/zip contents or bypassing manifest and copy-verification gates.
+Scope: Add `forge maintenance-archive-package` and `forge-maintenance-archive-package`, package writing for `.tar.gz`, `.tgz`, `.tar`, and `.zip`, overwrite and readiness gates, deterministic-focused tests, docs, README usage, CI help smoke, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_archive_package.py`, `src/autonomous_forge/maintenance_archive_package_cli.py`, tests, docs, README, `.github/workflows/test.yml`, `pyproject.toml`, and `.ai` records.
+Acceptance criteria: Package writing requires `--confirm-package`, reuses a ready package preview, refuses unready inputs and existing package destinations, writes only one repository-local archive package, reports package SHA-256 and byte count, and does not stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The writer trusts repository-local JSON evidence and recomputed local hashes; a future package verifier should reopen written packages and compare entries against the copied archive root.
+Notes: Completed before archive-package verification.
+
 ## Future Ideas
 
 - Hash-linked local run reports.
@@ -176,4 +188,4 @@ Notes: Completed before confirmation-gated archive-package writing.
 - Branch protection and workflow-status replay summaries.
 - Combined history-link replay handoff.
 - Maintenance handoff comparison summaries.
-- Confirmation-gated archive package writer for ready package previews.
+- Archive-package verification for written tar/zip evidence packages.
