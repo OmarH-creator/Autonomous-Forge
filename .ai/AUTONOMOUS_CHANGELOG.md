@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-108
+
+- Task ID: AUTO-108 — Maintenance bundle run-history links
+- Summary: Extended `forge maintenance-evidence-bundle` with opt-in durable run-history links. After a completed bundle is persisted with `--output ... --confirm-write`, the command can now write a small `maintenance-bundle-history-link/v1` JSON pointer under `.ai/run-history/` with `--history-link ... --confirm-history-link`, recording bundle path/hash/byte count, commit, remote branch, reviewed paths, validation steps, and source-report fingerprints.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, branch search results, README/status, roadmap, state, changelog, decisions, maintenance bundle implementation, CLI, tests, and docs. Work stayed directly on `main`. AUTO-107 was already marked DONE and recommended durable run-history linkage as the next safe step. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 are closed or obsolete. Open issues #1, #6, and #9 did not supersede this capability.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Focused deterministic tests were added for confirmed history-link writing, missing confirmation/unwritten bundle blockers, and outside-run-history refusal. Direct full repository checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a read-only maintenance history index for persisted bundle-link records.
+
 ## 2026-07-09 — AUTO-107
 
 - Task ID: AUTO-107 — Branch-policy-enforcing push handoff
@@ -17,15 +26,6 @@
 - Validation completed: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module and CLI. Focused scratch pytest for `tests/test_push_readiness.py` passed with 12 tests covering ready branch-protected evidence, unverified/untrusted evidence, SHA/path mismatches, unclear status, unprotected branch evidence, missing required contexts, non-strict checks, unsafe paths, and repository-local JSON loading. Direct local checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Require branch-protection-aware push-readiness explicitly in `forge push-handoff` and add durable run-history linkage for completed pushed bundles.
-
-## 2026-07-09 — AUTO-105
-
-- Task ID: AUTO-105 — Maintainer allowed-signer trust policy
-- Summary: Added optional allowed-signer policy support to `forge commit-trust-review`. The command now accepts `--allowed-signers` pointing to one repository-local JSON policy, validates a non-empty `allowed_signers` list, refuses wildcard identity values, and blocks otherwise trusted signatures when the inspected signer/key fingerprint is not allowlisted.
-- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, open issues, README/status, roadmap, state, changelog, decisions, commit trust implementation, CLI, tests, and docs. Work stayed directly on `main`. Branch search returned no active branch results. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. Open issues #1, #6, and #9 did not supersede this concrete trust-policy hardening.
-- Validation completed: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation covered the updated module, CLI, and tests. Focused scratch pytest for `tests/test_commit_trust_review.py` passed with 8 tests covering allowed-signer match, mismatch, malformed policy, unsigned commit, mismatched commit, bad signature, and unverified evidence. Direct local checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add branch-protection/status-policy inspection before push handoff.
 
 ## Historical note
 
