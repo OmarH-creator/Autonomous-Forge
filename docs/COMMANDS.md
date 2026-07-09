@@ -90,6 +90,48 @@ Exit codes:
 
 Safety limits: `forge propose` reads local roadmap, policy, state-file presence, and documentation-presence signals through the same planner data used by `forge plan`. It does not create files, run validation commands, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
 
+## `forge validate-plan`
+
+Purpose: turn the selected `forge propose` artifact into a validation handoff that preserves expected file changes, implementation steps, validation steps, risk register entries, and advisory path checks.
+
+Inputs:
+
+- `--plan`: roadmap Markdown file, defaulting to `.ai/AUTONOMOUS_PLAN.md`.
+- `--policy`: repository policy Markdown file, defaulting to `.forge/policy.md`.
+- `--state`: autonomous state file path, defaulting to `.ai/AUTONOMOUS_STATE.md`.
+- `--root`: repository root used for path-presence signals, defaulting to `.`.
+- `--format`: `text` or `json`, defaulting to `text`.
+
+Expected successful text output includes these stable sections:
+
+```text
+Autonomous Forge validation plan
+Mode: read-only
+Source: forge propose structured data
+Validation execution: not run
+Selected task: AUTO-### [P#/TODO] ...
+Expected file changes:
+Implementation steps:
+Validation steps:
+Expected file areas:
+Path checks:
+Approval-required items:
+Blocked items:
+Risk register:
+Risk notes:
+Commands allowed: false
+Safety boundary: Validation plan output only; ...
+```
+
+Expected JSON output includes `title`, `mode`, `source`, `selected_task`, `validation_execution`, `expected_file_changes`, `implementation_steps`, `validation_steps`, `risk_register`, `expected_file_areas`, `path_checks`, `approval_required_items`, `blocked_items`, `risk_notes`, `commands_allowed`, `reason`, and `safety_boundary`.
+
+Exit codes:
+
+- `0` when the validation plan is produced.
+- `2` when the roadmap or policy input is malformed, missing, unreadable, or an unsupported output format is requested.
+
+Safety limits: `forge validate-plan` reads local roadmap, policy, state-file presence, and path-presence signals only. It does not create files, run validation commands, inspect diffs, generate patches, approve implementation, enforce policy decisions, stage, commit, push, call networks, read environment variables, or mutate repository state.
+
 ## `forge change-readiness`
 
 Purpose: combine clear supplied git-diff review JSON and clear supplied commit-status review JSON into one advisory change-readiness summary before any future patch-application workflow relies on the change.
