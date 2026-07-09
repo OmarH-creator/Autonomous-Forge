@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-132 — 2026-07-09 — Archive-copy behavior needs a read-only destination preview first
+
+Context: AUTO-131 made written archive manifests re-verifiable, but moving directly to file copying would introduce destination path, collision, parent-directory, and overwrite risks before reviewers can inspect the planned layout.
+Decision: Add `forge maintenance-archive-copy-preview` and `forge-maintenance-archive-copy-preview` as read-only commands. The command verifies one written manifest first, maps every evidence entry under a repository-local `--archive-root`, blocks outside-root destinations, duplicate destinations, source-equals-destination mappings, and existing destination files, and reports text/JSON copy plans without copying anything.
+Alternatives considered: Add a confirmed copy command immediately, require manual destination planning, or fold destination mapping into manifest verification. Immediate copying is premature before the destination contract is visible, manual planning keeps avoidable preservation mistakes, and folding copy planning into manifest verification would blur evidence integrity checks with destination layout checks.
+Consequences: Maintainers can review an exact future copy layout before any write-capable archive-copy command exists. The command does not create directories, copy files, overwrite files, create archives, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-131 — 2026-07-09 — Written archive manifests must be re-verifiable before archive-copy behavior
 
 Context: AUTO-130 made ready archive manifests durable by writing one repository-local JSON file, but a written manifest can become stale if listed evidence files are edited, deleted, or moved before preservation.
@@ -22,14 +30,6 @@ Context: AUTO-128 listed the files that should be preserved for a selected maint
 Decision: Harden `forge maintenance-archive-manifest` so read-only manifest output recomputes source-report SHA-256 values and byte counts, exposes compact archive-integrity gates, and blocks readiness when listed evidence is missing or drifted. Keep the command preview-only.
 Alternatives considered: Move directly to a write-capable archive command, rely on replay summaries alone, or leave integrity checking to reviewers. Immediate writes are premature, replay summaries are not as archive-entry focused, and manual checking keeps avoidable preservation mistakes.
 Consequences: Reviewers can see whether the selected archive set is currently intact before any writer exists. The command remains local-first and read-only; it does not copy files, write archives, change files, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
-Human decision still required: No.
-
-## DEC-128 — 2026-07-09 — Selected preservation candidates need a read-only archive manifest before archive writes
-
-Context: AUTO-127 made `forge maintenance-review-compare` select the strongest ready preservation candidate, but the next preservation step still required reviewers to infer which files should be kept together from the history link, bundle, and source-report metadata.
-Decision: Add `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` as read-only preview commands. The preview reuses the comparison workflow, requires a selected ready candidate, reads the linked bundle, and lists the run-history link, bundle, source reports, commit target, blockers, and next preservation guidance without copying or writing archive files.
-Alternatives considered: Add a write-capable archive command immediately, keep archive selection manual, or fold manifest output into comparison. Immediate writes are premature before the manifest schema is reviewed, manual selection keeps avoidable preservation mistakes, and folding the behavior into comparison would blur candidate ranking with archive packaging.
-Consequences: Reviewers can audit exactly which evidence files belong together before any archive writer exists. The command remains local-first and read-only; it does not copy files, write archives, change files, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
 Human decision still required: No.
 
 ## Historical decisions
