@@ -67,6 +67,14 @@ def test_build_repository_plan_selects_task_and_exposes_policy(tmp_path):
     assert "Reason: highest-priority eligible TODO task" in output
     assert "Goal: Build the next capability." in output
     assert "Expected files or areas: `src/autonomous_forge/planner.py`, tests." in output
+    assert "Expected file changes:" in output
+    assert "- src/autonomous_forge/planner.py" in output
+    assert "Implementation steps:" in output
+    assert "Satisfy the documented acceptance criteria: A plan is printed." in output
+    assert "Validation steps:" in output
+    assert "- Run pytest" in output
+    assert "Risk register:" in output
+    assert "Policy remains readable" in output
     assert "- src/**" in output
     assert "- private-config/**" in output
     assert "README.md: present" in output
@@ -87,6 +95,11 @@ def test_build_repository_plan_data_is_reviewable_and_structured(tmp_path):
     assert data["mode"] == "read-only"
     assert data["selected_task"]["id"] == "AUTO-021"
     assert data["selected_task"]["validation"] == "Run pytest."
+    assert data["expected_file_changes"] == ["src/autonomous_forge/planner.py", "tests"]
+    assert data["validation_steps"] == ["Run pytest", "Run tests."]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-021")
+    assert data["risk_register"][0]["source"] == "roadmap"
+    assert data["risk_register"][1]["source"] == "policy"
     assert data["policy"]["allowed_paths"] == ["src/**", "tests/**"]
     assert data["policy"]["prohibited_paths"] == ["private-config/**"]
     assert data["documentation_signals"][0] == {"path": "README.md", "status": "missing"}
@@ -108,6 +121,11 @@ def test_build_repository_plan_supports_json_output(tmp_path):
     data = json.loads(output)
     assert data["selected_task"]["id"] == "AUTO-021"
     assert data["selected_task"]["expected_files_or_areas"] == "`src/autonomous_forge/planner.py`, tests."
+    assert data["implementation_steps"][-1] == (
+        "Run or document the strongest practical validation steps before committing."
+    )
+    assert data["validation_steps"] == ["Run pytest", "Run tests."]
+    assert data["risk_register"][1]["risk"] == "Adding network access."
     assert data["policy"]["human_approval_required"] == ["Adding network access."]
 
 
@@ -130,7 +148,8 @@ def test_plan_command_prints_reviewable_plan(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "Autonomous Forge implementation plan" in output
     assert "Selected task: AUTO-021 [P1/TODO] Highest priority task" in output
-    assert "Validation: Run pytest." in output
+    assert "Validation steps:" in output
+    assert "- Run pytest" in output
     assert "Safety boundary: Plan output only" in output
 
 
@@ -154,6 +173,7 @@ def test_plan_command_prints_json_plan(tmp_path, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["mode"] == "read-only"
     assert data["selected_task"]["id"] == "AUTO-021"
+    assert data["expected_file_changes"] == ["src/autonomous_forge/planner.py", "tests"]
     assert data["reason"] == "highest-priority eligible TODO task; ties preserve roadmap source order."
 
 
