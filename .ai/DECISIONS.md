@@ -1,11 +1,11 @@
 # Autonomous Decisions
 
-## DEC-102 — 2026-07-09 — Verified commits need a local trust checkpoint
+## DEC-102 — 2026-07-09 — Push-readiness should require commit trust evidence
 
-Context: The workflow can now create and verify a local commit against reviewed evidence, but content/message/path verification alone does not expose whether the commit is unsigned, badly signed, expired, revoked, uncheckable, or mismatched during local git signature inspection.
-Decision: Add `forge commit-trust-review` plus compatibility `forge-commit-trust-review`. The command consumes verified `commit-verify` JSON, inspects the same local commit with `git show --format=%H%x00%G?%x00%GS%x00%GF`, reports `trusted` only for trusted git signature states, and keeps `push_allowed` and `remote_changes_allowed` false.
-Alternatives considered: Fold trust inspection into `commit-verify`, defer trust to manual review, require push-readiness to inspect signatures directly, use GitHub API signature verification instead of local git, or introduce a full allowed-signer policy immediately.
-Consequences: Maintainers now get a deterministic local trust checkpoint before push-readiness without expanding write, commit, push, remote, network, workflow, or environment-read authority. This is not yet an allowed-signer policy, identity proof, branch-protection proof, or remote attestation system.
+Context: AUTO-102 added a local `forge commit-trust-review` checkpoint, but leaving `forge push-readiness` dependent only on commit verification and status evidence would let a ready push ignore unsigned, bad, expired, revoked, uncheckable, mismatched, or path-mismatched trust evidence.
+Decision: Require `forge push-readiness` to consume `--commit-trust` JSON in addition to `--commit-verify` and `--status-review`. Push-readiness reports ready only when the verified commit, trusted commit, status-review commit, and reviewed paths all match, the trust report is trusted with signature code `G` or `U`, and status evidence is clear.
+Alternatives considered: Keep commit trust as an optional side report, make push-readiness run `git show` directly, merge commit trust into commit verification, require full allowed-signer policy before integration, or defer trust to human review only.
+Consequences: Push readiness now encodes a stronger pre-push evidence chain without adding git execution, network calls, writes, commits, pushes, remote changes, workflow reruns, or branch-protection changes to the push-readiness command. This still is not a full identity policy or cryptographic attestation system.
 Human decision still required: No.
 
 ## DEC-101 — 2026-07-09 — Persisted bundles need a local drift verifier
