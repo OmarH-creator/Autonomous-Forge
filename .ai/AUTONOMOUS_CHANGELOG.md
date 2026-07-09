@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-117
+
+- Task ID: AUTO-117 — Validation-context-aware maintenance replay summaries
+- Summary: Enhanced `forge maintenance-replay-summary` so persisted bundles that include `validation_context` now expose whether context is present, which supported fields were retained, per-field counts, and total context items. Malformed validation context now blocks replayability to avoid silently trusting ambiguous implementation-plan preservation evidence.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent PR search, branch search, README/status, roadmap, state, changelog, decisions, maintenance replay implementation, focused tests, and maintenance bundle docs. Work stayed directly on `main`. PR #11 is merged; PR #10 is closed and superseded by direct `main` work; PR #4 was already merged; PRs #2, #3, and #5 are closed or obsolete. No open PR or branch required integration.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Focused replay tests were updated for context summaries, malformed context, CLI JSON, and primary-router output. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Carry validation-context preservation into maintenance bundle creation/history links so newly produced bundles retain implementation context automatically.
+
 ## 2026-07-09 — AUTO-116
 
 - Task ID: AUTO-116 — Validation-context-aware run-history read and compare
