@@ -92,6 +92,24 @@ def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-130
     return link_path
 
 
+def write_ready_manifest(tmp_path):
+    bundle, context = write_replayable_bundle(tmp_path)
+    link = write_link(tmp_path, bundle, context)
+    output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
+    output.parent.mkdir()
+    status = archive_manifest_main([
+        "--root",
+        str(tmp_path),
+        "--link",
+        str(link),
+        "--output",
+        str(output),
+        "--confirm-write",
+    ])
+    assert status == 0
+    return output
+
+
 def test_archive_manifest_preview_lists_candidate_evidence(tmp_path):
     bundle, context = write_replayable_bundle(tmp_path)
     link = write_link(tmp_path, bundle, context)
@@ -253,3 +271,44 @@ def test_archive_manifest_write_refuses_outside_root(tmp_path, capsys):
     assert status == 2
     assert not outside.exists()
     assert "output path must stay inside" in capsys.readouterr().out
+
+
+def test_written_archive_manifest_verification_passes_ready_manifest(tmp_path, capsys):
+    manifest = write_ready_manifest(tmp_path)
+    capsys.readouterr()
+
+    status = archive_manifest_main(["--root", str(tmp_path), "--manifest", str(manifest), "--require-ready", "--format", "json"])
+
+    assert status == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mode"] == "archive manifest verification"
+    assert payload["manifest_ready"] is True
+    assert payload["write_allowed"] is False
+    assert payload["archive_entry_count"] == 7
+    assert payload["archive_integrity"]["status"] == "passed"
+
+
+def test_written_archive_manifest_verification_blocks_drift(tmp_path, capsys):
+    manifest = write_ready_manifest(tmp_path)
+    (tmp_path / "AUTO-130-patch_apply.json").write_text(json.dumps({"stage": "patch_apply", "ok": False}), encoding="utf-8")
+    capsys.readouterr()
+
+    status = archive_manifest_main(["--root", str(tmp_path), "--manifest", str(manifest), "--require-ready"])
+
+    assert status == 2
+    output = capsys.readouterr().out
+    assert "Mode: archive manifest verification" in output
+    assert "Manifest status: blocked" in output
+    assert "sha256_verified=false" in output
+
+
+def test_archive_manifest_verification_refuses_links_and_writes(tmp_path, capsys):
+    manifest = write_ready_manifest(tmp_path)
+    bundle, context = write_replayable_bundle(tmp_path, bundle_id="AUTO-131")
+    link = write_link(tmp_path, bundle, context, bundle_id="AUTO-131")
+    capsys.readouterr()
+
+    status = archive_manifest_main(["--root", str(tmp_path), "--manifest", str(manifest), "--link", str(link)])
+
+    assert status == 2
+    assert "--manifest cannot be combined with --link" in capsys.readouterr().out
