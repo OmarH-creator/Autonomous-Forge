@@ -10,6 +10,9 @@ It is intended for reviewers who need to compare completed maintenance runs with
 - linked bundle hash verification state;
 - replay status;
 - reviewed-path and validation-step counts;
+- retained validation-context counts;
+- ranked ready preservation candidates;
+- the selected preservation candidate when at least one handoff is ready;
 - blocker summaries and next preservation guidance.
 
 ## Usage
@@ -37,6 +40,8 @@ forge maintenance-review-compare \
   --format json
 ```
 
+The JSON payload includes `preservation_candidates` and `selected_preservation_candidate`. Candidate ranking is deterministic and favors ready handoffs with verified linked-bundle replay, zero failed handoff or replay-policy gates, fewer blockers, more reviewed paths, more validation steps, and richer retained validation context. Blocked handoffs still remain visible in `handoffs` and `comparison_blockers`; they are not selected for preservation.
+
 The compatibility script is also available:
 
 ```bash
@@ -45,7 +50,7 @@ forge-maintenance-review-compare --help
 
 ## Safety boundary
 
-The command reads repository-local history links and linked bundle evidence, recomputes bundle hashes through the underlying handoff workflow, and summarizes persisted replay evidence. It does not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity.
+The command reads repository-local history links and linked bundle evidence, recomputes bundle hashes through the underlying handoff workflow, and summarizes persisted replay evidence. It does not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, write archive manifests, or verify signer identity.
 
 ## Exit codes
 
