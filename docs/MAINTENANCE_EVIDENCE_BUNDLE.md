@@ -20,7 +20,7 @@ forge maintenance-evidence-bundle \
   --commit-verify commit-verify.json \
   --push-handoff push-handoff.json \
   --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-100 \
+  --bundle-id AUTO-108 \
   --require-complete \
   --format json > maintenance-evidence-bundle.json
 ```
@@ -35,12 +35,37 @@ forge maintenance-evidence-bundle \
   --commit-verify commit-verify.json \
   --push-handoff push-handoff.json \
   --post-push-verify post-push-verify.json \
-  --bundle-id AUTO-100 \
-  --output .ai/run-history/AUTO-100-bundle.json \
+  --bundle-id AUTO-108 \
+  --output .ai/run-history/AUTO-108-bundle.json \
   --confirm-write \
   --require-written \
   --format json
 ```
+
+## Link a persisted bundle into run history
+
+After the bundle has been written, the same command can write a small run-history pointer:
+
+```bash
+forge maintenance-evidence-bundle \
+  --root . \
+  --patch-apply patch-apply.json \
+  --post-apply-validation post-apply-validation.json \
+  --commit-verify commit-verify.json \
+  --push-handoff push-handoff.json \
+  --post-push-verify post-push-verify.json \
+  --bundle-id AUTO-108 \
+  --output .ai/run-history/AUTO-108-bundle.json \
+  --confirm-write \
+  --history-link .ai/run-history/AUTO-108-link.json \
+  --confirm-history-link \
+  --require-complete \
+  --require-written \
+  --require-history-linked \
+  --format json
+```
+
+The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`.
 
 ## Verify a persisted bundle
 
@@ -49,7 +74,7 @@ forge maintenance-evidence-bundle \
 ```bash
 forge maintenance-bundle-verify \
   --root . \
-  --bundle .ai/run-history/AUTO-100-bundle.json \
+  --bundle .ai/run-history/AUTO-108-bundle.json \
   --require-verified \
   --format json
 ```
@@ -63,7 +88,7 @@ The command reports `verification_status: verified` when all five source reports
 ```bash
 forge maintenance-replay-summary \
   --root . \
-  --bundle .ai/run-history/AUTO-100-bundle.json \
+  --bundle .ai/run-history/AUTO-108-bundle.json \
   --require-replayable \
   --format json
 ```
@@ -79,6 +104,8 @@ The hashes are provenance fingerprints for stale-report detection. They do not p
 ## Safety boundary
 
 The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, and records bounded SHA-256 source-report fingerprints. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied and the bundle is complete.
+
+The optional history link writes only one small repository-local JSON pointer under `.ai/run-history/` when `--history-link` and `--confirm-history-link` are supplied, the bundle has already been written, and the output does not already exist. It does not rewrite the bundle or run replay verification.
 
 The verifier reads only one repository-local persisted bundle and the repository-local source reports named by that bundle. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables.
 
