@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-103
+
+- Task ID: AUTO-103 — Persisted maintenance replay summary
+- Summary: Added `forge maintenance-replay-summary` and compatibility `forge-maintenance-replay-summary`. The command verifies persisted bundle source-report hashes through the existing bundle verifier, checks the saved bundle status, reviewed paths, validation steps, target path, and expected patch/validation/commit/push/post-push evidence-chain stages, then reports `replayable` or `blocked` without writing files or running external actions.
+- Branch and PR assessment: Inspected repository metadata, recent commits, branch search results, recent PRs, README/status, roadmap, state, changelog, decisions, pyproject, workflow, command router, maintenance bundle verification implementation, docs, and tests. Work stayed directly on `main`. Branch search returned no active branch results. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete. No PR branch required integration.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests now cover replayable bundles, drifted source reports, incomplete bundles, CLI `--require-replayable` fail-closed behavior, and primary router delegation. Direct local checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add maintainer allowed-signer policy support for commit trust evidence.
+
 ## 2026-07-09 — AUTO-102
 
 - Task ID: AUTO-102 — Commit trust review and trusted push-readiness
