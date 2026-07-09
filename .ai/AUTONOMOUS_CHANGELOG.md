@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-134
+
+- Task ID: AUTO-134 — Post-copy archive-root verification
+- Summary: Added `forge maintenance-archive-copy-verify` and `forge-maintenance-archive-copy-verify`, a read-only verifier that reopens a written archive manifest and a repository-local archive root, maps every manifest entry to its copied destination, and blocks if copied evidence is missing, byte-count drifted, or SHA-256 drifted.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, open/closed PRs, open issues, branch search, archive manifest/copy implementation, tests, docs, package scripts, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for verified copied entries, missing copied-entry blocking, drift blocking, JSON CLI success, and fail-closed `--require-verified` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add an archive packaging preview that summarizes verified archive-root contents and intended package metadata before any compressed archive writer exists.
+
 ## 2026-07-09 — AUTO-133
 
 - Task ID: AUTO-133 — Confirmation-gated archive-copy execution
@@ -26,24 +35,6 @@
 - Validation completed: Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for successful written-manifest verification, drift blocking, and refusal to combine `--manifest` with link/write behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a guarded archive-copy preview that plans copy destinations for verified manifest entries without copying evidence.
-
-## 2026-07-09 — AUTO-130
-
-- Task ID: AUTO-130 — Confirmation-gated archive manifest writer
-- Summary: Extended `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` beyond preview-only behavior with a narrow confirmed writer. Ready integrity-checked preservation candidates can now be saved as one repository-local manifest JSON using `--output` and `--confirm-write`, while blocked manifests, outside-root outputs, missing output parents, and overwrite attempts fail closed.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, branch search, archive manifest implementation/CLI/tests/docs, and maintenance review comparison dependencies. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for confirmation requirements, successful manifest writes, overwrite refusal, outside-root refusal, ready previews, integrity summaries, JSON output, text output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a manifest verification/read command that reopens written archive manifests, recomputes listed evidence hashes/byte counts, and fails closed on drift before any archive-copy behavior exists.
-
-## 2026-07-09 — AUTO-129
-
-- Task ID: AUTO-129 — Archive manifest integrity gates
-- Summary: Hardened `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` so read-only manifest previews recompute current source-report SHA-256 values and byte counts, expose `archive_integrity` pass/fail/advisory gates, and block manifest readiness if preservation evidence is missing or drifted.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, archive manifest implementation/tests/docs, and maintenance review comparison dependencies. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the updated implementation and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for ready integrity summaries, source-report hash/byte verification, JSON output, text integrity gates, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a confirmation-gated local archive-manifest writer only after CI confirms the integrity-checked preview and the archive entry schema remains stable.
 
 ## Historical note
 
