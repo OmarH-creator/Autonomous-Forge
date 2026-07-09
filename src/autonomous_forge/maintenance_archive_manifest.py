@@ -1,4 +1,4 @@
-"Build a read-only archive manifest preview for selected maintenance evidence."
+"""Build a read-only archive manifest preview for selected maintenance evidence."""
 
 from __future__ import annotations
 
@@ -14,6 +14,10 @@ class MaintenanceArchiveManifestError(ValueError):
     """Raised when archive manifest preview inputs are incomplete or unsafe."""
 
 
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _safe_repository_path(path_text: str, *, root: Path, label: str) -> dict[str, Any]:
     value = str(path_text or "").strip()
     if not value:
@@ -25,12 +29,17 @@ def _safe_repository_path(path_text: str, *, root: Path, label: str) -> dict[str
         resolved.relative_to(root_resolved)
     except (OSError, ValueError) as exc:
         raise MaintenanceArchiveManifestError(f"{label} path must stay inside the configured root") from exc
-    return {"path": value, "exists": resolved.exists(), "bytes": resolved.stat().st_size if resolved.is_file() else 0}
+    return {
+        "path": value,
+        "exists": resolved.exists(),
+        "bytes": resolved.stat().st_size if resolved.is_file() else 0,
+        "resolved": resolved,
+    }
 
 
 def _load_bundle(bundle_path: str, *, root: Path) -> dict[str, Any]:
     path_info = _safe_repository_path(bundle_path, root=root, label="bundle")
-    bundle_file = root.resolve() / path_info["path"]
+    bundle_file = path_info["resolved"]
     if not bundle_file.is_file():
         raise MaintenanceArchiveManifestError("selected candidate bundle must be a regular file")
     try:
@@ -40,6 +49,32 @@ def _load_bundle(bundle_path: str, *, root: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise MaintenanceArchiveManifestError("selected candidate bundle must be a JSON object")
     return payload
+
+
+def _integrity_gate(entry: dict[str, Any]) -> dict[str, Any]:
+    if not entry.get("exists"):
+        return {"name": entry["path"], "status": "failed", "reason": "archive entry is missing"}
+    if "sha256_verified" in entry and not entry["sha256_verified"]:
+        return {"name": entry["path"], "status": "failed", "reason": "sha256 does not match expected evidence"}
+    if "bytes_verified" in entry and not entry["bytes_verified"]:
+        return {"name": entry["path"], "status": "failed", "reason": "byte count does not match expected evidence"}
+    if "current_sha256" not in entry:
+        return {"name": entry["path"], "status": "advisory", "reason": "no expected digest is available for this entry"}
+    return {"name": entry["path"], "status": "passed", "reason": "current file matches expected manifest evidence"}
+
+
+def _archive_integrity(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    gates = [_integrity_gate(entry) for entry in entries]
+    failed = sum(1 for gate in gates if gate["status"] == "failed")
+    advisory = sum(1 for gate in gates if gate["status"] == "advisory")
+    passed = sum(1 for gate in gates if gate["status"] == "passed")
+    return {
+        "status": "passed" if failed == 0 else "failed",
+        "passed": passed,
+        "failed": failed,
+        "advisory": advisory,
+        "gates": gates,
+    }
 
 
 def _source_report_entries(bundle: dict[str, Any], *, root: Path) -> list[dict[str, Any]]:
@@ -55,15 +90,22 @@ def _source_report_entries(bundle: dict[str, Any], *, root: Path) -> list[dict[s
         if path_info["path"] in seen:
             raise MaintenanceArchiveManifestError("source report paths must be unique")
         seen.add(path_info["path"])
+        expected_sha256 = str(report.get("sha256") or "")
+        expected_bytes = int(report.get("bytes") or 0)
+        current_sha256 = _file_sha256(path_info["resolved"]) if path_info["resolved"].is_file() else ""
+        current_bytes = int(path_info["bytes"])
         entries.append(
             {
                 "kind": "source_report",
                 "stage": str(report.get("stage") or ""),
                 "path": path_info["path"],
-                "sha256": str(report.get("sha256") or ""),
-                "bytes": int(report.get("bytes") or 0),
+                "sha256": expected_sha256,
+                "current_sha256": current_sha256,
+                "sha256_verified": bool(expected_sha256 and current_sha256 == expected_sha256),
+                "bytes": expected_bytes,
+                "current_bytes": current_bytes,
+                "bytes_verified": current_bytes == expected_bytes,
                 "exists": bool(path_info["exists"]),
-                "current_bytes": int(path_info["bytes"]),
             }
         )
     if not entries:
@@ -89,6 +131,9 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
             "selected_preservation_candidate": selected,
             "comparison_status": comparison.get("comparison_status"),
             "archive_entries": [],
+            "archive_entry_count": 0,
+            "source_report_count": 0,
+            "archive_integrity": {"status": "blocked", "passed": 0, "failed": 0, "advisory": 0, "gates": []},
             "archive_blockers": blockers,
             "next_step": "Resolve comparison blockers before preparing an archive manifest.",
             "write_allowed": False,
@@ -111,15 +156,20 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         {
             "kind": "maintenance_bundle",
             "path": bundle_entry["path"],
-            "sha256": hashlib.sha256((root.resolve() / bundle_entry["path"]).read_bytes()).hexdigest(),
+            "sha256": _file_sha256(bundle_entry["resolved"]),
+            "current_sha256": _file_sha256(bundle_entry["resolved"]),
+            "sha256_verified": True,
             "exists": bool(bundle_entry["exists"]),
             "current_bytes": int(bundle_entry["bytes"]),
         },
         *source_reports,
     ]
+    integrity = _archive_integrity(entries)
     missing = [entry["path"] for entry in entries if not entry.get("exists")]
     if missing:
         blockers.extend(f"archive entry does not exist: {path}" for path in missing)
+    if integrity["failed"]:
+        blockers.append(f"archive integrity failed for {integrity['failed']} entr{'y' if integrity['failed'] == 1 else 'ies'}")
     status = "ready" if not blockers else "blocked"
     return {
         "title": "Autonomous Forge maintenance archive manifest preview",
@@ -131,19 +181,21 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         "archive_entries": entries,
         "archive_entry_count": len(entries),
         "source_report_count": len(source_reports),
+        "archive_integrity": integrity,
         "commit_sha": selected["commit_sha"],
         "remote": selected["remote"],
         "branch": selected["branch"],
         "archive_blockers": blockers,
         "next_step": (
-            "Review this manifest, then preserve the listed history link, bundle, and source reports together."
+            "Review this integrity-checked manifest, then preserve the listed history link, bundle, and source reports together."
             if status == "ready"
-            else "Resolve missing or unsafe archive entries before preserving the evidence set."
+            else "Resolve missing, drifted, or unsafe archive entries before preserving the evidence set."
         ),
         "write_allowed": False,
         "safety_boundary": (
             "Archive manifest preview reads repository-local run-history links, linked bundles, and source-report metadata. "
-            "It does not copy files, write archives, change files, stage, commit, push, poll workflows, or prove signer identity."
+            "It recomputes local source-report hashes and byte counts, but does not copy files, write archives, change files, "
+            "stage, commit, push, poll workflows, or prove signer identity."
         ),
     }
 
@@ -151,6 +203,7 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
 def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
     """Format an archive manifest preview as stable text."""
     selected = data.get("selected_preservation_candidate") or {}
+    integrity = data.get("archive_integrity") or {"status": "unknown", "passed": 0, "failed": 0, "advisory": 0, "gates": []}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -165,15 +218,27 @@ def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
             else "Selected preservation candidate: none"
         ),
         f"Archive entries: {len(data.get('archive_entries') or [])}",
+        (
+            "Archive integrity: "
+            f"status={integrity.get('status', 'unknown')} passed={integrity.get('passed', 0)} "
+            f"failed={integrity.get('failed', 0)} advisory={integrity.get('advisory', 0)}"
+        ),
     ]
     for entry in data.get("archive_entries") or []:
+        integrity_text = ""
+        if "sha256_verified" in entry:
+            integrity_text = f" sha256_verified={str(bool(entry.get('sha256_verified'))).lower()}"
         lines.append(
             "- "
             f"{entry['kind']}: path={entry['path']} exists={str(bool(entry.get('exists'))).lower()} "
-            f"bytes={entry.get('current_bytes', entry.get('bytes', 0))}"
+            f"bytes={entry.get('current_bytes', entry.get('bytes', 0))}{integrity_text}"
         )
     lines.extend(
         [
+            "Archive integrity gates:",
+            *[f"- {gate['name']}: {gate['status']} — {gate['reason']}" for gate in integrity.get("gates") or [
+                {"name": "none", "status": "advisory", "reason": "no entries were evaluated"}
+            ]],
             "Archive blockers:",
             *[f"- {blocker}" for blocker in data.get("archive_blockers") or ["none"]],
             f"Next step: {data['next_step']}",
