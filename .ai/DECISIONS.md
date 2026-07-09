@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-110 — 2026-07-09 — Proposals should preserve enriched plan fields
+
+Context: AUTO-109 made `forge plan` emit implementation-grade fields, but `forge propose` still reduced selected tasks to generic planned operations and policy lists. That created a handoff gap between planning and proposal review.
+Decision: Update `forge propose` to consume and emit the planner's `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` fields while preserving backward-compatible `planned_file_areas` and `planned_operations` keys for existing consumers. Keep the command read-only and advisory.
+Alternatives considered: Add another audit/preflight command, create a separate proposal-v2 command, replace existing proposal fields outright, or defer propagation until validation-plan work. Those options either duplicated workflow surface, broke downstream compatibility, or left the planning/proposal handoff incomplete.
+Consequences: Proposal artifacts now carry the same implementation-grade structure selected by `forge plan`, improving downstream review consistency. The command still does not enforce policy decisions, run commands, inspect diffs, generate patches, stage, commit, push, call networks, or mutate repository state.
+Human decision still required: No.
+
 ## DEC-109 — 2026-07-09 — Forge plan output should be implementation-grade
 
 Context: The immediate product objective remains a policy-aware `forge plan` command. The command already selected the highest-priority eligible task and exposed policy/path information, but its output still left implementation steps, normalized file targets, validation steps, and risk review mostly embedded in prose.
