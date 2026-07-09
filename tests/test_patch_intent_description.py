@@ -21,6 +21,12 @@ POLICY = """
 
 ## Prohibited paths
 - .env
+
+## Human approval required
+- .github/**
+
+## Validation expectations
+- python -m pytest
 """
 
 
