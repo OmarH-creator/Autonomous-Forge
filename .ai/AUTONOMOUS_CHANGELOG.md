@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-111
+
+- Task ID: AUTO-111 — Plan-enriched validation plan artifacts
+- Summary: Enhanced `forge validate-plan` so validation-plan text and JSON now carry through the structured `forge plan`/`forge propose` fields: expected file changes, implementation steps, validation steps, and policy-aware risk register, while preserving backward-compatible expected file areas and advisory path checks. This keeps the immediate policy-aware planning milestone moving instead of adding another patch/audit/preflight command.
+- Branch and PR assessment: Inspected repository metadata, recent commits, recent issues/PR search, branch search, README/status, roadmap, policy, state, changelog, decisions, proposal/validation implementation, validation tests, and command docs. Work stayed directly on `main`. PR #11 is merged; PR #10 is closed and superseded by direct `main` work; PR #4 was already merged; PRs #2, #3, and #5 are closed or obsolete. No branch or PR required integration.
+- Validation completed: Scratch syntax compilation passed for the updated validation module and validation tests before repository writes. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Carry enriched validation-plan fields into validation-preview and validation-orchestration artifacts.
+
 ## 2026-07-09 — AUTO-110
 
 - Task ID: AUTO-110 — Plan-enriched change proposal artifacts
