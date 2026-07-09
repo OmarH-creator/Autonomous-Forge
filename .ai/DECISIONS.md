@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-124 — 2026-07-09 — Strict linked replay requirements should imply verification
+
+Context: AUTO-122 added linked-bundle replay verification behind `--verify-linked-bundle` and a strict `--require-linked-replayable` exit gate. However, requiring replayability without also asking for verification produced a blocked result without attempting the verification that could satisfy the requirement. AUTO-123 then built a reviewer handoff on top of linked replay outcomes, increasing the value of making the strict linked replay gate self-sufficient.
+Decision: Make `--require-linked-replayable` imply linked-bundle verification. The command still accepts `--verify-linked-bundle` for advisory linked replay output, but strict callers can now pass one flag and receive a real verified/replayable or fail-closed result.
+Alternatives considered: Keep requiring both flags, silently ignore `--require-linked-replayable` unless verification was requested, or always verify linked bundles. Keeping both flags preserves friction and confusion, ignoring the strict flag is unsafe, and always verifying linked bundles would make quick pointer triage slower.
+Consequences: The strict path is easier to use and safer because it no longer has a non-verification dead end. The command still reads only repository-local persisted JSON evidence and recomputed hashes; it does not rerun validation, inspect live remotes, poll workflows, prove signer identity, or prove validation coverage.
+Human decision still required: No.
+
 ## DEC-123 — 2026-07-09 — Completed maintenance evidence needs a single reviewer handoff
 
 Context: AUTO-122 allowed `forge maintenance-history-link-review` to verify a linked bundle and run replay summary, but the output still remained primarily a pointer/replay review rather than a final reviewer-facing preservation handoff.
