@@ -29,7 +29,15 @@ def test_executor_contract_defines_future_confirmation_and_refusals(tmp_path):
     assert data["future_confirmation_flag"] == "--confirm-executor-dry-run"
     assert data["executor_dry_run_allowed_now"] is False
     assert data["validation_execution"] == "not run"
+    assert data["expected_file_changes"] == [
+        "src/autonomous_forge/executor_gate.py",
+        "tests/test_executor_gate.py",
+    ]
+    assert data["implementation_steps"][0] == "Build a pre-execution gate preview from command-execution handoff data and saved-history guards."
+    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["risk_register"] == ["Do not add command execution."]
     assert "future caller omits --confirm-executor-dry-run" in data["refusal_cases"]
+    assert "reviewed expected file changes, implementation steps, validation steps, and risk register" in data["required_future_inputs"]
     assert data["result_capture_shape"]["write_command"] == "forge validation-result-write --confirm-write"
     assert data["timeout_policy"]["default_seconds"] == 300
 
@@ -39,6 +47,8 @@ def test_executor_contract_blocks_when_gate_has_no_gated_commands():
 
     assert data["contract_status"] == "blocked-no-gated-commands"
     assert data["candidate_commands"] == []
+    assert data["expected_file_changes"] == []
+    assert data["implementation_steps"] == []
     assert data["result_capture_shape"]["record_path"] is None
     assert data["executor_dry_run_allowed_now"] is False
 
@@ -58,6 +68,9 @@ def test_executor_contract_formats_text(tmp_path):
     assert "Autonomous Forge validation executor contract preview" in output
     assert "Future confirmation flag: --confirm-executor-dry-run" in output
     assert "Executor dry-run allowed now: false" in output
+    assert "Expected file changes:" in output
+    assert "Implementation steps:" in output
+    assert "Risk register:" in output
     assert "Allowed command classes:" in output
     assert "Timeout policy:" in output
     assert "Safety boundary: Validation executor contract preview only" in output
@@ -85,3 +98,4 @@ def test_executor_contract_cli_supports_json(tmp_path, capsys):
     assert data["future_confirmation_flag"] == "--confirm-executor-dry-run"
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
     assert data["executor_dry_run_allowed_now"] is False
+    assert data["validation_steps"] == ["Run python -m pytest."]
