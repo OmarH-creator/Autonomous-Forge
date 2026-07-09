@@ -52,6 +52,16 @@ def _validation_note(command: str, execution_status: str, return_code: int | Non
     return f"executor-run {execution_status} for {command!r}; return_code={code}"
 
 
+def _context_fields(source: dict[str, Any]) -> dict[str, list[Any]]:
+    """Return implementation context fields preserved across executor artifacts."""
+    return {
+        "expected_file_changes": list(source.get("expected_file_changes", [])),
+        "implementation_steps": list(source.get("implementation_steps", [])),
+        "validation_steps": list(source.get("validation_steps", [])),
+        "risk_register": list(source.get("risk_register", [])),
+    }
+
+
 def _build_persistence_handoff(
     *,
     command: str,
@@ -59,8 +69,10 @@ def _build_persistence_handoff(
     validation_result: str,
     return_code: int | None,
     result_record_path: str | None,
+    context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Describe the explicit validation-result-write call without performing it."""
+    context_fields = _context_fields(context or {})
     if not result_record_path or validation_result == "not_run":
         return {
             "available": False,
@@ -69,6 +81,7 @@ def _build_persistence_handoff(
             "confirmation_required": "--confirm-write",
             "write_command": "none",
             "write_command_args": [],
+            **context_fields,
         }
 
     note = _validation_note(command, execution_status, return_code)
@@ -95,6 +108,7 @@ def _build_persistence_handoff(
         "validation_note": note,
         "write_command": shlex.join(command_args),
         "write_command_args": command_args,
+        **context_fields,
     }
 
 
@@ -113,6 +127,7 @@ def build_executor_run_data(
         requested_command=requested_command,
         confirm_executor_dry_run=confirm_executor_dry_run,
     )
+    context_fields = _context_fields(dry_run)
     if not dry_run.get("dry_run_would_execute", False):
         result_record_path = dry_run.get("simulated_execution", {}).get("result_record_path")
         return {
@@ -131,16 +146,19 @@ def build_executor_run_data(
             "return_code": None,
             "stdout": _clip_output(""),
             "stderr": _clip_output(""),
+            **context_fields,
             "persistence_handoff": _build_persistence_handoff(
                 command=str(dry_run.get("requested_command", "")),
                 execution_status="blocked-not-run",
                 validation_result="not_run",
                 return_code=None,
                 result_record_path=result_record_path,
+                context=dry_run,
             ),
             "safety_boundary": (
                 "Validation executor refused before subprocess creation; no command was run, "
-                "no validation result was inferred, and saved history was not mutated."
+                "no validation result was inferred, and saved history was not mutated. "
+                "Implementation context is copied from executor dry-run evidence for review only."
             ),
         }
 
@@ -194,18 +212,21 @@ def build_executor_run_data(
         "return_code": return_code,
         "stdout": _clip_output(stdout),
         "stderr": _clip_output(stderr),
+        **context_fields,
         "persistence_handoff": _build_persistence_handoff(
             command=command,
             execution_status=execution_status,
             validation_result=result,
             return_code=return_code,
             result_record_path=result_record_path,
+            context=dry_run,
         ),
         "follow_up": "Review persistence_handoff.write_command and run it only if the observed result should be saved.",
         "safety_boundary": (
             "Executor run used subprocess.run with shell=false for one exact executor-contract candidate only. "
             "It did not poll workflows, verify commits, inspect diffs, generate patches, enforce policy, commit, push, "
-            "or mutate saved history. The persistence handoff is advisory and still requires explicit --confirm-write."
+            "or mutate saved history. The persistence handoff is advisory and still requires explicit --confirm-write. "
+            "Implementation context is copied from executor dry-run evidence for review only."
         ),
     }
 
@@ -234,6 +255,18 @@ def format_executor_run(data: dict[str, Any]) -> str:
             "Selected task: "
             f"{selected['id']} [{selected['priority']}/{selected['status']}] {selected['title']}"
         )
+    lines.extend(
+        [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
+        ]
+    )
     lines.append("Block reasons:")
     lines.extend([f"- {reason}" for reason in data["block_reasons"]] or ["- none"])
     lines.extend(
@@ -241,6 +274,11 @@ def format_executor_run(data: dict[str, Any]) -> str:
             f"Stdout chars: {data['stdout']['chars']} (truncated={str(data['stdout']['truncated']).lower()})",
             f"Stderr chars: {data['stderr']['chars']} (truncated={str(data['stderr']['truncated']).lower()})",
             f"Persistence handoff available: {str(handoff['available']).lower()}",
+            "Persistence handoff context:",
+            *[f"- expected file change: {item}" for item in handoff["expected_file_changes"]],
+            *[f"- implementation step: {step}" for step in handoff["implementation_steps"]],
+            *[f"- validation step: {step}" for step in handoff["validation_steps"]],
+            *[f"- risk: {risk}" for risk in handoff["risk_register"]],
             f"Persistence handoff command: {handoff['write_command']}",
             f"Follow-up: {data.get('follow_up', 'none')}",
             f"Safety boundary: {data['safety_boundary']}",
