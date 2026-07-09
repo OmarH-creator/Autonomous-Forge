@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-134 — 2026-07-09 — Copied archive roots must be verified before packaging
+
+Context: AUTO-133 added a bounded archive-copy command, but after copying there was no dedicated way to reopen the archive root and prove the copied evidence still matched the written manifest before preservation or packaging.
+Decision: Add `forge maintenance-archive-copy-verify` and `forge-maintenance-archive-copy-verify` as read-only post-copy verification commands. The command first verifies the written manifest, constrains the archive root to the repository, maps each manifest entry to `ARCHIVE_ROOT/<entry path>`, recomputes copied file byte counts and SHA-256 values where expected digests are present, and fails closed with `--require-verified` when copied evidence is missing or drifted.
+Alternatives considered: Trust copy output, move directly to compressed archive packaging, or fold verification into the copy command only. Trusting copy output misses later drift/deletion, packaging is premature without a stable verification surface, and copy-only verification would not help reviewers recheck archives after time has passed.
+Consequences: Maintainers can now verify a copied evidence root before any archive-package writer exists. The command does not copy files, write archives, stage, commit, push, rerun validation, poll workflows, change remotes, or prove signer identity.
+Human decision still required: No.
+
 ## DEC-133 — 2026-07-09 — Archive-copy execution must be confirmation-gated and overwrite-safe
 
 Context: AUTO-132 made archive-copy destination layouts reviewable, but preservation still required manual copying after a ready preview. The next useful step is bounded local copy execution that gathers verified evidence files together without becoming an uncontrolled archive writer.
@@ -22,22 +30,6 @@ Context: AUTO-130 made ready archive manifests durable by writing one repository
 Decision: Extend `forge maintenance-archive-manifest` with `--manifest` verification mode. The command reads one written manifest, requires `manifest_written=true`, refuses link/write flag combinations, constrains listed entries to the repository root, recomputes current SHA-256 values and byte counts, and fails closed with `--require-ready` when evidence has drifted.
 Alternatives considered: Move directly to archive-copy behavior, trust the written manifest forever, or add a separate standalone verifier command. Copy behavior is premature before verification exists, trusting old manifests would preserve stale evidence, and a separate command would duplicate the existing archive-manifest output/format contract.
 Consequences: Maintainers can verify a persisted manifest immediately before manual preservation or future copy planning while the workflow remains bounded. The command does not copy evidence files, create archives, mutate evidence, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
-Human decision still required: No.
-
-## DEC-130 — 2026-07-09 — Archive manifests may be written only through a narrow confirmed JSON writer
-
-Context: AUTO-129 made archive-manifest previews verify source-report hashes and byte counts, leaving the next preservation step manual. Reviewers still needed a durable manifest file that records the selected ready preservation candidate without copying evidence or creating an archive.
-Decision: Extend `forge maintenance-archive-manifest` with `--output` and `--confirm-write`. The command still previews by default, writes exactly one repository-local JSON manifest only when the manifest is ready and explicitly confirmed, and refuses blocked manifests, outside-root outputs, missing parent directories, and overwrites.
-Alternatives considered: Keep the command preview-only, add a full archive-copy writer, or silently overwrite manifests. Preview-only keeps extra manual work, archive copying is premature before manifest verification exists, and overwrites would undermine durable evidence records.
-Consequences: Maintainers can persist a compact preservation manifest while the workflow remains local-first and bounded. The command does not copy evidence files, create archives, change source evidence, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
-Human decision still required: No.
-
-## DEC-129 — 2026-07-09 — Archive manifests must verify evidence hashes before archive writes exist
-
-Context: AUTO-128 listed the files that should be preserved for a selected maintenance candidate, but the manifest mostly exposed current path existence and byte counts. A future archive writer would need stronger evidence that the source reports still match the bundle metadata at preview time.
-Decision: Harden `forge maintenance-archive-manifest` so read-only manifest output recomputes source-report SHA-256 values and byte counts, exposes compact archive-integrity gates, and blocks readiness when listed evidence is missing or drifted. Keep the command preview-only.
-Alternatives considered: Move directly to a write-capable archive command, rely on replay summaries alone, or leave integrity checking to reviewers. Immediate writes are premature, replay summaries are not as archive-entry focused, and manual checking keeps avoidable preservation mistakes.
-Consequences: Reviewers can see whether the selected archive set is currently intact before any writer exists. The command remains local-first and read-only; it does not copy files, write archives, change files, stage, commit, push, rerun validation, poll workflows, or prove signer identity.
 Human decision still required: No.
 
 ## Historical decisions
