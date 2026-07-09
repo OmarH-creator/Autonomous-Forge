@@ -1,4 +1,4 @@
-"""Build and write guarded archive manifests for selected maintenance evidence."""
+"""Build, write, and verify guarded archive manifests for selected maintenance evidence."""
 
 from __future__ import annotations
 
@@ -57,18 +57,29 @@ def _safe_output_path(output_path: Path, *, root: Path) -> Path:
     return resolved
 
 
+def _load_json_file(path: Path, *, label: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise MaintenanceArchiveManifestError(f"{label} must be a regular file")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise MaintenanceArchiveManifestError(f"{label} is not valid JSON") from exc
+    if not isinstance(payload, dict):
+        raise MaintenanceArchiveManifestError(f"{label} must be a JSON object")
+    return payload
+
+
 def _load_bundle(bundle_path: str, *, root: Path) -> dict[str, Any]:
     path_info = _safe_repository_path(bundle_path, root=root, label="bundle")
-    bundle_file = path_info["resolved"]
-    if not bundle_file.is_file():
-        raise MaintenanceArchiveManifestError("selected candidate bundle must be a regular file")
-    try:
-        payload = json.loads(bundle_file.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise MaintenanceArchiveManifestError("selected candidate bundle is not valid JSON") from exc
-    if not isinstance(payload, dict):
-        raise MaintenanceArchiveManifestError("selected candidate bundle must be a JSON object")
-    return payload
+    return _load_json_file(path_info["resolved"], label="selected candidate bundle")
+
+
+def _load_written_manifest(manifest_path: Path, *, root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    path_info = _safe_repository_path(str(manifest_path), root=root, label="archive manifest")
+    payload = _load_json_file(path_info["resolved"], label="archive manifest")
+    if not payload.get("manifest_written"):
+        raise MaintenanceArchiveManifestError("archive manifest must be a written manifest with manifest_written=true")
+    return payload, path_info
 
 
 def _integrity_gate(entry: dict[str, Any]) -> dict[str, Any]:
@@ -131,6 +142,42 @@ def _source_report_entries(bundle: dict[str, Any], *, root: Path) -> list[dict[s
     if not entries:
         raise MaintenanceArchiveManifestError("selected candidate bundle has no source reports")
     return entries
+
+
+def _verified_manifest_entries(entries: list[dict[str, Any]], *, root: Path) -> list[dict[str, Any]]:
+    verified = []
+    seen: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise MaintenanceArchiveManifestError("archive manifest entries must be JSON objects")
+        path_info = _safe_repository_path(str(entry.get("path") or ""), root=root, label="archive entry")
+        if path_info["path"] in seen:
+            raise MaintenanceArchiveManifestError("archive manifest entries must be unique")
+        seen.add(path_info["path"])
+        current_sha256 = _file_sha256(path_info["resolved"]) if path_info["resolved"].is_file() else ""
+        expected_sha256 = str(entry.get("sha256") or "")
+        expected_bytes = int(entry.get("bytes", entry.get("current_bytes") or 0) or 0)
+        current_bytes = int(path_info["bytes"])
+        verified_entry = {
+            "kind": str(entry.get("kind") or "unknown"),
+            "path": path_info["path"],
+            "exists": bool(path_info["exists"]),
+            "bytes": expected_bytes,
+            "current_bytes": current_bytes,
+            "bytes_verified": current_bytes == expected_bytes if expected_bytes else True,
+        }
+        if entry.get("stage"):
+            verified_entry["stage"] = str(entry["stage"])
+        if expected_sha256:
+            verified_entry["sha256"] = expected_sha256
+            verified_entry["current_sha256"] = current_sha256
+            verified_entry["sha256_verified"] = bool(current_sha256 and current_sha256 == expected_sha256)
+        elif current_sha256:
+            verified_entry["current_sha256"] = current_sha256
+        verified.append(verified_entry)
+    if not verified:
+        raise MaintenanceArchiveManifestError("archive manifest has no archive entries")
+    return verified
 
 
 def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Path = Path(".")) -> dict[str, Any]:
@@ -246,8 +293,49 @@ def write_maintenance_archive_manifest(
     return payload
 
 
+def verify_written_archive_manifest_data(manifest_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
+    """Verify a previously written archive manifest against current repository-local files."""
+    manifest, manifest_info = _load_written_manifest(manifest_path, root=root)
+    entries = _verified_manifest_entries(list(manifest.get("archive_entries") or []), root=root)
+    integrity = _archive_integrity(entries)
+    blockers = list(manifest.get("archive_blockers") or [])
+    if integrity["failed"]:
+        blockers.append(f"archive integrity failed for {integrity['failed']} entr{'y' if integrity['failed'] == 1 else 'ies'}")
+    status = "ready" if not blockers else "blocked"
+    return {
+        "title": "Autonomous Forge maintenance archive manifest verification",
+        "mode": "archive manifest verification",
+        "manifest_status": status,
+        "manifest_ready": status == "ready",
+        "manifest_written": True,
+        "manifest_path": manifest_info["path"],
+        "source_manifest_status": manifest.get("manifest_status", "unknown"),
+        "selected_preservation_candidate": manifest.get("selected_preservation_candidate"),
+        "comparison_status": manifest.get("comparison_status"),
+        "archive_entries": entries,
+        "archive_entry_count": len(entries),
+        "source_report_count": sum(1 for entry in entries if entry.get("kind") == "source_report"),
+        "archive_integrity": integrity,
+        "commit_sha": manifest.get("commit_sha"),
+        "remote": manifest.get("remote"),
+        "branch": manifest.get("branch"),
+        "archive_blockers": blockers,
+        "next_step": (
+            "Preserve this manifest and every verified archive entry together."
+            if status == "ready"
+            else "Resolve missing or drifted archive entries before preserving or copying evidence."
+        ),
+        "write_allowed": False,
+        "safety_boundary": (
+            "Archive manifest verification reads one repository-local written manifest and recomputes current listed evidence "
+            "hashes and byte counts. It does not copy files, write archives, change evidence files, stage, commit, push, "
+            "poll workflows, rerun validation, or prove signer identity."
+        ),
+    }
+
+
 def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
-    """Format an archive manifest preview or write result as stable text."""
+    """Format an archive manifest preview, write result, or verification result as stable text."""
     selected = data.get("selected_preservation_candidate") or {}
     integrity = data.get("archive_integrity") or {"status": "unknown", "passed": 0, "failed": 0, "advisory": 0, "gates": []}
     lines = [
@@ -284,9 +372,11 @@ def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
     lines.extend(
         [
             "Archive integrity gates:",
-            *[f"- {gate['name']}: {gate['status']} — {gate['reason']}" for gate in integrity.get("gates") or [
-                {"name": "none", "status": "advisory", "reason": "no entries were evaluated"}
-            ]],
+            *[
+                f"- {gate['name']}: {gate['status']} — {gate['reason']}"
+                for gate in integrity.get("gates")
+                or [{"name": "none", "status": "advisory", "reason": "no entries were evaluated"}]
+            ],
             "Archive blockers:",
             *[f"- {blocker}" for blocker in data.get("archive_blockers") or ["none"]],
             f"Next step: {data['next_step']}",
