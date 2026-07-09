@@ -8,12 +8,18 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 _MAX_JSON_BYTES = 1_000_000
+_VALIDATION_CONTEXT_FIELDS = (
+    "expected_file_changes",
+    "implementation_steps",
+    "validation_steps",
+    "risk_register",
+)
 _SAFE_BOUNDARY = (
     "Maintenance evidence bundle reads completed patch, validation, commit, push, and post-push JSON reports, "
     "links their key identifiers, records bounded SHA-256 hashes of each source report for stale-report detection, "
-    "and can persist one bounded JSON bundle only when explicitly confirmed. It does not apply patches, run validation "
-    "commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, "
-    "or read environment variables."
+    "retains supported validation context when supplied by upstream evidence, and can persist one bounded JSON bundle "
+    "only when explicitly confirmed. It does not apply patches, run validation commands, stage files, create commits, "
+    "push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables."
 )
 _HISTORY_LINK_BOUNDARY = (
     "Maintenance history linking writes one small repository-local JSON pointer under .ai/run-history/ only after explicit "
@@ -136,6 +142,42 @@ def _clean_source_reports(source_reports: Any) -> list[dict[str, Any]]:
     return cleaned
 
 
+def _clean_context_list(value: Any, *, field: str, blockers: list[str]) -> list[str]:
+    if not isinstance(value, list):
+        blockers.append(f"validation_context.{field} must be a list")
+        return []
+    cleaned = [_clean_text(item) for item in value if _clean_text(item)]
+    if len(cleaned) != len(value):
+        blockers.append(f"validation_context.{field} contains empty entries")
+    return cleaned
+
+
+def _validation_context_from_evidence(*reports: dict[str, Any], blockers: list[str]) -> dict[str, list[str]]:
+    """Return supported retained implementation context from upstream reports."""
+    merged: dict[str, list[str]] = {}
+    for report in reports:
+        raw_context = report.get("validation_context")
+        if raw_context in (None, {}):
+            continue
+        if not isinstance(raw_context, dict):
+            blockers.append("validation_context must be an object when present")
+            continue
+        unexpected = sorted(str(field) for field in raw_context if field not in _VALIDATION_CONTEXT_FIELDS)
+        if unexpected:
+            blockers.append(f"validation_context contains unexpected fields: {', '.join(unexpected)}")
+        for field in _VALIDATION_CONTEXT_FIELDS:
+            if field not in raw_context:
+                continue
+            cleaned = _clean_context_list(raw_context[field], field=field, blockers=blockers)
+            if cleaned and field not in merged:
+                merged[field] = cleaned
+    return {field: merged[field] for field in _VALIDATION_CONTEXT_FIELDS if field in merged}
+
+
+def _context_counts(validation_context: dict[str, list[str]]) -> dict[str, int]:
+    return {field: len(values) for field, values in validation_context.items()}
+
+
 def _safe_bundle_id(value: str) -> str:
     bundle_id = value.strip()
     if not bundle_id or bundle_id != value or any(char in bundle_id for char in "\\/\n\r\t"):
@@ -205,6 +247,15 @@ def build_maintenance_evidence_bundle_data(
         blockers.append("post-push verification commit does not match verified commit")
     _same_paths(commit_paths, post_push_paths, label="post-push verification", blockers=blockers)
 
+    validation_context = _validation_context_from_evidence(
+        patch_apply,
+        post_apply_validation,
+        commit_verify,
+        push_handoff,
+        post_push_verify,
+        blockers=blockers,
+    )
+
     cleaned_source_reports = _clean_source_reports(source_reports)
     if cleaned_source_reports:
         required_stages = {"patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"}
@@ -216,6 +267,7 @@ def build_maintenance_evidence_bundle_data(
         if extra_stages:
             blockers.append(f"source report hashes contain unknown stages: {', '.join(extra_stages)}")
 
+    cleaned_validation_steps = [_clean_text(step) for step in validation_steps if _clean_text(step)]
     bundle_status = "complete" if not blockers else "blocked"
     return {
         "title": "Autonomous Forge maintenance evidence bundle",
@@ -225,7 +277,8 @@ def build_maintenance_evidence_bundle_data(
         "bundle_complete": bundle_status == "complete",
         "target_path": target_path,
         "reviewed_paths": commit_paths,
-        "validation_steps": [_clean_text(step) for step in validation_steps if _clean_text(step)],
+        "validation_steps": cleaned_validation_steps,
+        "validation_context": validation_context,
         "commit_sha": inspected_commit,
         "remote": _clean_text(push_handoff.get("remote")),
         "branch": _clean_text(push_handoff.get("branch")),
@@ -243,7 +296,9 @@ def build_maintenance_evidence_bundle_data(
         "write_allowed": False,
         "summary": {
             "reviewed_paths": len(commit_paths),
-            "validation_steps": len([step for step in validation_steps if _clean_text(step)]),
+            "validation_steps": len(cleaned_validation_steps),
+            "validation_context_fields": len(validation_context),
+            "validation_context_items": sum(_context_counts(validation_context).values()),
             "source_reports": len(cleaned_source_reports),
             "blockers": len(blockers),
         },
@@ -357,6 +412,7 @@ def write_maintenance_history_link(
         "remote_ref": _clean_text(data.get("remote_ref")),
         "reviewed_paths": list(data.get("reviewed_paths") or []),
         "validation_steps": list(data.get("validation_steps") or []),
+        "validation_context": dict(data.get("validation_context") or {}),
         "source_reports": list(data.get("source_reports") or []),
         "history_link_blockers": blockers,
         "history_link_status": "blocked" if blockers else "linked",
@@ -380,6 +436,8 @@ def write_maintenance_history_link(
 
 def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
     """Format maintenance evidence bundle data as stable human-readable text."""
+    validation_context = data.get("validation_context") or {}
+    context_counts = _context_counts(validation_context) if isinstance(validation_context, dict) else {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -394,6 +452,12 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
         *[f"- {path}" for path in data["reviewed_paths"]],
         "Validation steps:",
         *[f"- {step}" for step in data["validation_steps"]],
+        "Validation context:",
+        *(
+            [f"- {field}: {context_counts[field]} item(s)" for field in validation_context]
+            if validation_context
+            else ["- none"]
+        ),
         "Source reports:",
         *[
             f"- {item['stage']}: sha256={item['sha256']} bytes={item['bytes']} path={item['path']}"
@@ -411,12 +475,14 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
         lines.insert(5, f"Output path: {data.get('output_path', 'none')}")
     if "history_link" in data:
         link = data["history_link"]
+        link_context = link.get("validation_context") or {}
         lines.extend(
             [
                 "History link:",
                 f"- status={link['history_link_status']}",
                 f"- written={str(link['history_link_written']).lower()}",
                 f"- bundle_sha256={link['bundle_sha256']}",
+                f"- validation_context_fields={list(link_context) or ['none']}",
                 "History link blockers:",
                 *[f"- {blocker}" for blocker in link["history_link_blockers"] or ["none"]],
             ]
