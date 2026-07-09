@@ -61,8 +61,9 @@ def _classify_validation_step(step: str) -> dict[str, str]:
 def build_validation_preview_data(validation_plan_data: dict[str, Any]) -> dict[str, Any]:
     """Build structured validation-run preview metadata without running commands."""
     selected = validation_plan_data["selected_task"]
+    validation_steps = list(validation_plan_data.get("validation_steps", []))
     command_candidates = [] if selected is None else [
-        _classify_validation_step(step) for step in validation_plan_data["validation_steps"]
+        _classify_validation_step(step) for step in validation_steps
     ]
     return {
         "title": "Autonomous Forge validation-run preview",
@@ -71,6 +72,10 @@ def build_validation_preview_data(validation_plan_data: dict[str, Any]) -> dict[
         "selected_task": selected,
         "validation_execution": "not run",
         "commands_allowed": False,
+        "expected_file_changes": list(validation_plan_data.get("expected_file_changes", [])),
+        "implementation_steps": list(validation_plan_data.get("implementation_steps", [])),
+        "validation_steps": validation_steps,
+        "risk_register": list(validation_plan_data.get("risk_register", [])),
         "command_candidates": command_candidates,
         "blocked_items": list(validation_plan_data["blocked_items"]),
         "risk_notes": list(validation_plan_data["risk_notes"]),
@@ -109,6 +114,14 @@ def format_validation_preview(data: dict[str, Any]) -> str:
 
     lines.extend(
         [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
             "Validation command candidates:",
             *[
                 (
