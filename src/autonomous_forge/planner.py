@@ -141,7 +141,7 @@ def build_repository_plan_data(
         "policy": {
             "allowed_paths": list(policy.allowed_paths),
             "prohibited_paths": list(policy.prohibited_paths),
-            "human_approval_required": list(policy.apval_required),
+            "human_approval_required": list(policy.approval_required),
             "validation_expectations": list(policy.validation_expectations),
         },
         "selected_task": None,
