@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, and summarize persisted bundle replay readiness.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, and link completed bundles into run history.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, and replay summaries for verified persisted bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, and opt-in run-history links for completed pushed bundles. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -116,8 +116,8 @@ Why it matters: The product now has a push-capable command; safe automation shou
 Scope: Extend `forge push-handoff` with an explicit `git merge-base --is-ancestor <remote-sha> <verified-commit>` check after readiness, branch, HEAD, upstream, and remote-ref checks pass; expose `fast_forward_checked`; add focused deterministic tests; update docs, README, and project memory.
 Expected files or areas: `src/autonomous_forge/push_handoff.py`, `tests/test_push_handoff.py`, `docs/PUSH_HANDOFF.md`, README, and `.ai` records.
 Acceptance criteria: Ready and confirmed handoffs check fast-forward ancestry, already-pushed commits remain blocked, divergent remote history blocks before push execution, wrong branch/unready evidence skips the ancestry check, and no force-push, tag push, remote mutation, branch-protection mutation, staging, commit creation, shell execution, or environment reads are introduced.
-Validation: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 9 tests, including ready, confirmed push, non-fast-forward refusal, wrong branch, already-pushed commit, git failure, unsafe branch, and local JSON loading cases. Direct full repository checkout/full pytest execution remained unavailable in this environment.
-Risks or assumptions: The fast-forward check uses local remote-tracking refs; maintainers should refresh refs before the handoff when remote state may have changed. The command still does not verify branch protection or enforce a full signer allowlist.
+Validation: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 9 tests.
+Risks or assumptions: The fast-forward check uses local remote-tracking refs; maintainers should refresh refs before the handoff when remote state may have changed.
 Notes: Completed before maintainer allowed-signer policy support.
 
 ### AUTO-105 — Maintainer allowed-signer trust policy
@@ -154,7 +154,19 @@ Expected files or areas: `src/autonomous_forge/push_handoff.py`, `tests/test_pus
 Acceptance criteria: Ready branch-policy evidence still permits review/confirmed handoff when git refs are safe; legacy readiness without branch-policy fields blocks; protected branch mismatch blocks; missing required status contexts block; fast-forward, already-pushed, wrong-branch, unsafe-branch, and git-failure guards remain intact; no force-push, tag push, remote mutation, branch-protection mutation, staging, commit creation, shell execution, or environment reads are introduced.
 Validation: Static source/test/docs review completed through the GitHub repository API. Focused scratch pytest for `tests/test_push_handoff.py` passed with 12 tests.
 Risks or assumptions: The handoff trusts branch-policy fields carried by push-readiness JSON and exact status-context names. It does not call GitHub, prove branch rules are current, change protections, rerun workflows, or replace human review.
-Notes: Next safe step is durable run-history linkage for completed pushed bundles.
+Notes: Completed before durable run-history linkage for completed pushed bundles.
+
+### AUTO-108 — Maintenance bundle run-history links
+Priority: P1
+Status: DONE
+Goal: Link completed, already-written maintenance evidence bundles into `.ai/run-history/` with a small durable pointer record.
+Why it matters: Maintainers need a stable way to discover completed pushed maintenance bundles from run history without copying or rewriting the full bundle.
+Scope: Extend `forge maintenance-evidence-bundle` with `--history-link`, `--confirm-history-link`, and `--require-history-linked`; write a bounded `maintenance-bundle-history-link/v1` JSON pointer only after the bundle is complete and already written; update tests, docs, README, and project memory.
+Expected files or areas: `src/autonomous_forge/maintenance_evidence_bundle.py`, `src/autonomous_forge/maintenance_evidence_bundle_cli.py`, `tests/test_maintenance_evidence_bundle.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, README, and `.ai` records.
+Acceptance criteria: Confirmed links are written only under `.ai/run-history/`, include bundle hash/size/commit/branch/reviewed-path metadata, refuse missing confirmation, refuse unwritten or incomplete bundles, refuse existing link outputs, and introduce no validation execution, staging, commit creation, push, remote mutation, branch-protection mutation, workflow rerun, shell execution, or environment reads.
+Validation: Static source/test/docs review completed through the GitHub repository API. Focused deterministic tests were added for confirmed history-link writing, missing confirmation/unwritten bundle blockers, and outside-run-history refusal. Direct full checkout/full pytest execution remained unavailable in this environment.
+Risks or assumptions: The link is a local pointer to a persisted bundle and trusts the bundle metadata; it does not sign evidence, verify the bundle source-report hashes, or prove current remote state.
+Notes: Next safe step is a read-only maintenance history index for persisted bundle-link records.
 
 ## Future Ideas
 
@@ -162,4 +174,4 @@ Notes: Next safe step is durable run-history linkage for completed pushed bundle
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- Durable run-history linkage for completed pushed maintenance bundles.
+- Read-only maintenance history index for persisted bundle-link records.
