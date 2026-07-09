@@ -19,6 +19,7 @@ _COMPARISON_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("preflight_overall_status", ("preflight_summary", "overall_status")),
     ("validation_execution", ("validation_execution",)),
     ("validation_result", ("validation_result",)),
+    ("validation_context", ("validation_context",)),
     ("changed_files_summary", ("changed_files_summary",)),
     ("commit", ("commit",)),
     ("blockers", ("blockers",)),
@@ -58,6 +59,20 @@ def _compare_field(before: dict[str, Any], after: dict[str, Any], field: str, pa
     }
 
 
+def _record_overview(summary: dict[str, Any]) -> dict[str, Any]:
+    """Return the compact record overview used by comparison output."""
+    return {
+        "path": summary["source_path"],
+        "task": summary["task"],
+        "review_status": summary["review_status"],
+        "preflight_overall_status": summary["preflight_summary"].get("overall_status", "unknown"),
+        "validation_result": summary["validation_result"],
+        "validation_context_fields": summary.get("validation_context_fields", []),
+        "changed_files_summary": summary["changed_files_summary"],
+        "commit": summary["commit"],
+    }
+
+
 def build_run_history_comparison_data(
     before_record: Path | str,
     after_record: Path | str,
@@ -77,24 +92,8 @@ def build_run_history_comparison_data(
         "title": "Autonomous Forge run-history comparison",
         "mode": "read-only",
         "root": str(root.resolve()),
-        "before_record": {
-            "path": before["source_path"],
-            "task": before["task"],
-            "review_status": before["review_status"],
-            "preflight_overall_status": before["preflight_summary"].get("overall_status", "unknown"),
-            "validation_result": before["validation_result"],
-            "changed_files_summary": before["changed_files_summary"],
-            "commit": before["commit"],
-        },
-        "after_record": {
-            "path": after["source_path"],
-            "task": after["task"],
-            "review_status": after["review_status"],
-            "preflight_overall_status": after["preflight_summary"].get("overall_status", "unknown"),
-            "validation_result": after["validation_result"],
-            "changed_files_summary": after["changed_files_summary"],
-            "commit": after["commit"],
-        },
+        "before_record": _record_overview(before),
+        "after_record": _record_overview(after),
         "summary": {
             "fields_compared": len(differences),
             "changed": len(changed),
@@ -130,13 +129,17 @@ def format_run_history_comparison(data: dict[str, Any]) -> str:
             f"- before: task={before['task'].get('id') or 'none'} "
             f"{before['task'].get('title') or ''} | review={before['review_status']} | "
             f"preflight={before['preflight_overall_status']} | "
-            f"validation={before['validation_result']} | commit={before['commit']}"
+            f"validation={before['validation_result']} | "
+            f"validation_context={before['validation_context_fields'] or ['none']} | "
+            f"commit={before['commit']}"
         ),
         (
             f"- after: task={after['task'].get('id') or 'none'} "
             f"{after['task'].get('title') or ''} | review={after['review_status']} | "
             f"preflight={after['preflight_overall_status']} | "
-            f"validation={after['validation_result']} | commit={after['commit']}"
+            f"validation={after['validation_result']} | "
+            f"validation_context={after['validation_context_fields'] or ['none']} | "
+            f"commit={after['commit']}"
         ),
         "Differences:",
     ]
