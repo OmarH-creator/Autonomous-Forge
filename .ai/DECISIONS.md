@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-119 — 2026-07-09 — Maintenance replay should check retained context consistency
+
+Context: AUTO-118 made newly generated maintenance bundles and history links preserve retained validation context, and AUTO-117 made replay summaries expose that context. Replayability still only checked whether context was present and well formed, so a bundle could remain replayable even if retained expected file changes no longer referenced reviewed paths or retained validation steps no longer matched the bundle's preserved validation evidence.
+Decision: Update `forge maintenance-replay-summary` to compute `validation_context_consistency`. When retained expected file changes are present, each reviewed path must be represented by at least one retained expected-change entry. When retained validation steps are present, each retained step must also appear in the bundle's validation steps. Mismatches block replayability.
+Alternatives considered: Add a separate context-audit command, make every missing context field a hard failure, only warn in text output, or attempt to prove validation coverage. A separate command would add workflow surface area, hard-failing missing context would break older valid bundles, warnings would let inconsistent evidence pass, and validation-coverage proof is beyond replay summary authority.
+Consequences: Persisted bundle replay now fails closed when retained implementation context conflicts with reviewed-path or validation-step evidence. The check remains advisory evidence comparison; it does not rerun validation, inspect diffs, verify signatures, prove policy compliance, or guarantee that validation covered every planned file, step, or risk.
+Human decision still required: No.
+
 ## DEC-118 — 2026-07-09 — Maintenance bundle creation should preserve validation context
 
 Context: AUTO-117 made `forge maintenance-replay-summary` report retained validation context when a persisted bundle includes it, but `forge maintenance-evidence-bundle` did not yet copy supported upstream validation-context fields into newly generated bundles or the optional run-history link pointer. That meant new bundles could lose implementation-plan context before replay review.
