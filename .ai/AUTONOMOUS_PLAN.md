@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, preserve implementation-grade plan fields through downstream proposal, validation-plan, validation-preview, validation-orchestration, executor handoff, executor-run, validation-result-write, run-history review, maintenance replay artifacts, and newly generated maintenance bundles/history links.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize branch-protection-aware trusted push readiness, run a branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, verify persisted bundle source-report integrity, summarize persisted bundle replay readiness, link completed bundles into run history, preserve implementation-grade plan fields through downstream proposal, validation-plan, validation-preview, validation-orchestration, executor handoff, executor-run, validation-result-write, run-history review, maintenance replay artifacts, newly generated maintenance bundles/history links, and replay consistency checks that compare retained implementation context with reviewed paths and preserved validation steps.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, plan-enriched `forge propose` artifacts, plan/proposal-enriched `forge validate-plan` artifacts, enriched validation-preview/orchestration artifacts, enriched executor handoff/gate/contract/dry-run artifacts, enriched executor-run/result-persistence handoff artifacts, validation-result writes that retain implementation context in persisted records, run-history read/compare surfaces that expose retained validation context, maintenance replay summaries that expose retained validation context when persisted bundles include it, and maintenance bundle creation/history-link outputs that preserve supported validation context automatically. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, persisted bundle source-report verification, replay summaries for verified persisted bundles, opt-in run-history links for completed pushed bundles, implementation-grade `forge plan` fields, plan-enriched `forge propose` artifacts, plan/proposal-enriched `forge validate-plan` artifacts, enriched validation-preview/orchestration artifacts, enriched executor handoff/gate/contract/dry-run artifacts, enriched executor-run/result-persistence handoff artifacts, validation-result writes that retain implementation context in persisted records, run-history read/compare surfaces that expose retained validation context, maintenance replay summaries that expose retained validation context when persisted bundles include it, maintenance bundle creation/history-link outputs that preserve supported validation context automatically, and maintenance replay consistency checks that compare retained expected file changes and validation steps against reviewed bundle evidence. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -142,7 +142,19 @@ Expected files or areas: `src/autonomous_forge/maintenance_evidence_bundle.py`, 
 Acceptance criteria: Bundle output retains `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` from upstream evidence; history links retain the same context; malformed context blocks completion; text output reports context counts; older evidence without context remains compatible.
 Validation: Local scratch syntax compilation passed. Focused scratch pytest for the new bundle-context tests passed 4 tests. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: Retained context is advisory JSON evidence; bundle creation still does not prove validation covered every planned file, step, or risk.
-Notes: Next safe step is a policy-aware bundle-context consistency check before replayability is trusted.
+Notes: Completed before replay consistency checks.
+
+### AUTO-119 — Validation-context consistency checks in maintenance replay
+Priority: P1
+Status: DONE
+Goal: Block replayability when retained validation context no longer matches reviewed bundle paths or preserved validation steps.
+Why it matters: Durable maintenance bundles should not be trusted as replayable when their retained implementation-plan context has drifted away from the reviewed evidence chain.
+Scope: Update `src/autonomous_forge/maintenance_replay_summary.py`, focused replay tests, maintenance bundle docs, README, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_replay_summary.py`, `tests/test_maintenance_replay_summary.py`, `docs/MAINTENANCE_EVIDENCE_BUNDLE.md`, README, and `.ai` records.
+Acceptance criteria: Replay summaries expose `validation_context_consistency`; reviewed paths must be represented in retained expected file changes when those changes exist; retained validation steps must appear in bundle validation steps; mismatches block replayability; older bundles without context remain backward-compatible.
+Validation: Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The consistency check compares advisory JSON evidence and does not prove actual validation coverage or policy compliance.
+Notes: Next safe step is a compact replay policy summary of passed, failed, and advisory gates.
 
 ## Future Ideas
 
@@ -150,4 +162,4 @@ Notes: Next safe step is a policy-aware bundle-context consistency check before 
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
-- Policy-aware bundle-context consistency checks.
+- Compact replay policy-gate summaries.
