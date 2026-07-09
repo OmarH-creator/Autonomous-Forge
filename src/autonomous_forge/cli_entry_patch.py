@@ -15,6 +15,7 @@ from autonomous_forge.commit_verify_cli import main as _commit_verify_main
 from autonomous_forge.git_diff_review_cli import main as _git_diff_review_main
 from autonomous_forge.maintenance_bundle_verify_cli import main as _maintenance_bundle_verify_main
 from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
+from autonomous_forge.maintenance_history_link_review_cli import main as _maintenance_history_link_review_main
 from autonomous_forge.maintenance_replay_summary_cli import main as _maintenance_replay_summary_main
 from autonomous_forge.patch_application_audit_cli import main as _patch_application_audit_main
 from autonomous_forge.patch_application_preflight_cli import main as _patch_application_preflight_main
@@ -42,6 +43,7 @@ _EXTENSION_COMMANDS = {
     "git-diff-review": _git_diff_review_main,
     "maintenance-bundle-verify": _maintenance_bundle_verify_main,
     "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
+    "maintenance-history-link-review": _maintenance_history_link_review_main,
     "maintenance-replay-summary": _maintenance_replay_summary_main,
     "patch-application-audit": _patch_application_audit_main,
     "patch-application-preflight": _patch_application_preflight_main,
