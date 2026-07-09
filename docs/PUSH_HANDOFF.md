@@ -1,6 +1,6 @@
 # Push handoff
 
-`forge push-handoff` is the first guarded push-capable handoff in Autonomous Forge. It consumes ready `forge push-readiness --format json` evidence, inspects local git branch/ref state, and only runs one non-force `git push <remote> <commit>:refs/heads/<branch>` after `--confirm-push`.
+`forge push-handoff` is the guarded push-capable handoff in Autonomous Forge. It consumes ready `forge push-readiness --format json` evidence, inspects local git branch/ref state, explicitly confirms that the requested update is fast-forward from the current remote branch, and only runs one non-force `git push <remote> <commit>:refs/heads/<branch>` after `--confirm-push`.
 
 It is intentionally narrow:
 
@@ -8,6 +8,7 @@ It is intentionally narrow:
 - it requires the current local branch, local `HEAD`, and configured upstream to match the requested remote branch;
 - it refuses unsafe remote and branch names;
 - it refuses already-pushed commits;
+- it runs `git merge-base --is-ancestor <remote-sha> <verified-commit>` before any confirmed push and blocks non-fast-forward updates;
 - it never force-pushes, pushes tags, changes remotes, changes branch protections, stages files, creates commits, reads environment variables, or uses shell execution.
 
 ## Example
@@ -21,7 +22,7 @@ forge push-handoff \
   --format json > push-handoff.json
 ```
 
-The command above is a review-only handoff. It inspects evidence and local git refs, but it does not push.
+The command above is a review-only handoff. It inspects evidence and local git refs, including the fast-forward ancestry check, but it does not push.
 
 To execute the guarded push after the report is ready:
 
@@ -47,8 +48,9 @@ The push-readiness JSON must be produced by `forge push-readiness` and must be r
 - current branch from `git branch --show-current`;
 - local commit from `git rev-parse HEAD`;
 - upstream from `git rev-parse --abbrev-ref --symbolic-full-name @{u}`;
-- remote branch commit from `git rev-parse --verify <remote>/<branch>`.
+- remote branch commit from `git rev-parse --verify <remote>/<branch>`;
+- fast-forward ancestry from `git merge-base --is-ancestor <remote-sha> <verified-commit>`.
 
 ## Safety boundary
 
-The command can mutate the remote only when explicitly confirmed and all gates pass. It does not change local files, local commits, remotes, tags, or repository protections.
+The command can mutate the remote only when explicitly confirmed and all gates pass. It does not change local files, local commits, remotes, tags, or repository protections, and it refuses to attempt a push when the verified commit is not a descendant of the current remote-tracking branch tip.
