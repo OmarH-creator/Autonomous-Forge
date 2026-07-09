@@ -101,7 +101,9 @@ forge maintenance-replay-summary \
 
 A replayable bundle must still verify all source-report hashes, report `bundle_status: complete`, include the expected patch, validation, commit, push, and post-push stages, preserve at least one reviewed path and validation step, and keep the target path inside the reviewed-path set. The command does not rerun the evidence chain; it gives maintainers a compact replay decision from persisted evidence.
 
-When a persisted bundle includes a `validation_context` object, replay summary output reports whether context is present, which supported context fields were preserved, per-field item counts, and the total number of retained context items. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`. Missing context remains backward-compatible for older bundles, while malformed context blocks replayability because it would make the implementation-plan preservation evidence ambiguous.
+When a persisted bundle includes a `validation_context` object, replay summary output reports whether context is present, which supported context fields were preserved, per-field item counts, total retained context items, and a `validation_context_consistency` summary. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`. Missing context remains backward-compatible for older bundles, while malformed context blocks replayability because it would make the implementation-plan preservation evidence ambiguous.
+
+The consistency summary compares retained implementation context with replay-critical bundle evidence. If retained `expected_file_changes` are present, every reviewed path must be named by at least one retained expected-change entry. If retained `validation_steps` are present, each retained validation step must also appear in the bundle's preserved validation steps. Mismatches block replayability so maintainers do not trust a bundle whose planned-file or validation-step context drifted away from the reviewed evidence chain.
 
 ## Hash-linked source reports
 
@@ -117,7 +119,7 @@ The optional history link writes only one small repository-local JSON pointer un
 
 The verifier reads only one repository-local persisted bundle and the repository-local source reports named by that bundle. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, or read environment variables.
 
-The replay summary reads only one repository-local persisted bundle and the source reports needed for hash verification. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, poll remote status, or read environment variables. Validation context is summarized from already-persisted bundle JSON only; it is not proof that validation covered every retained planned file, step, or risk.
+The replay summary reads only one repository-local persisted bundle and the source reports needed for hash verification. It never writes files and does not apply patches, run validation commands, stage files, create commits, push, force-push, change remotes, change branch protections, rerun workflows, poll remote status, or read environment variables. Validation context is summarized from already-persisted bundle JSON only; consistency checks compare retained context to bundle-reviewed paths and preserved validation steps but still do not prove that validation covered every retained planned file, step, or risk.
 
 ## Completion rules
 
@@ -135,4 +137,4 @@ When any stage is missing, stale, unsafe, or inconsistent, the command reports `
 
 A persisted bundle verifies only when all five source-report entries are present, point to regular repository-local files, and the observed byte count and SHA-256 digest exactly match the preserved bundle metadata. Use `--require-verified` when automation should fail closed on drift.
 
-A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, records validation steps, and has either absent or well-formed validation context. Use `--require-replayable` when automation should fail closed on replay blockers.
+A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, records validation steps, and has absent or well-formed validation context that remains consistent with reviewed paths and bundle validation steps. Use `--require-replayable` when automation should fail closed on replay blockers.
