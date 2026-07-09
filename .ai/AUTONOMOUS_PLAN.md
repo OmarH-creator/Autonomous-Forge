@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, and replay those bundles without requiring uncontrolled autonomous behavior.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit and push readiness, preserve durable evidence bundles, link completed bundles into run history, replay those bundles, and hand off preservation guidance without requiring uncontrolled autonomous behavior.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, and optional linked-bundle replay verification from a ready history pointer. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, opt-in run-history links for completed pushed bundles, pointer-level history-link quality review, optional linked-bundle replay verification from a ready history pointer, and a reviewer-facing maintenance preservation handoff. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -66,7 +66,7 @@ Status: DONE
 Goal: Add content-audit checkpoints and patch-adjacent evidence gates through manifest, review, draft, text, provenance, audit, and readiness checkpoints.
 Why it matters: Patch-adjacent workflows need a safe bridge between policy-reviewed paths, content metadata, objectives, paths, validation steps, summaries, and provenance.
 Scope: Add content-audit, diff-source handoff, patch-intent review/description, patch proposal manifest/review/draft, patch text preflight/review, patch application preflight/audit/readiness, compatibility scripts, and CI smoke coverage.
-Expected files or areas: `src/autonomous_forge/`, `tests/`, `.github/workflows/test.yml`, README, `docs/`, `.ai` records.
+Expected files or areas: `src/autonomous_forge/`, tests, README, docs, `.ai` records.
 Acceptance criteria: Evidence gates remain deterministic, blocker-aware, local-first, and non-mutating before patch application exists.
 Validation: Static source/test/documentation review completed through the GitHub repository API with deterministic unit/CLI/router tests.
 Risks or assumptions: Secret-marker checks are guard signals, not complete secret scanning.
@@ -142,7 +142,19 @@ Expected files or areas: `src/autonomous_forge/maintenance_history_link_review_c
 Acceptance criteria: A ready history link can optionally verify the linked bundle SHA-256, run maintenance replay summary, surface replay status and replay policy counts, block hash mismatches, avoid replay when pointer gates fail, and return non-zero when linked replay is required but not replayable.
 Validation: Static source/test/docs review completed through the GitHub repository API. Scratch syntax compilation passed for the updated CLI. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: Linked replay still trusts persisted JSON evidence and source-report hashes; it does not rerun validation, poll workflows, inspect live remotes, prove signer identity, or prove coverage.
-Notes: Next safe step is a single reviewer handoff that combines pointer quality, replay policy gates, and final preservation guidance.
+Notes: Completed before reviewer-facing maintenance preservation handoff.
+
+### AUTO-123 — Maintenance review handoff
+Priority: P1
+Status: DONE
+Goal: Produce one reviewer-facing preservation handoff from a run-history pointer and linked bundle replay.
+Why it matters: Maintainers need a single compact artifact that says whether a completed maintenance run is ready to preserve, which gates passed, which blockers remain, and what evidence should be kept together.
+Scope: Add `forge maintenance-review-handoff`, `forge-maintenance-review-handoff`, focused tests, docs, README usage, `pyproject.toml` script wiring, CLI routing, CI help smoke, and `.ai` records.
+Expected files or areas: `src/autonomous_forge/maintenance_review_handoff.py`, `src/autonomous_forge/maintenance_review_handoff_cli.py`, `tests/test_maintenance_review_handoff.py`, `docs/MAINTENANCE_REVIEW_HANDOFF.md`, `src/autonomous_forge/cli_entry_patch.py`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: A ready run-history pointer with a hash-verified replayable linked bundle yields a ready handoff; hash mismatches or unready pointer quality block the handoff; JSON/text outputs remain deterministic; `--require-ready` fails closed; behavior is local-first and read-only.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation passed for the new implementation, CLI, and focused tests. Direct full checkout/full pytest execution remained unavailable from this environment.
+Risks or assumptions: The handoff summarizes persisted JSON evidence and recomputed hashes; it does not rerun validation, inspect live remotes, poll workflow status, prove signer identity, or prove coverage.
+Notes: Next safe step is a comparison-oriented maintenance handoff summary for multiple completed runs.
 
 ## Future Ideas
 
@@ -151,3 +163,4 @@ Notes: Next safe step is a single reviewer handoff that combines pointer quality
 - Policy-aware changed-file summaries.
 - Branch protection and workflow-status replay summaries.
 - Combined history-link replay handoff.
+- Maintenance handoff comparison summaries.
