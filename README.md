@@ -8,73 +8,31 @@ For a visual orientation to the current workflow and its safety boundary, see [t
 
 ## Current Autonomous Status
 
-Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-108 added opt-in durable run-history links for completed maintenance evidence bundles. `forge maintenance-evidence-bundle` can now write a small `.ai/run-history/` JSON pointer after a complete bundle has already been persisted, recording the bundle path, SHA-256, byte count, commit, remote branch, reviewed paths, validation steps, and source-report fingerprints while refusing missing confirmation, unwritten bundles, existing link paths, and paths outside `.ai/run-history/`. Validation included static GitHub API review and focused deterministic test additions for the maintenance bundle/history-link path. No visual updates were needed because the overview still accurately describes the local-first safety boundary. Current limitations: direct full checkout/full pytest execution and final workflow visibility remain unavailable from this environment; bundle links are local pointers and do not sign evidence or prove current remote state. Next autonomous objective: add a read-only maintenance history index for persisted bundle-link records.
+Autonomous Forge is pre-alpha. Latest autonomous run: AUTO-109 enriched the existing policy-aware `forge plan` command so text and JSON output now include concrete implementation steps, normalized expected file changes, merged roadmap/policy validation steps, and a policy-aware risk register for the selected roadmap task. Validation included scratch syntax compilation of the updated planner and planner tests plus static source/test/docs review through the GitHub repository API. No visual updates were needed because the existing overview still accurately represents the local-first workflow boundary. Current limitations: direct full checkout/full pytest execution and final workflow visibility remain unavailable from this environment; `forge plan` remains advisory and does not enforce policy, run commands, inspect diffs, generate patches, stage, commit, or push. Next autonomous objective: carry the enriched plan fields into downstream proposal/review artifacts.
 
 The repository now contains:
 
 - Apache-2.0 licensing and durable planning files in `.ai/`.
-- A minimal Python package with a primary `forge` console script and compatibility `forge-change-readiness` / `forge-commit-create` / `forge-commit-proposal-preview` / `forge-commit-readiness` / `forge-commit-status-review` / `forge-commit-trust-review` / `forge-commit-verify` / `forge-git-diff-review` / `forge-maintenance-bundle-verify` / `forge-maintenance-evidence-bundle` / `forge-maintenance-replay-summary` / `forge-patch-application-audit` / `forge-patch-application-preflight` / `forge-patch-application-readiness` / `forge-patch-apply` / `forge-patch-generation-preview` / `forge-patch-proposal-review` / `forge-patch-proposal-draft` / `forge-patch-text-preflight` / `forge-patch-text-review` / `forge-post-apply-validation` / `forge-post-push-verify` / `forge-push-handoff` / `forge-push-readiness` console scripts.
-- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, run summaries, repository inventory, implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, guarded executor-handoff persistence, changed-file reviews, changed-content audit, supplied git-diff review, supplied or live commit/workflow status review, change readiness, guarded patch preview and patch apply, post-apply validation, commit readiness, guarded commit metadata preview, explicitly confirmed local commit creation, post-commit verification, commit trust review with optional allowed-signer policy, branch-protection-aware trusted push-readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, hash-linked durable maintenance evidence bundling, persisted bundle source-report verification, persisted bundle replay summaries, and opt-in run-history links for completed pushed maintenance bundles.
-- `forge review-artifact` for a single read-only handoff that combines selected task, plan context, proposal intent, structured change intent, patch intent, validation intent, validation command-candidate preview, and explicit planned-path review.
-- `forge validation-orchestration` for a single read-only readiness artifact that combines validation plans, command-candidate counts, saved-history validation guards, latest-record status, blockers, and risk notes before any executor exists.
-- `forge command-execution-handoff`, `forge executor-gate`, and `forge executor-contract` for the conservative pre-execution chain.
-- `forge executor-run` for one explicitly confirmed local validation command after the dry-run gate passes, plus `forge executor-handoff-persist` for separately confirmed durable result persistence.
-- Smoke and deterministic coverage for the CLI’s current local workflows, including primary and compatibility replay summary behavior, branch-policy-enforcing fast-forward push-handoff behavior, allowed-signer commit-trust behavior, branch-protection-aware push-readiness behavior, and maintenance bundle history-link behavior.
-- CI smoke coverage that validates live repository roadmap, installed console entry points, primary and compatibility extension help routes, and the test suite across Python 3.10, 3.11, and 3.12.
+- A minimal Python package with a primary `forge` console script plus compatibility scripts for the safer maintenance workflow commands.
+- Task parsing, deterministic task selection, roadmap linting, repository reports, policy summaries, repository inventory, enriched implementation plans, change proposals, validation plans, validation-run previews, validation orchestration previews, command-execution handoff previews, executor precondition gates, executor contract previews, executor dry-run previews, one narrow opt-in executor run command with explicit result-persistence handoff, changed-file/content review, git-diff review, commit/workflow status review, guarded patch preview/apply, post-apply validation, commit readiness/create/verify/trust review, branch-protection-aware push readiness, branch-policy-enforcing push handoff, post-push verification, durable evidence bundles, persisted bundle verification/replay summaries, and run-history links for completed pushed maintenance bundles.
+- Deterministic tests for the CLI’s current local workflows, including enriched `forge plan` output, branch-policy push handoff, allowed-signer commit trust, branch-protection-aware push readiness, and maintenance bundle history-link behavior.
+- CI smoke coverage that validates the live roadmap, installed console entry points, extension help routes, and the test suite across Python 3.10, 3.11, and 3.12.
 
 ## Install for local development
 
 ```bash
 python -m pip install -e .
 forge --help
-forge change-readiness --help
-forge commit-create --help
-forge commit-proposal-preview --help
-forge commit-readiness --help
-forge commit-status-review --help
-forge commit-trust-review --help
-forge commit-verify --help
+forge plan --help
+forge propose --help
+forge validate-plan --help
 forge git-diff-review --help
-forge maintenance-bundle-verify --help
-forge maintenance-evidence-bundle --help
-forge maintenance-replay-summary --help
-forge patch-application-audit --help
-forge patch-application-preflight --help
-forge patch-application-readiness --help
 forge patch-apply --help
-forge patch-generation-preview --help
-forge patch-proposal-review --help
-forge patch-proposal-draft --help
-forge patch-text-preflight --help
-forge patch-text-review --help
-forge post-apply-validation --help
-forge post-push-verify --help
-forge push-handoff --help
+forge commit-create --help
+forge commit-verify --help
 forge push-readiness --help
-forge-change-readiness --help
-forge-commit-create --help
-forge-commit-proposal-preview --help
-forge-commit-readiness --help
-forge-commit-status-review --help
-forge-commit-trust-review --help
-forge-commit-verify --help
-forge-git-diff-review --help
-forge-maintenance-bundle-verify --help
-forge-maintenance-evidence-bundle --help
-forge-maintenance-replay-summary --help
-forge-patch-application-audit --help
-forge-patch-application-preflight --help
-forge-patch-application-readiness --help
-forge-patch-apply --help
-forge-patch-generation-preview --help
-forge-patch-proposal-review --help
-forge-patch-proposal-draft --help
-forge-patch-text-preflight --help
-forge-patch-text-review --help
-forge-post-apply-validation --help
-forge-post-push-verify --help
-forge-push-handoff --help
-forge-push-readiness --help
+forge push-handoff --help
+forge maintenance-evidence-bundle --help
 ```
 
 For full setup, contribution workflow, and safety expectations, see `CONTRIBUTING.md`.
@@ -87,51 +45,10 @@ forge plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --polic
 forge propose --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validate-plan --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge validation-orchestration --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
-forge command-execution-handoff --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
-forge executor-gate --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
-forge executor-contract --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root .
 forge executor-dry-run --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root . --command "python -m pytest" --confirm-executor-dry-run
-git diff -- README.md > changes.diff
-forge git-diff-review --policy .forge/policy.md --root . --diff changes.diff --require-clear --format json > git-diff-review.json
-forge commit-status-review --root . --from-github --require-clear --format json > commit-status-review.json
-forge change-readiness --root . --diff-review git-diff-review.json --status-review commit-status-review.json --require-ready --format json > change-readiness.json
-forge content-audit --policy .forge/policy.md --root . --file README.md --format json
-forge diff-source-handoff --root . --before before-content-audit.json --after after-content-audit.json --require-clear --format json
-forge patch-intent-review --root . --diff-source diff-source-handoff.json --require-ready --format json > patch-intent-review.json
-forge patch-intent-describe --root . --patch-review patch-intent-review.json --require-described --format json > patch-intent-description.json
-forge patch-proposal-manifest --root . --description patch-intent-description.json --objective "Describe the reviewed change." --path README.md --validation "python -m pytest" --require-ready --format json > patch-proposal-manifest.json
-forge patch-proposal-review --root . --manifest patch-proposal-manifest.json --content-audit fresh-content-audit.json --require-ready --format json > patch-proposal-review.json
-forge patch-proposal-draft --root . --review patch-proposal-review.json --require-draft-ready --format json > patch-proposal-draft.json
-forge patch-text-preflight --root . --draft patch-proposal-draft.json --path README.md --change-summary "Describe the intended README patch text." --require-ready --format json > patch-text-preflight.json
-forge patch-text-review --root . --preflight patch-text-preflight.json --path README.md --patch-summary "Review the intended README patch text." --require-ready --format json > patch-text-review.json
-forge patch-application-preflight --root . --review patch-text-review.json --path README.md --patch-source manual-review-note --expected-summary "Review the intended README patch text." --require-ready --format json > patch-application-preflight.json
-forge patch-application-audit --root . --preflight patch-application-preflight.json --require-clear --format json > patch-application-audit.json
-forge patch-application-readiness --root . --preflight patch-application-preflight.json --audit patch-application-audit.json --require-ready --format json > patch-application-readiness.json
-forge patch-generation-preview --root . --readiness patch-application-readiness.json --path README.md --replacement README.replacement.md --require-generated --format json > patch-generation-preview.json
-forge patch-apply --root . --preview patch-generation-preview.json --change-readiness change-readiness.json --path README.md --replacement README.replacement.md --confirm-apply --require-applied --format json > patch-apply.json
-forge post-apply-validation --root . --patch-apply patch-apply.json --result passed --executed-step "python -m pytest" --require-validated --format json > post-apply-validation.json
-forge commit-readiness --root . --post-apply-validation post-apply-validation.json --diff-review git-diff-review.json --status-review commit-status-review.json --require-ready --format json > commit-readiness.json
-forge commit-proposal-preview --root . --commit-readiness commit-readiness.json --summary "feat: describe reviewed change" --body-line "Summarize ready evidence before commit creation." --require-ready --format json > commit-proposal-preview.json
-forge commit-create --root . --proposal commit-proposal-preview.json --confirm-commit-create --require-created --format json > commit-create.json
-forge commit-verify --root . --commit-create commit-create.json --require-verified --format json > commit-verify.json
-forge commit-trust-review --root . --commit-verify commit-verify.json --allowed-signers .forge/allowed-signers.json --require-trusted --format json > commit-trust-review.json
-forge commit-status-review --root . --from-github --commit-sha "$(jq -r .inspected_commit commit-verify.json)" --require-clear --format json > verified-commit-status-review.json
-gh api repos/OWNER/REPO/branches/main --jq '{branch: .name, protected: .protected, required_status_checks: .protection.required_status_checks}' > branch-protection.json
-forge push-readiness --root . --commit-verify commit-verify.json --commit-trust commit-trust-review.json --status-review verified-commit-status-review.json --branch-protection branch-protection.json --branch main --require-ready --format json > push-readiness.json
-forge push-handoff --root . --push-readiness push-readiness.json --branch main --remote origin --format json > push-handoff.json
-forge push-handoff --root . --push-readiness push-readiness.json --branch main --remote origin --confirm-push --require-pushed --format json > push-handoff.json
-forge post-push-verify --root . --push-handoff push-handoff.json --status-review verified-commit-status-review.json --fetch --require-verified --format json > post-push-verify.json
-forge maintenance-evidence-bundle --root . --patch-apply patch-apply.json --post-apply-validation post-apply-validation.json --commit-verify commit-verify.json --push-handoff push-handoff.json --post-push-verify post-push-verify.json --bundle-id AUTO-108 --require-complete --format json > maintenance-evidence-bundle.json
-forge maintenance-evidence-bundle --root . --patch-apply patch-apply.json --post-apply-validation post-apply-validation.json --commit-verify commit-verify.json --push-handoff push-handoff.json --post-push-verify post-push-verify.json --bundle-id AUTO-108 --output .ai/run-history/AUTO-108-bundle.json --confirm-write --history-link .ai/run-history/AUTO-108-link.json --confirm-history-link --require-written --require-history-linked --format json
-forge maintenance-bundle-verify --root . --bundle .ai/run-history/AUTO-108-bundle.json --require-verified --format json > maintenance-bundle-verify.json
-forge maintenance-replay-summary --root . --bundle .ai/run-history/AUTO-108-bundle.json --require-replayable --format json > maintenance-replay-summary.json
-forge executor-run --plan .ai/AUTONOMOUS_PLAN.md --state .ai/AUTONOMOUS_STATE.md --policy .forge/policy.md --root . --command "python -m pytest" --confirm-executor-dry-run --format json > executor-run-output.json
-forge executor-handoff-persist --root . --executor-output executor-run-output.json --confirm-write --format json
-forge validation-result-audit --root . --record .ai/run-history/latest.json --format json
-forge executor-observation-audit --root . --max-records 20 --require-clear --format json
 ```
 
-Most commands above are local-first. `forge commit-status-review --from-github` is the explicit network-adjacent exception: it shells out to local `git` and GitHub CLI (`gh`) to collect workflow-run metadata for one commit, then applies the same deterministic status gate. `forge push-readiness` consumes supplied branch-protection JSON; it does not call GitHub itself or change branch protection. `forge executor-run` can run one exact local validation command after explicit confirmation; it does not mutate files or persist results automatically. `forge executor-handoff-persist`, `forge run-history-write`, `forge validation-result-write`, `forge maintenance-evidence-bundle --output ... --confirm-write`, and `forge maintenance-evidence-bundle --history-link ... --confirm-history-link` require explicit confirmation before writing. Patch-adjacent commands consume supplied JSON evidence and explicit metadata; `forge git-diff-review` inspects supplied unified diff metadata, `forge commit-status-review` inspects supplied or live workflow status evidence, `forge patch-generation-preview` generates bounded unified diff text from explicit replacement content, `forge patch-apply` overwrites one reviewed target file only when explicitly confirmed and the current target/replacement still reproduce the supplied preview, `forge post-apply-validation` checks supplied post-apply validation metadata, `forge commit-readiness` combines validation, final diff, and status evidence, `forge commit-proposal-preview` prepares bounded commit message metadata, `forge commit-create` stages reviewed paths and creates one local commit only after explicit confirmation, `forge commit-verify` inspects the created local commit against the reviewed report, `forge commit-trust-review` inspects local git signature/trust metadata for the verified commit and can optionally require a repository-local allowed-signer policy, `forge push-handoff` requires branch-protection-aware push-readiness evidence before performing one explicitly confirmed fast-forward-only non-force push, and post-push/bundle commands preserve or verify evidence. These commands do not approve implementation, force-push, push tags, mutate remote configuration, change branch protection, rerun workflows, or replace human review.
+Most commands are local-first and read-only unless their contract explicitly requires a confirmation flag for a narrow local write, local validation execution, local commit creation, or non-force push handoff. `forge plan` is read-only: it selects the highest-priority eligible roadmap task, lists policy boundaries, turns roadmap prose into reviewable implementation steps/file targets/validation steps/risks, and never changes repository state.
 
 ## Run tests
 
