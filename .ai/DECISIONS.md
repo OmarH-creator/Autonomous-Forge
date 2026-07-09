@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-117 — 2026-07-09 — Maintenance replay summaries should expose retained validation context
+
+Context: AUTO-115 preserved implementation context under `record.validation_context`, and AUTO-116 exposed that retained context through run-history read/compare surfaces. Persisted maintenance bundles and replay summaries still centered on reviewed paths, validation steps, evidence-chain status, and source-report hashes, so maintainers could not tell from replay output whether a bundle preserved implementation-plan context.
+Decision: Update `forge maintenance-replay-summary` to summarize optional bundle `validation_context` fields in text and JSON output. The replay summary reports context presence, supported field names, per-field item counts, and total retained context items, and blocks replayability when context is present but malformed.
+Alternatives considered: Add a new bundle-context audit command, ignore context until bundle creation is changed, or treat missing context as a hard replay blocker. A separate command would add surface area, waiting would leave current persisted bundles opaque, and hard-blocking missing context would break older valid bundles that predate context retention.
+Consequences: Replay summaries can now show whether completed maintenance evidence preserved implementation-plan context without opening raw bundle JSON. The context remains advisory evidence only; replay summary still does not prove validation coverage or verify every planned file, step, risk, commit, workflow, diff, patch, or policy condition.
+Human decision still required: No.
+
 ## DEC-116 — 2026-07-09 — Run-history read and compare should expose retained validation context
 
 Context: AUTO-115 made `forge validation-result-write` preserve implementation context under `record.validation_context`, but `forge run-history-read` and `forge run-history-compare` still summarized validation result status without surfacing the retained expected file changes, implementation steps, validation steps, or risk register.
