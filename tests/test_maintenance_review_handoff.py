@@ -55,7 +55,7 @@ def write_replayable_bundle(tmp_path):
     return bundle_path
 
 
-def write_link(tmp_path, bundle_path, *, sha256=None, history_link_written=True):
+def write_link(tmp_path, bundle_path, *, sha256=None, history_link_written=True, validation_context=None, reviewed_paths=None, validation_steps=None):
     digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
     link = {
         "schema_version": "maintenance-bundle-history-link/v1",
@@ -69,9 +69,11 @@ def write_link(tmp_path, bundle_path, *, sha256=None, history_link_written=True)
         "remote": "origin",
         "branch": "main",
         "remote_ref": "origin/main",
-        "reviewed_paths": ["README.md"],
-        "validation_steps": ["python -m pytest"],
-        "validation_context": {
+        "reviewed_paths": reviewed_paths if reviewed_paths is not None else ["README.md"],
+        "validation_steps": validation_steps if validation_steps is not None else ["python -m pytest"],
+        "validation_context": validation_context
+        if validation_context is not None
+        else {
             "expected_file_changes": ["Update README.md status"],
             "implementation_steps": ["build reviewer handoff"],
             "validation_steps": ["python -m pytest"],
@@ -105,7 +107,8 @@ def test_review_handoff_ready_for_replayable_linked_bundle(tmp_path):
     assert data["handoff_ready"] is True
     assert data["linked_bundle_replay"]["status"] == "verified"
     assert data["handoff_gates"]["failed"] == 0
-    assert data["handoff_gates"]["passed"] == 4
+    assert data["handoff_gates"]["passed"] == 5
+    assert data["history_bundle_context_consistency"]["status"] == "matched"
     assert "Archive the linked bundle" in data["next_step"]
 
 
@@ -121,6 +124,37 @@ def test_review_handoff_blocks_hash_mismatch(tmp_path):
     assert "linked bundle SHA-256 does not match history link bundle_sha256" in data["handoff_blockers"]
 
 
+def test_review_handoff_blocks_history_bundle_context_mismatch(tmp_path):
+    bundle_path = write_replayable_bundle(tmp_path)
+    link_path = write_link(
+        tmp_path,
+        bundle_path,
+        validation_context={
+            "expected_file_changes": ["Update a different file"],
+            "implementation_steps": ["build reviewer handoff"],
+            "validation_steps": ["python -m pytest"],
+            "risk_register": ["linked evidence may drift"],
+        },
+    )
+
+    data = build_maintenance_review_handoff_data(link_path, root=tmp_path)
+
+    assert data["handoff_status"] == "blocked"
+    assert data["history_bundle_context_consistency"]["status"] == "mismatched"
+    assert "validation_context.expected_file_changes differs between history link and linked bundle replay" in data["handoff_blockers"]
+
+
+def test_review_handoff_blocks_history_bundle_path_mismatch(tmp_path):
+    bundle_path = write_replayable_bundle(tmp_path)
+    link_path = write_link(tmp_path, bundle_path, reviewed_paths=["README.md", "docs/OTHER.md"])
+
+    data = build_maintenance_review_handoff_data(link_path, root=tmp_path)
+
+    assert data["handoff_status"] == "blocked"
+    assert data["history_bundle_context_consistency"]["reviewed_paths_match"] is False
+    assert "reviewed_paths differ between history link and linked bundle replay" in data["handoff_blockers"]
+
+
 def test_review_handoff_cli_json_ready(tmp_path, capsys):
     bundle_path = write_replayable_bundle(tmp_path)
     link_path = write_link(tmp_path, bundle_path)
@@ -131,6 +165,7 @@ def test_review_handoff_cli_json_ready(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["handoff_status"] == "ready"
     assert payload["linked_bundle_replay"]["replay_status"] == "replayable"
+    assert payload["history_bundle_context_consistency"]["status"] == "matched"
 
 
 def test_review_handoff_cli_require_ready_blocks_unready_link(tmp_path, capsys):
