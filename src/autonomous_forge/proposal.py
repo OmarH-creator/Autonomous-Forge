@@ -40,9 +40,21 @@ def _planned_operations(areas: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(f"Review and update {area} if needed for the selected task." for area in areas)
 
 
+def _risk_note(entry: dict[str, Any]) -> str:
+    """Flatten one plan risk-register entry into stable proposal text."""
+    source = str(entry.get("source", "unknown"))
+    risk = str(entry.get("risk", "not documented"))
+    mitigation = str(entry.get("mitigation", "not documented"))
+    return f"{source}: {risk} Mitigation: {mitigation}"
+
+
 def build_change_proposal_data(plan_data: dict[str, Any]) -> dict[str, Any]:
     """Build structured proposal data without changing repository files."""
     selected = plan_data["selected_task"]
+    expected_file_changes = list(plan_data.get("expected_file_changes", []))
+    implementation_steps = list(plan_data.get("implementation_steps", []))
+    validation_steps = list(plan_data.get("validation_steps", plan_data["policy"]["validation_expectations"]))
+    risk_register = list(plan_data.get("risk_register", []))
     proposal: dict[str, Any] = {
         "title": "Autonomous Forge change proposal",
         "mode": "read-only",
@@ -50,10 +62,13 @@ def build_change_proposal_data(plan_data: dict[str, Any]) -> dict[str, Any]:
         "selected_task": selected,
         "planned_file_areas": [],
         "planned_operations": [],
-        "validation_steps": list(plan_data["policy"]["validation_expectations"]),
+        "expected_file_changes": expected_file_changes,
+        "implementation_steps": implementation_steps,
+        "validation_steps": validation_steps,
         "task_validation": None,
         "policy": plan_data["policy"],
         "approval_required_items": list(plan_data["policy"]["human_approval_required"]),
+        "risk_register": risk_register,
         "risk_notes": [],
         "blocked_items": [],
         "reason": plan_data["reason"],
@@ -68,11 +83,31 @@ def build_change_proposal_data(plan_data: dict[str, Any]) -> dict[str, Any]:
         proposal["risk_notes"] = ["No implementation should begin until the roadmap has an eligible TODO task."]
         return proposal
 
-    areas = _split_expected_areas(selected["expected_files_or_areas"])
-    proposal["planned_file_areas"] = list(areas)
-    proposal["planned_operations"] = list(_planned_operations(areas))
+    if not expected_file_changes:
+        expected_file_changes = list(_split_expected_areas(selected["expected_files_or_areas"]))
+        proposal["expected_file_changes"] = expected_file_changes
+
+    if not implementation_steps:
+        implementation_steps = list(_planned_operations(tuple(expected_file_changes)))
+        proposal["implementation_steps"] = implementation_steps
+
+    if not risk_register:
+        risk_register = [
+            {
+                "source": "roadmap",
+                "risk": selected["risks_or_assumptions"],
+                "mitigation": (
+                    "Keep the proposal bounded to the selected task and require review "
+                    "before implementation."
+                ),
+            }
+        ]
+        proposal["risk_register"] = risk_register
+
+    proposal["planned_file_areas"] = list(expected_file_changes)
+    proposal["planned_operations"] = list(implementation_steps)
     proposal["task_validation"] = selected["validation"]
-    proposal["risk_notes"] = [selected["risks_or_assumptions"]]
+    proposal["risk_notes"] = [_risk_note(entry) for entry in risk_register]
     proposal["blocked_items"] = ["none"]
     return proposal
 
@@ -103,6 +138,10 @@ def format_change_proposal(data: dict[str, Any]) -> str:
 
     lines.extend(
         [
+            "Expected file changes:",
+            *[f"- {area}" for area in data["expected_file_changes"] or ["none documented"]],
+            "Implementation steps:",
+            *[f"- {operation}" for operation in data["implementation_steps"]],
             "Planned file areas:",
             *[f"- {area}" for area in data["planned_file_areas"]],
             "Planned operations:",
@@ -123,6 +162,11 @@ def format_change_proposal(data: dict[str, Any]) -> str:
             *[f"- {path}" for path in data["policy"]["prohibited_paths"]],
             "Approval-required items:",
             *[f"- {item}" for item in data["approval_required_items"]],
+            "Risk register:",
+            *[
+                f"- {item['source']}: {item['risk']} Mitigation: {item['mitigation']}"
+                for item in data["risk_register"]
+            ],
             "Risk notes:",
             *[f"- {note}" for note in data["risk_notes"]],
             "Blocked items:",
