@@ -101,6 +101,22 @@ def build_validation_orchestration_preview_data(
         "validation_execution": "not run",
         "commands_allowed": False,
         "orchestration_status": _orchestration_status(blockers, counts),
+        "expected_file_changes": list(validation_preview_data.get(
+            "expected_file_changes",
+            validation_plan_data.get("expected_file_changes", []),
+        )),
+        "implementation_steps": list(validation_preview_data.get(
+            "implementation_steps",
+            validation_plan_data.get("implementation_steps", []),
+        )),
+        "validation_steps": list(validation_preview_data.get(
+            "validation_steps",
+            validation_plan_data.get("validation_steps", []),
+        )),
+        "risk_register": list(validation_preview_data.get(
+            "risk_register",
+            validation_plan_data.get("risk_register", []),
+        )),
         "command_candidate_summary": counts,
         "history_validation_guard": history_index_data.get(
             "validation_guard",
@@ -144,6 +160,14 @@ def format_validation_orchestration_preview(data: dict[str, Any]) -> str:
         )
     lines.extend(
         [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
             "Command candidate summary:",
             f"- eligible preview: {counts['eligible_preview']}",
             f"- blocked: {counts['blocked']}",
