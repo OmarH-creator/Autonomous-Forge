@@ -8,15 +8,17 @@ from autonomous_forge.run_history_compare import (
     build_run_history_comparison_data,
     read_run_history_comparison,
 )
-from tests.test_run_history_reader import VALID_PAYLOAD
+from tests.test_run_history_reader import VALID_PAYLOAD, VALIDATION_CONTEXT
 
 
-def _payload(task_id="AUTO-031", title="Add local run-history reader", *, commit="none", validation_result="not run"):
+def _payload(task_id="AUTO-031", title="Add local run-history reader", *, commit="none", validation_result="not run", validation_context=None):
     payload = json.loads(json.dumps(VALID_PAYLOAD))
     payload["record"]["task"]["id"] = task_id
     payload["record"]["task"]["title"] = title
     payload["record"]["commit"] = commit
     payload["record"]["validation_result"] = validation_result
+    if validation_context is not None:
+        payload["record"]["validation_context"] = validation_context
     return payload
 
 
@@ -41,13 +43,30 @@ def test_build_run_history_comparison_data_reports_changed_fields(tmp_path):
     assert data["summary"]["changed"] >= 3
 
 
+def test_build_run_history_comparison_data_reports_validation_context_changes(tmp_path):
+    before = _write_record(tmp_path, "before.json", _payload(validation_context=VALIDATION_CONTEXT))
+    changed_context = json.loads(json.dumps(VALIDATION_CONTEXT))
+    changed_context["validation_steps"] = ["python -m pytest tests/test_run_history_compare.py"]
+    after = _write_record(tmp_path, "after.json", _payload(validation_context=changed_context))
+
+    data = build_run_history_comparison_data(before, after, root=tmp_path)
+
+    validation_difference = next(
+        difference for difference in data["differences"]
+        if difference["field"] == "validation_context"
+    )
+    assert validation_difference["status"] == "changed"
+    assert data["before_record"]["validation_context_fields"] == list(VALIDATION_CONTEXT)
+    assert data["after_record"]["validation_context_fields"] == list(VALIDATION_CONTEXT)
+
+
 def test_build_run_history_comparison_data_reports_unchanged_records(tmp_path):
     before = _write_record(tmp_path, "before.json", _payload())
     after = _write_record(tmp_path, "after.json", _payload())
 
     data = build_run_history_comparison_data(before, after, root=tmp_path)
 
-    assert data["summary"] == {"fields_compared": 9, "changed": 0, "unchanged": 9}
+    assert data["summary"] == {"fields_compared": 10, "changed": 0, "unchanged": 10}
     assert all(difference["status"] == "unchanged" for difference in data["differences"])
 
 
@@ -60,6 +79,7 @@ def test_read_run_history_comparison_formats_text(tmp_path):
     assert "Autonomous Forge run-history comparison" in output
     assert "Before record:" in output
     assert "After record:" in output
+    assert "validation_context=['none']" in output
     assert "task: changed" in output
     assert "Safety boundary: Run-history comparison output only" in output
 
@@ -71,7 +91,7 @@ def test_read_run_history_comparison_formats_json(tmp_path):
     output = read_run_history_comparison(before, after, root=tmp_path, output_format="json")
     data = json.loads(output)
 
-    assert data["summary"]["fields_compared"] == 9
+    assert data["summary"]["fields_compared"] == 10
     assert data["before_record"]["task"]["id"] == "AUTO-031"
     assert data["after_record"]["task"]["id"] == "AUTO-034"
 
@@ -107,7 +127,7 @@ def test_run_history_compare_command_outputs_json(tmp_path, capsys):
     ]) == 0
 
     data = json.loads(capsys.readouterr().out)
-    assert data["summary"]["fields_compared"] == 9
+    assert data["summary"]["fields_compared"] == 10
     assert data["after_record"]["task"]["id"] == "AUTO-034"
 
 
