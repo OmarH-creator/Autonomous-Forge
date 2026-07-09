@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-095
+
+- Task ID: AUTO-095 — Post-commit verification
+- Summary: Added `forge commit-verify` and compatibility `forge-commit-verify`, a local commit verification command that consumes a created `forge commit-create --format json` report, inspects the reported commit with local `git show` and `git diff-tree`, compares the commit SHA, subject, reviewed body lines, and exact changed paths, and keeps push/remote authority disabled.
+- Branch and PR assessment: Inspected repository metadata, recent PRs, open issues, README/status, roadmap, state, changelog, decisions, pyproject, workflow, command router, and commit-create implementation/tests. Work stayed directly on `main`. Open issues #1, #6, and #9 are product/discussion requests and did not supersede the post-commit verification milestone. PR #11 is merged; PR #10 is closed and superseded by direct `main` updates; PR #4 was already merged; PRs #2, #3, and #5 were closed or obsolete.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation covered the new module, CLI, and tests before writing. Added deterministic tests for uncreated reports, verified metadata/path inspection, unexpected paths, summary mismatch, and unsafe path refusal. CI smoke now checks primary and compatibility help routes. Direct local checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add an explicitly confirmed push-readiness gate that requires verified commit evidence and fresh workflow status before any push command is considered.
+
 ## 2026-07-09 — AUTO-094
 
 - Task ID: AUTO-094 — Guarded local commit creation
