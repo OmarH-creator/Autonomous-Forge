@@ -40,6 +40,7 @@ def _allow_reasons(handoff_data: dict[str, Any], block_reasons: list[str]) -> li
     return [
         "command-execution handoff is ready for manual execution review",
         "at least one eligible validation command candidate is present",
+        "implementation context is preserved for executor review",
         "a saved run-history record path is available for a later explicit validation-result write",
         "no orchestration blockers are reported",
     ]
@@ -70,11 +71,15 @@ def build_executor_precondition_gate_data(handoff_data: dict[str, Any]) -> dict[
         "future_dry_run_eligible": future_dry_run_eligible,
         "gate_status": "ready-for-explicit-future-confirmation" if future_dry_run_eligible else "blocked",
         "handoff_status": handoff_data.get("handoff_status", "unknown"),
+        "expected_file_changes": list(handoff_data.get("expected_file_changes", [])),
+        "implementation_steps": list(handoff_data.get("implementation_steps", [])),
+        "validation_steps": list(handoff_data.get("validation_steps", [])),
+        "risk_register": list(handoff_data.get("risk_register", [])),
         "allow_reasons": _allow_reasons(handoff_data, blocks),
         "block_reasons": blocks,
         "gated_commands": [_gated_candidate(candidate) for candidate in handoff_data.get("candidate_commands", [])],
         "required_confirmation": [
-            "manual maintainer approval of the command-execution handoff",
+            "manual maintainer approval of the command-execution handoff and implementation context",
             "explicit future executor confirmation flag before any command is run",
             "fresh validation-result write after the command output has been observed",
         ],
@@ -107,6 +112,18 @@ def format_executor_precondition_gate(data: dict[str, Any]) -> str:
             "Selected task: "
             f"{selected['id']} [{selected['priority']}/{selected['status']}] {selected['title']}"
         )
+    lines.extend(
+        [
+            "Expected file changes:",
+            *[f"- {item}" for item in data["expected_file_changes"]],
+            "Implementation steps:",
+            *[f"- {step}" for step in data["implementation_steps"]],
+            "Validation steps:",
+            *[f"- {step}" for step in data["validation_steps"]],
+            "Risk register:",
+            *[f"- {risk}" for risk in data["risk_register"]],
+        ]
+    )
     lines.append("Allow reasons:")
     lines.extend([f"- {reason}" for reason in data["allow_reasons"]] or ["- none"])
     lines.append("Block reasons:")
