@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-113 — 2026-07-09 — Executor handoff should preserve implementation context
+
+Context: AUTO-109 through AUTO-112 made `forge plan`, `forge propose`, `forge validate-plan`, `forge validation-preview`, and `forge validation-orchestration` carry implementation-grade fields, but `forge command-execution-handoff`, `forge executor-gate`, `forge executor-contract`, and `forge executor-dry-run` still centered on command candidates, gate status, confirmation flags, and result-record targets. That created a structure-loss gap immediately before validation execution.
+Decision: Update executor handoff/gate/contract/dry-run artifacts to consume and emit `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` while preserving existing command candidate, gate, contract, dry-run, and result-capture keys. Keep the fields advisory and do not expand execution authority.
+Alternatives considered: Add another audit/preflight command, create separate v2 executor artifacts, replace existing command/gate fields, or defer context propagation until executor-run/result persistence. Those options either duplicated the workflow surface, risked downstream compatibility, or left confirmed executor review without full implementation context.
+Consequences: Executor review now retains the implementation objective, planned file targets, validation steps, and risk register before any explicitly confirmed validation execution. These commands still do not enforce policy decisions, inspect diffs, generate patches, stage, commit, push, call networks, or mutate repository state.
+Human decision still required: No.
+
 ## DEC-112 — 2026-07-09 — Validation preview and orchestration should preserve implementation context
 
 Context: AUTO-109 through AUTO-111 made `forge plan`, `forge propose`, and `forge validate-plan` carry implementation-grade fields, but `forge validation-preview` and `forge validation-orchestration` still centered on command candidates, blockers, risk notes, and run-history guards. That created another structure-loss gap before executor contract and dry-run handoff.
