@@ -1,8 +1,11 @@
+import hashlib
 import json
 
 from autonomous_forge.maintenance_history_link_review import build_maintenance_history_link_review_data
 from autonomous_forge.maintenance_history_link_review_cli import main as history_link_review_main
 
+
+STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"]
 
 VALID_LINK = {
     "schema_version": "maintenance-bundle-history-link/v1",
@@ -45,6 +48,69 @@ def write_link(tmp_path, payload):
     return path
 
 
+def write_replayable_bundle(tmp_path):
+    reports = {}
+    for stage in STAGES:
+        path = tmp_path / f"{stage}.json"
+        path.write_text(json.dumps({"stage": stage, "ok": True}), encoding="utf-8")
+        reports[stage] = path
+    bundle = {
+        "title": "Autonomous Forge maintenance evidence bundle",
+        "bundle_id": "AUTO-120",
+        "bundle_status": "complete",
+        "bundle_complete": True,
+        "target_path": "README.md",
+        "reviewed_paths": ["README.md"],
+        "validation_steps": ["python -m pytest"],
+        "validation_context": {
+            "expected_file_changes": ["Update README.md status"],
+            "implementation_steps": ["verify linked bundle from history link"],
+            "validation_steps": ["python -m pytest"],
+            "risk_register": ["linked bundle may drift"],
+        },
+        "commit_sha": "abc1234",
+        "remote": "origin",
+        "branch": "main",
+        "bundle_blockers": [],
+        "evidence_chain": [
+            {"stage": "patch_apply", "status": "applied"},
+            {"stage": "post_apply_validation", "status": "validated"},
+            {"stage": "commit_verify", "status": "verified"},
+            {"stage": "push_handoff", "status": "pushed"},
+            {"stage": "post_push_verify", "status": "verified"},
+        ],
+        "source_reports": [
+            {
+                "stage": stage,
+                "path": path.name,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "bytes": path.stat().st_size,
+            }
+            for stage, path in reports.items()
+        ],
+    }
+    bundle_path = tmp_path / ".ai" / "bundles" / "AUTO-120.json"
+    bundle_path.parent.mkdir(parents=True)
+    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+    return bundle_path, reports
+
+
+def link_for_bundle(bundle_path, root, *, sha256=None):
+    digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    return {
+        **VALID_LINK,
+        "bundle_path": bundle_path.relative_to(root).as_posix(),
+        "bundle_sha256": digest,
+        "reviewed_paths": ["README.md"],
+        "validation_context": {
+            "expected_file_changes": ["Update README.md status"],
+            "implementation_steps": ["verify linked bundle from history link"],
+            "validation_steps": ["python -m pytest"],
+            "risk_register": ["linked bundle may drift"],
+        },
+    }
+
+
 def test_history_link_review_ready_for_complete_link(tmp_path):
     path = write_link(tmp_path, VALID_LINK)
 
@@ -80,6 +146,34 @@ def test_history_link_review_treats_missing_context_as_advisory(tmp_path):
     assert data["validation_context"]["present"] is False
 
 
+def test_history_link_review_verifies_linked_bundle_replay(tmp_path, capsys):
+    bundle_path, _ = write_replayable_bundle(tmp_path)
+    path = write_link(tmp_path, link_for_bundle(bundle_path, tmp_path))
+
+    status = history_link_review_main(["--root", str(tmp_path), "--link", str(path), "--verify-linked-bundle", "--format", "json"])
+
+    assert status == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["review_status"] == "ready"
+    assert data["linked_bundle_replay"]["status"] == "verified"
+    assert data["linked_bundle_replay"]["bundle_sha256_verified"] is True
+    assert data["linked_bundle_replay"]["replay_status"] == "replayable"
+
+
+def test_history_link_review_blocks_linked_bundle_hash_mismatch(tmp_path, capsys):
+    bundle_path, _ = write_replayable_bundle(tmp_path)
+    path = write_link(tmp_path, link_for_bundle(bundle_path, tmp_path, sha256="0" * 64))
+
+    status = history_link_review_main(["--root", str(tmp_path), "--link", str(path), "--verify-linked-bundle", "--format", "json"])
+
+    assert status == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["review_status"] == "ready"
+    assert data["linked_bundle_replay"]["status"] == "blocked"
+    assert data["linked_bundle_replay"]["bundle_sha256_verified"] is False
+    assert "linked bundle SHA-256 does not match history link bundle_sha256" in data["linked_bundle_replay"]["blockers"]
+
+
 def test_history_link_review_cli_require_ready_blocks_bad_link(tmp_path, capsys):
     payload = {**VALID_LINK, "history_link_written": False}
     path = write_link(tmp_path, payload)
@@ -101,3 +195,24 @@ def test_history_link_review_cli_json_ready(tmp_path, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["review_status"] == "ready"
     assert payload["history_link_quality"]["failed"] == 0
+
+
+def test_history_link_review_cli_requires_linked_replayable(tmp_path, capsys):
+    bundle_path, _ = write_replayable_bundle(tmp_path)
+    path = write_link(tmp_path, link_for_bundle(bundle_path, tmp_path))
+
+    status = history_link_review_main(
+        [
+            "--root",
+            str(tmp_path),
+            "--link",
+            str(path),
+            "--verify-linked-bundle",
+            "--require-linked-replayable",
+        ]
+    )
+
+    assert status == 0
+    output = capsys.readouterr().out
+    assert "Linked bundle replay:" in output
+    assert "status=verified" in output
