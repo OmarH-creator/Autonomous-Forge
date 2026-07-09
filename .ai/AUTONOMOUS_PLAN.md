@@ -2,7 +2,7 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, summarize push readiness, run an explicitly confirmed non-force push handoff with local ref checks, and verify that the pushed commit is reachable from the intended remote branch with clear status evidence.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, summarize push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, and preserve durable maintenance evidence bundles.
 
 ## Product scope and non-goals
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, pre-push readiness review, explicitly confirmed non-force push handoff, and post-push verification after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not force-push, push tags, change remotes, change branch protections, verify commit signatures, cryptographically verify identity, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, and durable maintenance evidence bundles after patch apply, post-apply validation, live/supplied status review, commit readiness, and commit proposal preview. Product commands still do not force-push, push tags, change remotes, change branch protections, verify commit signatures, cryptographically verify identity, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -94,7 +94,19 @@ Expected files or areas: `src/autonomous_forge/`, `tests/`, `docs/`, `pyproject.
 Acceptance criteria: Write-capable commands require explicit confirmation, stage/push only reviewed paths or commits, never force-push or mutate remote configuration, and verification gates fail closed when required evidence is missing, stale, unsafe, or unclear.
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Scratch syntax compilation and focused pytest covered the latest post-push verification module, CLI, and tests; `tests/test_post_push_verify.py` passed with 8 tests in scratch. Direct full repository checkout/test execution remained unavailable in this environment.
 Risks or assumptions: Commands intentionally mutate local files, local commits, or remote branches only when explicitly confirmed. They trust supplied evidence and local git/GitHub CLI output; they do not verify signatures, authorship, cryptographic trust, or workflow correctness beyond supplied status fields.
-Notes: Next safe step is a durable maintenance evidence bundle linking patch apply, validation, commit, push, and post-push reports.
+Notes: Completed before durable maintenance evidence bundling.
+
+### AUTO-099 — Durable maintenance evidence bundle
+Priority: P1
+Status: DONE
+Goal: Add a durable evidence bundle that links completed patch apply, post-apply validation, commit verification, push handoff, and post-push verification reports.
+Why it matters: Maintainers need one portable run artifact that ties the safe end-to-end maintenance loop together after the patch, validation, commit, push, and post-push gates have completed.
+Scope: Add `forge maintenance-evidence-bundle`, compatibility route, deterministic tests, docs, README workflow examples, CI help smoke, and project-memory updates.
+Expected files or areas: `src/autonomous_forge/`, `tests/`, `docs/`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: The bundle requires completed evidence, validates matching commit and reviewed paths across the chain, reports blockers for inconsistent evidence, and writes one bounded JSON bundle only with explicit confirmation.
+Validation: Scratch syntax compilation covered the new module, CLI, and tests. Focused scratch pytest for `tests/test_maintenance_evidence_bundle.py` passed with 7 tests. Static source/test/docs/workflow review completed through the GitHub repository API; CI smoke now covers primary and compatibility help routes.
+Risks or assumptions: Bundles trust supplied JSON evidence and do not hash source reports yet, verify signatures, rerun workflows, or prove cryptographic identity.
+Notes: Next safe step is hash-linked bundle integrity checks for durable report provenance.
 
 ## Future Ideas
 
@@ -102,4 +114,4 @@ Notes: Next safe step is a durable maintenance evidence bundle linking patch app
 - Optional issue import.
 - Policy-aware changed-file summaries.
 - Signed commit verification before any push workflow.
-- Durable end-to-end maintenance evidence bundle.
+- Hash-linked maintenance evidence bundle integrity checks.
