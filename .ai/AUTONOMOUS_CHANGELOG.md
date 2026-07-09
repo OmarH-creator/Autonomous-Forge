@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-130
+
+- Task ID: AUTO-130 — Confirmation-gated archive manifest writer
+- Summary: Extended `forge maintenance-archive-manifest` and `forge-maintenance-archive-manifest` beyond preview-only behavior with a narrow confirmed writer. Ready integrity-checked preservation candidates can now be saved as one repository-local manifest JSON using `--output` and `--confirm-write`, while blocked manifests, outside-root outputs, missing output parents, and overwrite attempts fail closed.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, branch search, archive manifest implementation/CLI/tests/docs, and maintenance review comparison dependencies. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Scratch syntax compilation passed for the updated implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for confirmation requirements, successful manifest writes, overwrite refusal, outside-root refusal, ready previews, integrity summaries, JSON output, text output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Add a manifest verification/read command that reopens written archive manifests, recomputes listed evidence hashes/byte counts, and fails closed on drift before any archive-copy behavior exists.
+
 ## 2026-07-09 — AUTO-129
 
 - Task ID: AUTO-129 — Archive manifest integrity gates
@@ -17,15 +26,6 @@
 - Validation completed: Scratch syntax compilation passed for the new implementation, CLI, and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for ready manifest previews, blocked comparison behavior, JSON CLI output, and fail-closed `--require-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a confirmation-gated local archive-manifest writer only after CI confirms the preview command and the archive-entry schema remains stable.
-
-## 2026-07-09 — AUTO-127
-
-- Task ID: AUTO-127 — Maintenance review preservation-candidate ranking
-- Summary: Extended `forge maintenance-review-compare` so comparisons now include ranked `preservation_candidates` plus a `selected_preservation_candidate`. Ready handoffs are ranked deterministically by verified linked-bundle replay, zero failed gates, fewer blockers, reviewed-path count, validation-step count, retained validation-context richness, commit SHA, bundle ID, and link path. Blocked handoffs remain visible and are not selected.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, branch search, recent PRs, maintenance review comparison implementation/tests/docs, and maintenance review handoff context consistency. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
-- Validation completed: Scratch syntax compilation passed for the updated implementation and focused test content. Static source/test/docs review completed through the GitHub repository API. Added deterministic coverage for selected preservation candidate ranking, JSON output, text output, blocked handoff behavior, and fail-closed `--require-all-ready` behavior. Direct full checkout/full pytest execution remained unavailable in this environment.
-- Commit hash: pending final commit
-- Follow-up notes: Add a guarded read-only archive-manifest preview for the selected preservation candidate before any write-capable archive step.
 
 ## Historical note
 
