@@ -31,17 +31,19 @@ def fake_git(outputs, calls):
     return runner
 
 
+def ready_outputs():
+    return {
+        ("branch", "--show-current"): "main",
+        ("rev-parse", "HEAD"): "abc1234",
+        ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): "origin/main",
+        ("rev-parse", "--verify", "origin/main"): "def5678",
+        ("merge-base", "--is-ancestor", "def5678", "abc1234"): "",
+    }
+
+
 def test_build_push_handoff_reports_ready_without_executing_push(tmp_path):
     calls = []
-    runner = fake_git(
-        {
-            ("branch", "--show-current"): "main",
-            ("rev-parse", "HEAD"): "abc1234",
-            ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): "origin/main",
-            ("rev-parse", "--verify", "origin/main"): "def5678",
-        },
-        calls,
-    )
+    runner = fake_git(ready_outputs(), calls)
 
     data = build_push_handoff_data(READY_PUSH_READINESS, root=tmp_path, git_runner=runner)
 
@@ -49,22 +51,17 @@ def test_build_push_handoff_reports_ready_without_executing_push(tmp_path):
     assert data["push_executed"] is False
     assert data["push_allowed"] is False
     assert data["force_push_allowed"] is False
+    assert data["fast_forward_checked"] is True
     assert data["push_command"] == ["git", "push", "origin", "abc1234:refs/heads/main"]
+    assert ["merge-base", "--is-ancestor", "def5678", "abc1234"] in calls
     assert ["push", "origin", "abc1234:refs/heads/main"] not in calls
 
 
 def test_build_push_handoff_runs_one_confirmed_non_force_push(tmp_path):
     calls = []
-    runner = fake_git(
-        {
-            ("branch", "--show-current"): "main",
-            ("rev-parse", "HEAD"): "abc1234",
-            ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): "origin/main",
-            ("rev-parse", "--verify", "origin/main"): "def5678",
-            ("push", "origin", "abc1234:refs/heads/main"): "",
-        },
-        calls,
-    )
+    outputs = ready_outputs()
+    outputs[("push", "origin", "abc1234:refs/heads/main")] = ""
+    runner = fake_git(outputs, calls)
 
     data = build_push_handoff_data(
         READY_PUSH_READINESS,
@@ -76,7 +73,31 @@ def test_build_push_handoff_runs_one_confirmed_non_force_push(tmp_path):
     assert data["handoff_status"] == "pushed"
     assert data["push_executed"] is True
     assert data["push_allowed"] is True
+    assert ["merge-base", "--is-ancestor", "def5678", "abc1234"] in calls
     assert ["push", "origin", "abc1234:refs/heads/main"] in calls
+
+
+def test_build_push_handoff_blocks_non_fast_forward_push(tmp_path):
+    calls = []
+    outputs = ready_outputs()
+    outputs[("merge-base", "--is-ancestor", "def5678", "abc1234")] = subprocess.CalledProcessError(
+        1,
+        ["git", "merge-base", "--is-ancestor", "def5678", "abc1234"],
+    )
+    runner = fake_git(outputs, calls)
+
+    data = build_push_handoff_data(
+        READY_PUSH_READINESS,
+        root=tmp_path,
+        git_runner=runner,
+        confirm_push=True,
+    )
+
+    assert data["handoff_status"] == "blocked"
+    assert data["push_executed"] is False
+    assert data["fast_forward_checked"] is True
+    assert "verified commit is not a fast-forward from requested remote branch" in data["push_handoff_blockers"]
+    assert ["push", "origin", "abc1234:refs/heads/main"] not in calls
 
 
 def test_build_push_handoff_blocks_unready_evidence(tmp_path):
@@ -98,6 +119,7 @@ def test_build_push_handoff_blocks_unready_evidence(tmp_path):
     )
 
     assert data["handoff_status"] == "blocked"
+    assert data["fast_forward_checked"] is False
     assert "push-readiness status is not ready" in data["push_handoff_blockers"]
 
 
@@ -121,6 +143,7 @@ def test_build_push_handoff_blocks_wrong_branch_and_skips_push(tmp_path):
     )
 
     assert data["handoff_status"] == "blocked"
+    assert data["fast_forward_checked"] is False
     assert data["push_executed"] is False
     assert "current local branch does not match requested push branch" in data["push_handoff_blockers"]
     assert ["push", "origin", "abc1234:refs/heads/main"] not in calls
@@ -141,6 +164,7 @@ def test_build_push_handoff_blocks_existing_remote_sha(tmp_path):
     data = build_push_handoff_data(READY_PUSH_READINESS, root=tmp_path, git_runner=runner)
 
     assert data["handoff_status"] == "blocked"
+    assert data["fast_forward_checked"] is False
     assert "verified commit is already present on the requested remote branch" in data["push_handoff_blockers"]
 
 
@@ -176,17 +200,10 @@ def test_read_push_handoff_reads_repository_local_json(tmp_path):
     push_readiness = tmp_path / "push-readiness.json"
     push_readiness.write_text(json.dumps(READY_PUSH_READINESS), encoding="utf-8")
     calls = []
-    runner = fake_git(
-        {
-            ("branch", "--show-current"): "main",
-            ("rev-parse", "HEAD"): "abc1234",
-            ("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"): "origin/main",
-            ("rev-parse", "--verify", "origin/main"): "def5678",
-        },
-        calls,
-    )
+    runner = fake_git(ready_outputs(), calls)
 
     data = read_push_handoff(push_readiness, root=tmp_path, git_runner=runner)
 
     assert data["handoff_status"] == "ready"
+    assert data["fast_forward_checked"] is True
     assert data["summary"]["reviewed_paths"] == 2
