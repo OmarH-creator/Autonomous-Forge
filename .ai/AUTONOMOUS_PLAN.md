@@ -2,11 +2,11 @@
 
 ## Product vision
 
-Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, inspect local commit signature/trust metadata, summarize push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, and verify persisted bundle source-report integrity.
+Autonomous Forge helps a repository keep a clear improvement plan, choose one safe task, produce reviewable planning artifacts, inspect proposed diffs, review validation status, run tightly scoped validation, apply explicitly confirmed patches, record validation evidence, summarize commit readiness, preview commit metadata, create one explicitly confirmed local commit, verify that created commit, review local commit trust metadata, summarize trusted push readiness, run an explicitly confirmed non-force push handoff, verify that the pushed commit is reachable from the intended remote branch with clear status evidence, preserve hash-linked durable maintenance evidence bundles, and verify persisted bundle source-report integrity.
 
 ## Product scope and non-goals
 
-The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, or cryptographic identity policy system.
+The first product remains a local Python CLI. It is not a hosted service, deployment system, permission manager, uncontrolled executor, automatic commit bot, force-push bot, branch-protection manager, remote-configuration manager, workflow-rerun bot, or cryptographic identity authority.
 
 ## Current architecture
 
@@ -14,7 +14,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, local commit trust review, pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, and persisted bundle source-report verification. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a maintainer identity policy, rerun workflows, or poll remote workflow completion.
+Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, trusted pre-push readiness review, explicitly confirmed non-force push handoff, post-push verification, durable maintenance evidence bundles, SHA-256 source-report fingerprints for those bundles, and persisted bundle source-report verification. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, or poll remote workflow completion.
 
 ## Prioritized roadmap
 
@@ -132,22 +132,22 @@ Validation: Scratch syntax compilation covered the new module and CLI. Focused s
 Risks or assumptions: Verification detects local byte drift only. It does not sign bundles, prove author identity, verify commit signatures, rerun workflows, or establish a cryptographic trust model.
 Notes: Completed before commit trust review.
 
-### AUTO-102 — Local commit trust review
+### AUTO-102 — Commit trust review and trusted push-readiness
 Priority: P1
 Status: DONE
-Goal: Inspect local git commit signature/trust metadata after commit verification and before push-readiness.
-Why it matters: A reviewed commit can match the expected paths and message while still being unsigned, badly signed, expired, revoked, or uncheckable. Maintainers need a deterministic checkpoint that makes this trust gap explicit before a push workflow relies on the commit.
-Scope: Add `forge commit-trust-review` and compatibility `forge-commit-trust-review`; consume verified commit-verify JSON; run one local `git show` signature metadata inspection; report trusted or blocked status; update focused tests, docs, README, CI smoke, and project memory.
-Expected files or areas: `src/autonomous_forge/commit_trust_review.py`, `src/autonomous_forge/commit_trust_review_cli.py`, `tests/test_commit_trust_review.py`, `docs/COMMIT_TRUST_REVIEW.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
-Acceptance criteria: Verified commits with trusted signature metadata report trusted, unsigned/bad/mismatched commits report blocked, `--require-trusted` fails closed, and the command performs no writes, patching, validation execution, commit, push, network calls, remote changes, or environment reads.
-Validation: Scratch syntax compilation covered the new module, CLI, and tests. Focused scratch pytest for `tests/test_commit_trust_review.py` passed with 5 tests. Static source/test/docs/workflow review completed through the GitHub repository API.
-Risks or assumptions: Trust is based on local git signature metadata (`%G?`, `%GS`, `%GF`) and does not yet encode maintainer identity policy, web-of-trust policy, branch protection rules, workflow reruns, or remote attestation.
-Notes: Next safe step is integrating commit-trust-review into push-readiness inputs.
+Goal: Add a local commit trust checkpoint and require that trust evidence in push-readiness.
+Why it matters: A safe push workflow should not rely only on commit content and workflow status; it should also have an explicit checkpoint for local git signature/trust metadata before a push handoff is considered ready.
+Scope: Add `forge commit-trust-review` and compatibility `forge-commit-trust-review`; inspect one verified commit with bounded `git show` signature metadata; block unsigned, bad, expired, revoked, uncheckable, mismatched, or path-mismatched trust evidence; integrate commit-trust-review JSON into `forge push-readiness`; update tests, docs, README, workflow smoke coverage, and project memory.
+Expected files or areas: `src/autonomous_forge/commit_trust_review.py`, `src/autonomous_forge/commit_trust_review_cli.py`, `src/autonomous_forge/push_readiness.py`, `src/autonomous_forge/push_readiness_cli.py`, `tests/test_commit_trust_review.py`, `tests/test_push_readiness.py`, `docs/PUSH_READINESS.md`, `pyproject.toml`, `.github/workflows/test.yml`, README, and `.ai` records.
+Acceptance criteria: Trusted signature codes `G` and `U` can pass, unsigned/untrusted/mismatched commits block, push-readiness requires trusted commit evidence matching the verified commit and reviewed paths, `--require-trusted` and `--require-ready` fail closed, and no command stages files, creates commits, pushes, changes remotes, reruns workflows, or changes branch protection.
+Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Deterministic tests cover commit trust review and push-readiness blockers for untrusted, mismatched, and unclear evidence. Direct full repository checkout/full pytest execution remained unavailable in this environment.
+Risks or assumptions: Local git signature metadata is a trust checkpoint, not a complete cryptographic identity policy. `G` and `U` are treated as trusted enough for this local gate, but human policy may still require stricter signer/key rules.
+Notes: Next safe step is an end-to-end local evidence replay summary using verified persisted bundles.
 
 ## Future Ideas
 
 - Hash-linked local run reports.
 - Optional issue import.
 - Policy-aware changed-file summaries.
-- Signed commit verification before any push workflow.
+- Branch protection and workflow-status replay summaries.
 - End-to-end local evidence replay summary using verified persisted bundles.
