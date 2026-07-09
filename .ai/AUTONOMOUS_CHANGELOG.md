@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-121
+
+- Task ID: AUTO-121 — Maintenance history-link quality review
+- Summary: Added `forge maintenance-history-link-review` and `forge-maintenance-history-link-review` to review persisted `.ai/run-history` maintenance bundle links before deeper bundle replay. The read-only command validates the history-link schema and reports pass/fail/advisory gates for confirmed link write status, bundle pointer/hash, reviewed paths, validation steps, required source-report stage pointers, and retained validation context.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent PRs, maintenance evidence bundle/replay code, CLI routing, pyproject scripts, docs, and focused tests. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Validation completed: Static source/test/docs review completed through the GitHub repository API. Added deterministic tests for ready links, incomplete source reports, advisory missing context, CLI fail-closed behavior, and JSON output. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Connect history-link review to bundle replay verification so maintainers can move from pointer quality to hash-verified replay in one workflow.
+
 ## 2026-07-09 — AUTO-120
 
 - Task ID: AUTO-120 — Compact replay policy-gate summaries
