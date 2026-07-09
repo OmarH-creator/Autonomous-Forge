@@ -52,7 +52,7 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-130", commit_sha="abc1234"
         ],
     }
     bundle_path = tmp_path / ".ai" / "bundles" / f"{bundle_id}.json"
-    bundle_path.parent.mkdir(parents=True)
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
     return bundle_path, validation_context
 
@@ -87,7 +87,7 @@ def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-130
         "write_allowed": False,
     }
     link_path = tmp_path / ".ai" / "run-history" / f"{bundle_id}-link.json"
-    link_path.parent.mkdir(parents=True)
+    link_path.parent.mkdir(parents=True, exist_ok=True)
     link_path.write_text(json.dumps(link), encoding="utf-8")
     return link_path
 
@@ -96,7 +96,7 @@ def write_ready_manifest(tmp_path):
     bundle, context = write_replayable_bundle(tmp_path)
     link = write_link(tmp_path, bundle, context)
     output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
-    output.parent.mkdir()
+    output.parent.mkdir(exist_ok=True)
     status = archive_manifest_main([
         "--root",
         str(tmp_path),
@@ -193,7 +193,7 @@ def test_archive_manifest_write_requires_confirm_write(tmp_path, capsys):
     bundle, context = write_replayable_bundle(tmp_path)
     link = write_link(tmp_path, bundle, context)
     output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
-    output.parent.mkdir()
+    output.parent.mkdir(exist_ok=True)
 
     status = archive_manifest_main(["--root", str(tmp_path), "--link", str(link), "--output", str(output)])
 
@@ -206,7 +206,7 @@ def test_archive_manifest_confirmed_write_persists_ready_manifest(tmp_path, caps
     bundle, context = write_replayable_bundle(tmp_path)
     link = write_link(tmp_path, bundle, context)
     output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
-    output.parent.mkdir()
+    output.parent.mkdir(exist_ok=True)
 
     status = archive_manifest_main([
         "--root",
@@ -235,7 +235,7 @@ def test_archive_manifest_write_refuses_existing_output(tmp_path, capsys):
     bundle, context = write_replayable_bundle(tmp_path)
     link = write_link(tmp_path, bundle, context)
     output = tmp_path / ".ai" / "archives" / "AUTO-130-manifest.json"
-    output.parent.mkdir()
+    output.parent.mkdir(exist_ok=True)
     output.write_text("existing", encoding="utf-8")
 
     status = archive_manifest_main([
