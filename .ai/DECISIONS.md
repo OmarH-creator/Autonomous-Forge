@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-104 — 2026-07-09 — Push handoff must preflight fast-forward ancestry
+
+Context: `forge push-handoff` was already explicitly confirmed, non-force, branch/upstream checked, and limited to one verified commit pushed to one branch, but it did not explicitly verify that the current remote-tracking branch tip was an ancestor of the verified commit before attempting the push. A normal `git push` would reject many non-fast-forward updates, but the safe maintenance workflow benefits from reporting that blocker deterministically before remote mutation is attempted.
+Decision: Add a fast-forward guard to `forge push-handoff`. After readiness, branch, HEAD, upstream, and remote-ref checks pass, the command runs `git merge-base --is-ancestor <remote-sha> <verified-commit>` and blocks confirmed pushes when the verified commit is not a descendant of the current remote branch tip. The report exposes `fast_forward_checked` for review.
+Alternatives considered: Rely on non-force `git push` rejection, require users to run fetch manually without a tool-level check, move the check into post-push verification only, add branch-protection API checks first, or disable the push-capable handoff until a larger remote policy model exists.
+Consequences: Confirmed pushes now fail earlier and more clearly on stale or divergent remote history while preserving the existing no-force, no-tags, no-remote-configuration, no-branch-protection-mutation boundary. The guard still relies on local remote-tracking refs, so maintainers should refresh refs before using the handoff when remote state may have changed.
+Human decision still required: No.
+
 ## DEC-103 — 2026-07-09 — Persisted bundles need a replay summary
 
 Context: AUTO-101 can verify that a persisted maintenance evidence bundle still matches its source-report hashes, but maintainers still lacked one compact command that explains whether the saved patch, validation, commit, push, and post-push chain is internally complete and replayable.
