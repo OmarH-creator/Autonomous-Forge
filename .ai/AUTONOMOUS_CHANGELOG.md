@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-07-09 — AUTO-120
+
+- Task ID: AUTO-120 — Compact replay policy-gate summaries
+- Summary: Enhanced `forge maintenance-replay-summary` so replay output now includes a compact `replay_policy` object with named gates, pass/fail/advisory counts, and human-readable reasons for source-report integrity, bundle completion, evidence-chain status, reviewed-path coverage, validation-step presence, and validation-context consistency. Older bundles without retained validation context now show an advisory context gate rather than a hard failure.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap, state, changelog, decisions, maintenance replay implementation, focused tests, and maintenance bundle docs. Work stayed directly on `main`. Prior PRs remain merged/closed/obsolete; no open PR or branch required integration.
+- Validation completed: Local scratch syntax compilation passed for `src/autonomous_forge/maintenance_replay_summary.py` and `tests/test_maintenance_replay_policy.py`. Static source/test/docs review completed through the GitHub repository API. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Commit hash: pending final commit
+- Follow-up notes: Surface replay policy gates through run-history link review so maintainers can assess replay quality from the small history pointer.
+
 ## 2026-07-09 — AUTO-119
 
 - Task ID: AUTO-119 — Validation-context consistency checks in maintenance replay
