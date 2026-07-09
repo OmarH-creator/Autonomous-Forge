@@ -82,6 +82,9 @@ def _linked_bundle_replay(data: dict[str, Any], *, root: Path) -> dict[str, Any]
         "replay_complete": bool(replay.get("replay_complete") is True),
         "replay_policy": replay.get("replay_policy") or {"passed": 0, "failed": 0, "advisory": 0, "gates": []},
         "source_report_summary": replay.get("source_report_summary") or {},
+        "reviewed_paths": list(replay.get("reviewed_paths") or []),
+        "validation_steps": list(replay.get("validation_steps") or []),
+        "validation_context": replay.get("validation_context") or {},
         "validation_context_consistency": replay.get("validation_context_consistency") or {},
         "blockers": list(replay.get("replay_blockers") or []),
     }
