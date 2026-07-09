@@ -1,5 +1,13 @@
 # Autonomous Decisions
 
+## DEC-101 — 2026-07-09 — Persisted bundles need a local drift verifier
+
+Context: AUTO-100 added SHA-256 source-report fingerprints to durable maintenance evidence bundles, but the repository still lacked a command that could later recompute those fingerprints and report whether the persisted bundle still matched its local source evidence files.
+Decision: Add `forge maintenance-bundle-verify` plus compatibility `forge-maintenance-bundle-verify`. The command reads one persisted bundle, validates that all expected source-report stages are present, recomputes byte counts and SHA-256 hashes for each repository-local source report path, and reports `verified` or `drifted` with blockers. `--require-verified` fails closed on drift.
+Alternatives considered: Leave verification to manual scripts, add verification back into the bundle builder, hash only the final persisted bundle, require signed artifacts, rerun workflows, or verify commit signatures as part of the bundle verifier.
+Consequences: Maintainers now have a deterministic local drift check for persisted bundle provenance without widening the write, commit, push, remote, or workflow authority boundary. This is still not a signature system, author identity proof, workflow rerun proof, or cryptographic trust model.
+Human decision still required: No.
+
 ## DEC-100 — 2026-07-09 — Durable bundles need source-report fingerprints
 
 Context: AUTO-099 created one portable maintenance evidence bundle after patch apply, validation, commit verification, push handoff, and post-push verification. The bundle linked semantic evidence but did not preserve fingerprints of the exact source JSON reports used to build it, so later report edits or swaps would be harder to detect.
