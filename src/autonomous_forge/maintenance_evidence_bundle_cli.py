@@ -11,6 +11,7 @@ from autonomous_forge.maintenance_evidence_bundle import (
     format_maintenance_evidence_bundle,
     read_maintenance_evidence_bundle_data,
     write_maintenance_evidence_bundle,
+    write_maintenance_history_link,
 )
 
 
@@ -30,6 +31,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", default=None, help="optional repository-local .json output path for durable persistence")
     parser.add_argument("--confirm-write", action="store_true", help="persist --output only when the bundle is complete")
     parser.add_argument(
+        "--history-link",
+        default=None,
+        help="optional .ai/run-history/ .json path for a small link to the written maintenance bundle",
+    )
+    parser.add_argument(
+        "--confirm-history-link",
+        action="store_true",
+        help="persist --history-link only after the bundle itself was written",
+    )
+    parser.add_argument(
         "--require-complete",
         action="store_true",
         help="return exit code 2 unless the evidence chain is complete",
@@ -38,6 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-written",
         action="store_true",
         help="return exit code 2 unless --output was written after explicit confirmation",
+    )
+    parser.add_argument(
+        "--require-history-linked",
+        action="store_true",
+        help="return exit code 2 unless --history-link was written after explicit confirmation",
     )
     parser.add_argument(
         "--format",
@@ -69,6 +85,16 @@ def main(argv: list[str] | None = None) -> int:
                 root=Path(args.root),
                 confirm_write=args.confirm_write,
             )
+        if args.history_link:
+            if not args.output:
+                raise MaintenanceEvidenceBundleError("--history-link requires --output so the link can point to a persisted bundle")
+            data = write_maintenance_history_link(
+                data,
+                bundle_path=Path(args.output),
+                link_path=Path(args.history_link),
+                root=Path(args.root),
+                confirm_link=args.confirm_history_link,
+            )
     except FileNotFoundError as exc:
         print(f"Maintenance evidence bundle input not found: {exc.filename}")
         return 2
@@ -83,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(data, indent=2, sort_keys=True))
     else:
         print(format_maintenance_evidence_bundle(data))
+    if args.require_history_linked and data.get("history_link", {}).get("history_link_written") is not True:
+        return 2
     if args.require_written and data.get("write_status") != "written":
         return 2
     if args.require_complete and data["bundle_status"] != "complete":
