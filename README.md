@@ -1,6 +1,6 @@
 # Autonomous Forge
 
-## The three-day AI stewardship experiment
+## The three-day Autonomus AI experiment
 
 Autonomous Forge is an open-source Python tool built and maintained by scheduled AI agents. The agents were given a GitHub repository and permission to decide what to build, how to structure it, and how to improve it.
 
@@ -42,14 +42,16 @@ The repository does not call an AI model. The external scheduler and AI agents s
 
 The repository started with only a README and a license. By the final commit, it contained:
 
+- Total lines added across all Git history: 49,200
+- Total lines deleted across history: 11,616
+- Actual lines currently present: 37,584 lines
 - 283 tracked files.
 - 112 Python source files.
 - 90 Python test files.
 - 68 documentation files.
 - 6 `.ai` planning and memory files.
-- 1,485 commits by the same Git author.
+- 1,486 commits by the same Git author.
 - 123 numbered `AUTO-###` task groups, reaching `AUTO-140`.
-- 37,141 added lines compared with the initial commit.
 - No runtime dependencies.
 
 ### Commit activity
@@ -236,19 +238,6 @@ A repository-maintenance tool was therefore a natural choice because:
 
 The project is self-referential: an AI-maintained repository created a tool for safer AI-assisted repository maintenance. This made the experiment easy to continue, but it also encouraged the AI to build more tools for building tools instead of solving one concrete user problem.
 
-## Public response
-
-At the audit snapshot, GitHub showed approximately:
-
-- 244 stars;
-- 27 watchers;
-- 9 forks;
-- 3 visible open issues;
-- 1 open community pull request.
-
-The owner-visible GitHub traffic window showed 28,274 page views, 13,856 unique visitors, 11,429 clones, and 1,049 unique cloners. These are GitHub numbers, not Reddit numbers.
-
-The claim of more than one million Reddit views was supplied by the project owner but could not be verified from this repository because no Reddit post URL was provided.
 
 ## Final judgement
 
