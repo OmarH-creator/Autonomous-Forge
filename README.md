@@ -275,14 +275,3 @@ Do not yet use it as an unattended tool for important repositories.
 The central lesson is simple:
 
 > Autonomous coding can create impressive structure very quickly. Validation discipline must decide what is allowed to remain.
-
-## Useful links
-
-- [Repository](https://github.com/OmarH-creator/Autonomous-Forge)
-- [CI workflow](.github/workflows/test.yml)
-- [Latest commit](https://github.com/OmarH-creator/Autonomous-Forge/commit/7f06732983b10e6a7f8322b5bf242744f119e182)
-- [Latest failed Actions run](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/29054022486)
-- [First recorded failure](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/28880692673)
-- [Last recorded green run](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/29004448985)
-- [Open community PR](https://github.com/OmarH-creator/Autonomous-Forge/pull/8)
-- [Merged maintenance PR](https://github.com/OmarH-creator/Autonomous-Forge/pull/11)
