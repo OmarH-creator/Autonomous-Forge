@@ -6,8 +6,6 @@ Autonomous Forge is an open-source Python tool built and maintained by scheduled
 
 This README documents what happened during the experiment.
 
-> Important: the private operating instructions used for the experiment are not included here.
-
 ## Short result
 
 The experiment was successful as a research test, but the project is not production-ready.
