@@ -59,6 +59,7 @@ def write_replayable_bundle(tmp_path, bundle_id="AUTO-130", commit_sha="abc1234"
 
 def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-130", commit_sha="abc1234", sha256=None):
     digest = sha256 or hashlib.sha256(bundle_path.read_bytes()).hexdigest()
+    bundle_data = json.loads(bundle_path.read_text(encoding="utf-8"))
     link = {
         "schema_version": "maintenance-bundle-history-link/v1",
         "title": "Autonomous Forge maintenance bundle history link",
@@ -74,13 +75,7 @@ def write_link(tmp_path, bundle_path, validation_context, *, bundle_id="AUTO-130
         "reviewed_paths": ["README.md"],
         "validation_steps": ["python -m pytest"],
         "validation_context": validation_context,
-        "source_reports": [
-            {"stage": "patch_apply", "path": "patch_apply.json", "sha256": "b" * 64, "bytes": 100},
-            {"stage": "post_apply_validation", "path": "post_apply_validation.json", "sha256": "c" * 64, "bytes": 101},
-            {"stage": "commit_verify", "path": "commit_verify.json", "sha256": "d" * 64, "bytes": 102},
-            {"stage": "push_handoff", "path": "push_handoff.json", "sha256": "e" * 64, "bytes": 103},
-            {"stage": "post_push_verify", "path": "post_push_verify.json", "sha256": "f" * 64, "bytes": 104},
-        ],
+        "source_reports": bundle_data["source_reports"],
         "history_link_status": "linked",
         "history_link_written": True,
         "history_link_blockers": [],
