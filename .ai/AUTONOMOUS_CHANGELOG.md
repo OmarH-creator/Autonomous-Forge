@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142 handoff-context recovery
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: handoff context consistency and archive recovery
+- Summary: Used the new actionable pytest annotation to trace a large archive failure cluster through maintenance review handoff. Found a real internal contract defect: history-link review intentionally returns validation-context summary counts, while handoff consistency treated that summary as the original retained context lists. Handoff now rereads the already safety-validated repository-local history link and compares its raw retained context against replayed bundle context. Public history-review output remains unchanged. Shared archive fixtures were also aligned with generated source-report metadata and reviewed-path-derived expected-change context rather than fabricated evidence.
+- Branch and PR assessment: Inspected README/docs/source/tests/config/CI, roadmap/state/changelog/decisions, issue #13, all visible branches, recent commits, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration.
+- Validation completed: Python 3.10/3.11/3.12 runs continued to pass install, compile, installed CLI smoke, and roadmap lint. Before the handoff fix, the annotation showed archive-manifest preview/source-report verification failures and many downstream archive-copy failures. After `f03aed1c34285c041f02afa236898090ad8d9022`, the archive-manifest failures disappeared and several archive-copy guard failures disappeared; remaining archive failures advanced to the later archive-copy destination-mapping guard. Pytest remains red, so baseline recovery continues and feature delivery remains paused.
+- Commits: `80efd9c4423cc7208891533a0c55ddc4ec0fb657` (actionable pytest diagnostics), `f01a9c7f2d83f7d6c6a5673cfdaac926d0842713` and `9f30db304460e6f2f1466ad8efbdec8659e07eba` (fixture alignment), `f03aed1c34285c041f02afa236898090ad8d9022` (raw history-context handoff comparison), plus project-memory follow-up commits.
+- Follow-up notes: Repair the archive-copy destination mapping cluster next, then stale command/executor output expectations and the replay-policy primary-router help assertion. Do not resume feature work until all matrix jobs are green.
+
 ## 2026-08-15 — AUTO-142 diagnostic slice
 
 - Task ID: AUTO-142 — Restore green main baseline, phase 2: actionable pytest failure diagnostics
