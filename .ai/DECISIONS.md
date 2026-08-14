@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-143 — 2026-08-15 — CI must expose exact pytest failure identities while preserving failure semantics
+
+Context: Issue #13 requires repairing the remaining red-baseline test clusters without weakening safety contracts. The connected GitHub checks surface exposed only a generic `Process completed with exit code 1` annotation for the pytest step, and direct repository cloning is unavailable in this automation runtime because outbound DNS to github.com is blocked. Continuing from aggregate historical counts would force subsequent cycles to guess which tests still fail.
+
+Decision: Wrap the existing pytest invocation in bash, capture output with `tee`, retain pytest's original status from `PIPESTATUS[0]`, emit up to 80 standard `FAILED ...` summary lines as a GitHub Actions error annotation when pytest fails, delete the temporary output file, and exit with the original pytest status. Do not add a new dependency, artifact upload, retry, test filter, or failure suppression.
+
+Alternatives considered: Guess from historical failure counts, add an artifact-upload action, weaken or skip failing tests, or create another diagnostic command. Guessing risks incorrect changes; an upload action adds an external workflow dependency when annotations are sufficient; weakening/skipping tests violates baseline-recovery safety; and another product command would be unrelated surface area.
+
+Consequences: Subsequent autonomous runs can retrieve exact failing test node IDs through check annotations and target the largest deterministic failure cluster. CI semantics remain unchanged: any pytest failure still fails the job with pytest's own non-zero status. No product runtime, repository policy, write capability, test selection, or side-effect boundary changes.
+
+Human decision still required: No.
+
 ## DEC-142 — 2026-08-15 — Omitted optional expected-change context is absence, not contradiction
 
 Context: Replay consistency compared every reviewed path against retained `expected_file_changes`. Older but otherwise valid evidence can retain only a subset of supported validation context, such as `validation_steps`. When `expected_file_changes` was omitted, the replay summary still populated every reviewed path as lacking expected-change context and classified the supplied context as inconsistent, despite having no contradictory expected-change evidence.
