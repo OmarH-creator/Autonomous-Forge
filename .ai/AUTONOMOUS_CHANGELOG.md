@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142 diagnostic slice
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: actionable pytest failure diagnostics
+- Summary: Resolved a concrete baseline-recovery blocker in CI. The test workflow now captures pytest output, preserves pytest's original exit status, and emits up to 80 standard `FAILED ...` summary lines as a GitHub Actions error annotation when the suite fails. This makes exact failing node IDs visible through the connected checks API instead of exposing only a generic exit-code annotation.
+- Branch and PR assessment: Inspected README/docs/source/tests/config/CI, roadmap/state/changelog/decisions, issue #13, all visible branches, recent commits, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration.
+- Validation completed: The preceding Python 3.10/3.11/3.12 matrix passed install, compile, CLI smoke, and roadmap lint and failed only at pytest. Static review of commit `80efd9c4423cc7208891533a0c55ddc4ec0fb657` confirms the wrapper retains `${PIPESTATUS[0]}`, reports failures, removes its temporary log, and exits with the original pytest status. Direct checkout execution was blocked by outbound DNS in this runtime.
+- Commits: `80efd9c4423cc7208891533a0c55ddc4ec0fb657` plus project-memory follow-up commits.
+- Follow-up notes: Consume the next workflow annotation and repair the highest-volume deterministic failure cluster under issue #13. Do not resume feature work until all matrix jobs are green.
+
 ## 2026-08-15 — AUTO-142
 
 - Task ID: AUTO-142 — Restore green main baseline, phase 2: partial replay-context compatibility
