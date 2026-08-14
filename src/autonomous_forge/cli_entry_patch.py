@@ -83,6 +83,23 @@ _EXTENSION_COMMANDS = {
 }
 
 
+def _run_extension(command: str, args: list[str]) -> int:
+    """Run one extension command while preserving importable ``main`` semantics.
+
+    ``argparse`` implements successful ``--help`` by raising ``SystemExit(0)``.
+    The installed process handles that naturally, but callers of this importable
+    router expect a numeric return code. Normalize only successful exits here;
+    non-zero parser failures keep propagating so invalid CLI usage is not hidden.
+    """
+    try:
+        result = _EXTENSION_COMMANDS[command](args)
+    except SystemExit as exc:
+        if exc.code in (0, None):
+            return 0
+        raise
+    return 0 if result is None else result
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the installed Forge CLI, including primary-surface extension commands."""
     args = list(sys.argv[1:] if argv is None else argv)
@@ -90,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Autonomous Forge {__version__}")
         return 0
     if args and args[0] in _EXTENSION_COMMANDS:
-        return _EXTENSION_COMMANDS[args[0]](args[1:])
+        return _run_extension(args[0], args[1:])
     return cli_entry.main(args)
 
 
