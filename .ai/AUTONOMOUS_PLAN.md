@@ -88,7 +88,7 @@ Notes: Completed before adding any preservation-transfer checklist or provenance
 
 ### AUTO-141 — Restore green main baseline, phase 1: router help contract
 Priority: P0
-Status: IN PROGRESS
+Status: TODO
 Goal: Repair the concrete router-help failures on red `main` before any new feature work.
 Why it matters: The project must stop feature delivery while the baseline is red. Two known failures come from successful argparse help exits escaping the importable primary router as `SystemExit(0)` instead of its numeric return-code contract.
 Scope: Normalize only successful extension `SystemExit` values at `cli_entry_patch.py`, preserve non-zero parser failures, add deterministic regression coverage, record the repair in project memory, and verify CI when available.
