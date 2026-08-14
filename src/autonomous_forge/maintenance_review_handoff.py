@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from autonomous_forge.maintenance_history_link_review import build_maintenance_history_link_review_data
+from autonomous_forge.maintenance_history_link_review import _read_history_link, build_maintenance_history_link_review_data
 from autonomous_forge.maintenance_history_link_review_cli import _linked_bundle_replay
 
 _CONTEXT_FIELDS = (
@@ -32,12 +32,14 @@ def _replay_context_items(replay: dict[str, Any]) -> dict[str, list[str]]:
     return {field: _clean_list(items.get(field)) for field in _CONTEXT_FIELDS}
 
 
-def _link_context_items(link_review: dict[str, Any]) -> dict[str, list[str]]:
-    context = link_review.get("validation_context") if isinstance(link_review.get("validation_context"), dict) else {}
+def _link_context_items(value: Any) -> dict[str, list[str]]:
+    context = value if isinstance(value, dict) else {}
     return {field: _clean_list(context.get(field)) for field in _CONTEXT_FIELDS}
 
 
-def _history_bundle_context_consistency(link_review: dict[str, Any], replay: dict[str, Any]) -> dict[str, Any]:
+def _history_bundle_context_consistency(
+    link_review: dict[str, Any], replay: dict[str, Any], *, link_validation_context: Any = None
+) -> dict[str, Any]:
     """Compare the run-history pointer context with the replayed bundle context."""
     mismatches: list[str] = []
     link_paths = _clean_list(link_review.get("reviewed_paths"))
@@ -50,7 +52,7 @@ def _history_bundle_context_consistency(link_review: dict[str, Any], replay: dic
     if link_steps != replay_steps:
         mismatches.append("validation_steps differ between history link and linked bundle replay")
 
-    link_context = _link_context_items(link_review)
+    link_context = _link_context_items(link_validation_context)
     replay_context = _replay_context_items(replay)
     for field in _CONTEXT_FIELDS:
         if link_context[field] != replay_context[field]:
@@ -67,10 +69,14 @@ def _history_bundle_context_consistency(link_review: dict[str, Any], replay: dic
     }
 
 
-def _build_handoff_gates(link_review: dict[str, Any], replay: dict[str, Any]) -> dict[str, Any]:
+def _build_handoff_gates(
+    link_review: dict[str, Any], replay: dict[str, Any], *, link_validation_context: Any = None
+) -> dict[str, Any]:
     policy = replay.get("replay_policy") or {"failed": 0}
     replay_policy_ready = replay.get("replay_complete") is True and int(policy.get("failed", 0)) == 0
-    history_bundle_context = _history_bundle_context_consistency(link_review, replay)
+    history_bundle_context = _history_bundle_context_consistency(
+        link_review, replay, link_validation_context=link_validation_context
+    )
     gates = [
         _gate(
             "history_link_quality",
@@ -125,8 +131,13 @@ def _build_handoff_gates(link_review: dict[str, Any], replay: dict[str, Any]) ->
 def build_maintenance_review_handoff_data(link_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
     """Build a single read-only reviewer handoff from one run-history pointer."""
     link_review = build_maintenance_history_link_review_data(link_path, root=root)
+    link_payload = _read_history_link(link_path, root=root)
     linked_replay = _linked_bundle_replay(link_review, root=root)
-    handoff_gates = _build_handoff_gates(link_review, linked_replay)
+    handoff_gates = _build_handoff_gates(
+        link_review,
+        linked_replay,
+        link_validation_context=link_payload.get("validation_context"),
+    )
     context_consistency = handoff_gates["history_bundle_context_consistency"]
     blockers = list(link_review.get("review_blockers") or []) + list(linked_replay.get("blockers") or [])
     blockers.extend(context_consistency["mismatches"])
