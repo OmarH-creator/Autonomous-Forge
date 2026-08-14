@@ -110,10 +110,10 @@ def _context_consistency_summary(
     retained_validation_steps = list(items.get("validation_steps") or [])
 
     reviewed_paths_without_expected_change: list[str] = []
-    for path in reviewed_paths:
-        if not any(path in change for change in expected_changes):
-            reviewed_paths_without_expected_change.append(path)
-            if expected_changes:
+    if expected_changes:
+        for path in reviewed_paths:
+            if not any(path in change for change in expected_changes):
+                reviewed_paths_without_expected_change.append(path)
                 blockers.append(f"reviewed path lacks retained expected file change context: {path}")
 
     retained_steps_not_in_bundle: list[str] = []
