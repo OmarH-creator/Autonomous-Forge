@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-145 — 2026-08-15 — Archive destinations must derive from canonical repository-relative source paths
+
+Context: After handoff-context recovery, the remaining archive pipeline reached destination mapping and failed broadly. Written manifests can contain absolute paths that are still valid because they resolve inside the configured repository root. `pathlib` discards a left-hand prefix when the right-hand operand is absolute, so both archive-copy preview and copied-root verification could unintentionally map a valid absolute source back to its live repository location instead of beneath the requested archive root. Existing collision and archive-root containment guards correctly blocked the result, causing the downstream package and preservation chain to fail.
+
+Decision: After verifying that every archive entry source resolves inside the configured repository root, canonicalize it to a repository-relative path before joining it beneath the selected archive root. Apply the same canonicalization rule in both copy-preview destination planning and copied-root verification. Keep all existing repository-root containment, archive-root containment, duplicate-destination, source-equals-destination, existing-destination, byte-count, and SHA-256 checks fail-closed.
+
+Alternatives considered: Allow absolute manifest paths to pass through unchanged, weaken destination-collision checks, change every manifest producer to emit only relative paths, or special-case `.ai/run-history`. Passing absolute paths through preserves the pathlib prefix-discard bug; weakening collision checks risks copying over live evidence; changing only producers leaves existing valid written manifests incompatible; and special-casing one directory would not establish a general path invariant.
+
+Consequences: Valid repository-contained evidence now maps deterministically beneath the requested archive root regardless of whether the written manifest retained an absolute or relative source path. The inspected Python 3.11 matrix improved from 57 failed / 597 passed at cycle start to 23 failed / 631 passed after the preview and verifier fixes, with the archive-copy/verify/package/preservation cluster absent. No overwrite, path escape, remote, workflow-rerun, commit, push, or branch-protection authority was added.
+
+Human decision still required: No.
+
 ## DEC-144 — 2026-08-15 — Handoff context consistency must compare retained values, not summary counts
 
 Context: Actionable pytest annotations exposed a large archive-manifest and archive-copy failure cluster. Tracing the shared path showed that `maintenance_history_link_review` intentionally summarizes retained validation context into presence/count metadata, while `maintenance_review_handoff` later treated that summary object as though it still contained the original `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` lists. Consequently, valid history links with retained context were classified as mismatched before archive construction.
