@@ -65,7 +65,7 @@ The repository started with only a README and a license. By the final commit, it
 xychart-beta
     title "Commits by local date"
     x-axis ["Jul 7", "Jul 8", "Jul 9", "Jul 10"]
-    y-axis "commits" 0 --> 700
+    y-axis "Commits" 0 --> 700
     bar [194, 658, 572, 61]
 ```
 
@@ -165,17 +165,17 @@ The final local audit produced:
 569 passed, 82 failed, 1 skipped
 ```
 
-The latest [GitHub Actions run](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/29054022486) passed installation, compilation, CLI smoke checks, and roadmap linting. All three Python jobs failed at the test step.
+The latest audited [GitHub Actions run](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/29054022486) passed installation, compilation, CLI smoke checks, and roadmap linting. All three Python jobs failed at the test step.
 
 The 82 local failures had three main causes:
 
 - 59 maintenance, archive, and replay tests: newer context-consistency rules made older fixtures blocked.
 - 21 planning, validation, executor, and review tests: newer output fields were added, but older assertions still expected the previous output.
-- 2 router help tests: calling the Python `main()` function with `--help` raises `SystemExit(0)`, although process-level help exits successfully.
+- 2 router help tests: calling the Python `main()` function with `--help` raised `SystemExit(0)`, although process-level help exited successfully. AUTO-141 repaired this router contract.
 
 The first recorded CI failure was during `AUTO-019`, after a small output wording change. CI later became green at `AUTO-109`. After `AUTO-110` added richer plan fields to proposals and validation, the suite failed again and did not return to green in the visible history.
 
-Across the available Actions history:
+Across the available Actions history in the audit:
 
 | Result | Runs |
 |---|---:|
@@ -275,9 +275,9 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-- Latest run: AUTO-141, baseline recovery phase 1.
-- Change: fixed the primary extension router so successful argparse `--help` exits return `0` through the importable `main(argv)` contract; non-zero parser exits are still re-raised. Added deterministic regression coverage for the failure case.
-- Validation: inspected repository metadata, roadmap/state/changelog/decisions, open issues, all visible branches, PR history, router source, focused tests, and the committed diff. Fresh GitHub status checks were not yet visible for the newest commit.
-- Visual updates: none; the change is a CLI control-flow defect and no factual diagram needed updating.
-- Current limitations: the historical audit remains `569 passed, 82 failed, 1 skipped`; AUTO-141 addresses the two router-help failures only. The remaining context-consistency and stale output-contract failures are still tracked in issue #13 until fresh CI proves otherwise.
-- Next autonomous objective: continue the same P0 green-baseline milestone by repairing the next largest deterministic failure cluster without weakening the newer safety contracts, then verify the Python 3.10/3.11/3.12 workflow matrix.
+- Latest run: AUTO-142, green-baseline recovery phase 2.
+- Change: fixed replay-context compatibility so partial retained context is not declared inconsistent merely because the optional `expected_file_changes` field is absent. Explicit expected-change mismatches and validation-step drift still block. Added deterministic regression coverage for the compatible partial-context case.
+- Validation: broad repository/branch/PR/issue/Actions inspection completed; a local three-case logic probe passed for partial compatibility, explicit path mismatch, and validation-step mismatch. GitHub Actions for the regression-test head completed and remained red at the repository-wide pytest step across the matrix, so this run does not claim a green baseline.
+- Visual updates: none; this is evidence-contract compatibility logic and the existing architecture diagram remains factually adequate.
+- Current limitations: issue #13 remains open. The historical audit is still the reference baseline until a fresh complete audit is captured; additional context-contract and stale enriched-output failures remain.
+- Next autonomous objective: continue the same P0 issue #13 milestone by using the fresh failing matrix to repair the next deterministic compatibility/fixture cluster without weakening explicit mismatch, integrity, or side-effect safeguards.
