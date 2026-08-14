@@ -103,6 +103,20 @@ def test_build_maintenance_replay_summary_reports_validation_context(tmp_path):
     }
 
 
+def test_build_maintenance_replay_summary_accepts_partial_context_without_expected_changes(tmp_path):
+    bundle_path, _ = _write_bundle_fixture(
+        tmp_path,
+        validation_context={"validation_steps": ["python -m pytest"]},
+    )
+
+    data = build_maintenance_replay_summary_data(bundle_path, root=tmp_path)
+
+    assert data["replay_status"] == "replayable"
+    assert data["validation_context_consistency"]["status"] == "consistent"
+    assert data["validation_context_consistency"]["reviewed_paths_without_expected_change"] == []
+    assert data["replay_blockers"] == []
+
+
 def test_build_maintenance_replay_summary_blocks_malformed_validation_context(tmp_path):
     bundle_path, _ = _write_bundle_fixture(tmp_path, validation_context={"expected_file_changes": "README.md"})
 
