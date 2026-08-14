@@ -110,4 +110,18 @@ jobs:
       - name: Validate repository planning inputs
         run: forge lint-plan --plan .ai/AUTONOMOUS_PLAN.md
       - name: Run tests
-        run: python -m pytest -q
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q --tb=short 2>&1 | tee pytest-output.txt
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            failures="$(grep '^FAILED ' pytest-output.txt | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | head -n 80 | paste -sd ';' -)"
+            if [ -n "$failures" ]; then
+              echo "::error title=Pytest failing tests::$failures"
+            else
+              echo "::error title=Pytest failure summary::pytest exited with status $status without standard FAILED summary lines"
+            fi
+          fi
+          rm -f pytest-output.txt
+          exit "$status"
