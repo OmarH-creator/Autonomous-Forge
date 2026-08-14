@@ -38,13 +38,22 @@ def _destination_for_entry(entry: dict[str, Any], *, archive_root_info: dict[str
     if not source_path:
         raise MaintenanceArchiveCopyPreviewError("archive entry path is required")
     root_resolved = root.resolve()
-    destination = archive_root_info["resolved"] / source_path
+    source_candidate = Path(source_path)
+    if not source_candidate.is_absolute():
+        source_candidate = root_resolved / source_candidate
+    try:
+        source_resolved = source_candidate.resolve(strict=False)
+        source_relative = source_resolved.relative_to(root_resolved)
+    except (OSError, ValueError) as exc:
+        raise MaintenanceArchiveCopyPreviewError("archive entry path must stay inside the configured root") from exc
+    destination = archive_root_info["resolved"] / source_relative
     try:
         destination_resolved = destination.resolve(strict=False)
         destination_resolved.relative_to(root_resolved)
     except (OSError, ValueError) as exc:
         raise MaintenanceArchiveCopyPreviewError("archive-copy destination must stay inside the configured root") from exc
     return {
+        "source_path": source_relative.as_posix(),
         "destination_path": destination_resolved.relative_to(root_resolved).as_posix(),
         "destination_exists": destination_resolved.exists(),
         "destination_parent_exists": destination_resolved.parent.exists(),
@@ -67,17 +76,18 @@ def build_maintenance_archive_copy_preview_data(
     seen_destinations: set[str] = set()
     for entry in entries:
         destination = _destination_for_entry(entry, archive_root_info=archive_root_info, root=root)
+        source_path = destination["source_path"]
         destination_path = destination["destination_path"]
         if destination_path in seen_destinations:
             blockers.append(f"archive-copy destination is duplicated: {destination_path}")
         seen_destinations.add(destination_path)
-        if destination_path == entry.get("path"):
+        if destination_path == source_path:
             blockers.append(f"archive-copy destination matches source path: {destination_path}")
         if destination["destination_exists"]:
             blockers.append(f"archive-copy destination already exists: {destination_path}")
         plan_entry = {
             "kind": str(entry.get("kind") or "unknown"),
-            "source_path": str(entry.get("path") or ""),
+            "source_path": source_path,
             "destination_path": destination_path,
             "source_exists": bool(entry.get("exists")),
             "destination_exists": bool(destination["destination_exists"]),
