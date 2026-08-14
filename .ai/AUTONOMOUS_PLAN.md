@@ -14,7 +14,9 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 ## Current implementation status
 
-Roadmap v3 now reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, replay policy summaries on the installed primary route, opt-in run-history links, history-link quality review, strict linked-bundle replay, reviewer-facing maintenance handoffs, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking, integrity-checked archive manifests, confirmed archive-manifest writes, written-manifest verification, guarded archive-copy previews, confirmed local archive-copy execution, post-copy archive-root verification, archive-package metadata previews, confirmed archive-package writing, read-only archive-package verification, read-only preservation-completeness summaries, and optional workflow-status freshness gating inside the final preservation-completeness command. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, prove package provenance/signature identity, or prove validation coverage beyond supplied/local evidence.
+Roadmap v3 reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, replay policy summaries on the installed primary route, opt-in run-history links, history-link quality review, strict linked-bundle replay, reviewer-facing maintenance handoffs, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking, integrity-checked archive manifests, confirmed archive-manifest writes, written-manifest verification, guarded archive-copy previews, confirmed local archive-copy execution, post-copy archive-root verification, archive-package metadata previews, confirmed archive-package writing, read-only archive-package verification, read-only preservation-completeness summaries, and optional workflow-status freshness gating inside the final preservation-completeness command. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, prove package provenance/signature identity, or prove validation coverage beyond supplied/local evidence.
+
+The immediate roadmap is now baseline recovery: issue #13 records that `main` is red. New feature work is paused until the test matrix is green. AUTO-141 fixes the first concrete failure cluster by restoring the importable primary router's successful help-return contract without swallowing parser failures.
 
 ## Prioritized roadmap
 
@@ -83,6 +85,18 @@ Acceptance criteria: `forge maintenance-replay-policy-summary --help` exits succ
 Validation: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation passed for the changed router and focused router test file. Direct full checkout/full pytest execution remained unavailable from this environment.
 Risks or assumptions: This is a concrete release-surface blocker fix, not a new standalone command; CI status may lag the pushed commits.
 Notes: Completed before adding any preservation-transfer checklist or provenance/signature review.
+
+### AUTO-141 — Restore green main baseline, phase 1: router help contract
+Priority: P0
+Status: IN PROGRESS
+Goal: Repair the concrete router-help failures on red `main` before any new feature work.
+Why it matters: The project must stop feature delivery while the baseline is red. Two known failures come from successful argparse help exits escaping the importable primary router as `SystemExit(0)` instead of its numeric return-code contract.
+Scope: Normalize only successful extension `SystemExit` values at `cli_entry_patch.py`, preserve non-zero parser failures, add deterministic regression coverage, record the repair in project memory, and verify CI when available.
+Expected files or areas: `src/autonomous_forge/cli_entry_patch.py`, `tests/test_cli_entry_patch.py`, README, `.ai` records, issue #13.
+Acceptance criteria: Existing extension help tests return `0`; invalid extension arguments still raise non-zero `SystemExit`; no safety gate or side-effect boundary changes; full CI is inspected after the change.
+Validation: Product diff committed on `main` and reviewed through GitHub compare. Fresh status checks were not yet visible at the time of the run.
+Risks or assumptions: This resolves only two known failures. The larger context-consistency and stale output-contract clusters remain until proven repaired.
+Notes: Continue this same baseline-recovery milestone across subsequent runs until `main` is green or a concrete external blocker prevents repair.
 
 ## Future Ideas
 
