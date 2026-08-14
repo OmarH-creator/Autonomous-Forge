@@ -16,7 +16,7 @@ The repository contains a Python package under `src/autonomous_forge`, tests und
 
 Roadmap v3 reaches guarded local commit creation, post-commit verification, commit trust review, branch-protection-aware trusted pre-push readiness review, branch-policy-enforcing explicitly confirmed fast-forward-only non-force push handoff, post-push verification, durable maintenance evidence bundles, persisted bundle verification, replay summaries, replay policy summaries on the installed primary route, opt-in run-history links, history-link quality review, strict linked-bundle replay, reviewer-facing maintenance handoffs, comparison-oriented maintenance handoff summaries, deterministic preservation-candidate ranking, integrity-checked archive manifests, confirmed archive-manifest writes, written-manifest verification, guarded archive-copy previews, confirmed local archive-copy execution, post-copy archive-root verification, archive-package metadata previews, confirmed archive-package writing, read-only archive-package verification, read-only preservation-completeness summaries, and optional workflow-status freshness gating inside the final preservation-completeness command. Product commands still do not force-push, push tags, change remotes, change branch protections, enforce a full cryptographic identity policy, rerun workflows, poll remote workflow completion, prove package provenance/signature identity, or prove validation coverage beyond supplied/local evidence.
 
-The immediate roadmap is now baseline recovery: issue #13 records that `main` is red. New feature work is paused until the test matrix is green. AUTO-141 fixes the first concrete failure cluster by restoring the importable primary router's successful help-return contract without swallowing parser failures.
+The immediate roadmap is baseline recovery under issue #13: `main` remains red, so new feature work is paused. AUTO-141 repaired the importable primary router's successful help-return contract without swallowing parser failures. AUTO-142 continues the same P0 milestone by correcting replay-context compatibility where omitted optional expected-change context was being treated as contradictory evidence, while preserving explicit mismatch detection.
 
 ## Prioritized roadmap
 
@@ -88,15 +88,27 @@ Notes: Completed before adding any preservation-transfer checklist or provenance
 
 ### AUTO-141 — Restore green main baseline, phase 1: router help contract
 Priority: P0
-Status: TODO
+Status: DONE
 Goal: Repair the concrete router-help failures on red `main` before any new feature work.
-Why it matters: The project must stop feature delivery while the baseline is red. Two known failures come from successful argparse help exits escaping the importable primary router as `SystemExit(0)` instead of its numeric return-code contract.
+Why it matters: The project must stop feature delivery while the baseline is red. Two known failures came from successful argparse help exits escaping the importable primary router as `SystemExit(0)` instead of its numeric return-code contract.
 Scope: Normalize only successful extension `SystemExit` values at `cli_entry_patch.py`, preserve non-zero parser failures, add deterministic regression coverage, record the repair in project memory, and verify CI when available.
 Expected files or areas: `src/autonomous_forge/cli_entry_patch.py`, `tests/test_cli_entry_patch.py`, README, `.ai` records, issue #13.
 Acceptance criteria: Existing extension help tests return `0`; invalid extension arguments still raise non-zero `SystemExit`; no safety gate or side-effect boundary changes; full CI is inspected after the change.
-Validation: Product diff committed on `main` and reviewed through GitHub compare. Fresh status checks were not yet visible at the time of the run.
-Risks or assumptions: This resolves only two known failures. The larger context-consistency and stale output-contract clusters remain until proven repaired.
-Notes: Continue this same baseline-recovery milestone across subsequent runs until `main` is green or a concrete external blocker prevents repair.
+Validation: Product diff committed on `main`; subsequent CI advanced through install, compile, CLI smoke, and roadmap validation before the repository-wide pytest step remained red, confirming the broader baseline recovery still had work remaining.
+Risks or assumptions: This phase resolved only the router-help contract. The larger context-consistency and stale output-contract clusters remain under issue #13.
+Notes: Completed as the first slice of the same green-baseline recovery milestone.
+
+### AUTO-142 — Restore green main baseline, phase 2: replay-context compatibility and fixture recovery
+Priority: P0
+Status: TODO
+Goal: Resolve the maintenance/archive/replay context-consistency failure cluster without weakening explicit evidence-integrity or mismatch checks.
+Why it matters: `main` remains red, and the largest historical failure group comes from newer context-consistency semantics interacting with older partial evidence fixtures. Feature delivery must remain paused until the baseline is green.
+Scope: Correct proven compatibility defects in replay/context handling, update deterministic fixtures or assertions to the current safe contract where appropriate, preserve fail-closed behavior for explicit mismatches and malformed evidence, and continue the same milestone across maintenance/archive/replay tests until the cluster is exhausted.
+Expected files or areas: `src/autonomous_forge/maintenance_replay_summary.py`, maintenance/archive/replay tests under `tests/`, README, `.ai` records, issue #13.
+Acceptance criteria: Missing optional context is not treated as contradictory evidence; supplied expected-change context must still cover reviewed paths; retained validation-step drift still blocks; malformed or integrity-drifted evidence still blocks; remaining context-contract failures are repaired without weakening safety; full Python 3.10/3.11/3.12 pytest matrix ultimately passes before feature work resumes.
+Validation: The first AUTO-142 slice added a deterministic partial-context regression case and preserved existing explicit path-mismatch and validation-step-mismatch tests. A direct three-case logic probe passed. GitHub Actions run `31841315030` for the regression-test head completed with the repository-wide pytest step still failing, so the milestone remains TODO and the baseline is not claimed green.
+Risks or assumptions: GitHub job logs are not exposed with detailed pytest failure text through the current connector response, so subsequent slices must continue from source/test inspection and fresh matrix outcomes rather than guessing. Compatibility changes must never suppress explicit mismatch, malformed-evidence, hash-integrity, or side-effect safeguards.
+Notes: Continue this same P0 milestone across subsequent autonomous runs until `main` is green or a concrete external blocker prevents further repair.
 
 ## Future Ideas
 
