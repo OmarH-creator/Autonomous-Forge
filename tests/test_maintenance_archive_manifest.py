@@ -11,7 +11,7 @@ STAGES = ["patch_apply", "post_apply_validation", "commit_verify", "push_handoff
 def write_replayable_bundle(tmp_path, bundle_id="AUTO-130", commit_sha="abc1234", *, reviewed_paths=None):
     reviewed_paths = reviewed_paths or ["README.md"]
     validation_context = {
-        "expected_file_changes": ["Update archive manifest command"],
+        "expected_file_changes": [f"Update {path} status" for path in reviewed_paths],
         "implementation_steps": ["build manifest preview"],
         "validation_steps": ["python -m pytest"],
         "risk_register": ["manifest may omit evidence files"],
