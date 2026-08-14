@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142 archive-path recovery
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: canonical archive destination mapping
+- Summary: Fixed the shared archive-copy path defect exposed after handoff-context recovery. Valid manifest entries can retain absolute paths that still resolve inside the repository. Both copy preview and copied-root verification previously joined those absolute paths directly to the requested archive root; `pathlib` then discarded the archive-root prefix. The fix verifies repository containment first, canonicalizes each source to a repository-relative path, and only then joins it beneath the archive root. Existing containment, collision, overwrite, byte-count, and SHA-256 safeguards remain intact.
+- Branch and PR assessment: Inspected README/docs/source/tests/config/CI, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration.
+- Validation completed: At cycle start the annotated matrix reported 57 failed / 597 passed. Commit `bedb09e77ab672e8716ab1fc3910a06549afd478` fixed copy-preview mapping and the inspected Python 3.11 job improved to 51 failed / 603 passed. Commit `8160132ad188033d66a6290c180bbd718fe42952` fixed copied-root verification using the same canonical path invariant; Python 3.11 then reached 23 failed / 631 passed. No archive-copy, archive-copy-verify, archive-package, or preservation-completeness tests remain in the failure summary. Python 3.10, 3.11, and 3.12 all pass install, compile, installed CLI smoke, and roadmap lint before pytest; pytest remains red, so feature delivery stays paused.
+- Commits: `bedb09e77ab672e8716ab1fc3910a06549afd478` (copy-preview canonicalization), `8160132ad188033d66a6290c180bbd718fe42952` (copy-verifier canonicalization), plus project-memory follow-up commits.
+- Follow-up notes: Continue issue #13 with the remaining 23 failures, prioritizing stale enriched planning/validation/executor output-contract assertions, then the replay-policy help assertion and maintenance-review-compare fixture/output failures. Do not resume feature work until all matrix jobs are green.
+
 ## 2026-08-15 — AUTO-142 handoff-context recovery
 
 - Task ID: AUTO-142 — Restore green main baseline, phase 2: handoff context consistency and archive recovery
