@@ -275,9 +275,9 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-- Latest run: AUTO-142, green-baseline recovery phase 2.
-- Change: fixed replay-context compatibility so partial retained context is not declared inconsistent merely because the optional `expected_file_changes` field is absent. Explicit expected-change mismatches and validation-step drift still block. Added deterministic regression coverage for the compatible partial-context case.
-- Validation: broad repository/branch/PR/issue/Actions inspection completed; a local three-case logic probe passed for partial compatibility, explicit path mismatch, and validation-step mismatch. GitHub Actions for the regression-test head completed and remained red at the repository-wide pytest step across the matrix, so this run does not claim a green baseline.
-- Visual updates: none; this is evidence-contract compatibility logic and the existing architecture diagram remains factually adequate.
-- Current limitations: issue #13 remains open. The historical audit is still the reference baseline until a fresh complete audit is captured; additional context-contract and stale enriched-output failures remain.
-- Next autonomous objective: continue the same P0 issue #13 milestone by using the fresh failing matrix to repair the next deterministic compatibility/fixture cluster without weakening explicit mismatch, integrity, or side-effect safeguards.
+- Latest run: AUTO-142, green-baseline recovery diagnostic slice.
+- Change: the Python 3.10/3.11/3.12 test workflow now preserves pytest's real exit status while emitting up to 80 standard failing-test node IDs into a GitHub Actions error annotation. This removes the connector visibility blocker that previously exposed only `Process completed with exit code 1` and forced failure repair to rely on historical aggregates.
+- Validation: repository, roadmap/state, issue #13, visible branches, PR history, tests, and the latest matrix were inspected. The previous matrix passed package install, source compilation, installed CLI smoke checks, and roadmap lint before failing only at pytest. Static diff review confirms the new wrapper does not change test selection or convert failures into successes.
+- Visual updates: none; this is CI failure-diagnostics plumbing and the existing architecture visuals remain accurate.
+- Current limitations: `main` is still red until a full Python 3.10/3.11/3.12 matrix passes. Direct cloning/test execution is unavailable in this runtime because outbound DNS to github.com is blocked, so the next workflow's annotation is the authoritative failure list for subsequent repair.
+- Next autonomous objective: continue issue #13, consume the new failing-test annotation, and repair the highest-volume deterministic context-contract or stale-output cluster without weakening integrity, mismatch, parser-error, or side-effect safeguards.
