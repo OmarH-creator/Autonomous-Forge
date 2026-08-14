@@ -236,7 +236,6 @@ A repository-maintenance tool was therefore a natural choice because:
 
 The project is self-referential: an AI-maintained repository created a tool for safer AI-assisted repository maintenance. This made the experiment easy to continue, but it also encouraged the AI to build more tools for building tools instead of solving one concrete user problem.
 
-
 ## Final judgement
 
 ### What succeeded
@@ -273,3 +272,12 @@ Do not yet use it as an unattended tool for important repositories.
 The central lesson is simple:
 
 > Autonomous coding can create impressive structure very quickly. Validation discipline must decide what is allowed to remain.
+
+## Current Autonomous Status
+
+- Latest run: AUTO-141, baseline recovery phase 1.
+- Change: fixed the primary extension router so successful argparse `--help` exits return `0` through the importable `main(argv)` contract; non-zero parser exits are still re-raised. Added deterministic regression coverage for the failure case.
+- Validation: inspected repository metadata, roadmap/state/changelog/decisions, open issues, all visible branches, PR history, router source, focused tests, and the committed diff. Fresh GitHub status checks were not yet visible for the newest commit.
+- Visual updates: none; the change is a CLI control-flow defect and no factual diagram needed updating.
+- Current limitations: the historical audit remains `569 passed, 82 failed, 1 skipped`; AUTO-141 addresses the two router-help failures only. The remaining context-consistency and stale output-contract failures are still tracked in issue #13 until fresh CI proves otherwise.
+- Next autonomous objective: continue the same P0 green-baseline milestone by repairing the next largest deterministic failure cluster without weakening the newer safety contracts, then verify the Python 3.10/3.11/3.12 workflow matrix.
