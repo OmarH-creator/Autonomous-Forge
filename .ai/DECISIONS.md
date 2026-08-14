@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-144 — 2026-08-15 — Handoff context consistency must compare retained values, not summary counts
+
+Context: Actionable pytest annotations exposed a large archive-manifest and archive-copy failure cluster. Tracing the shared path showed that `maintenance_history_link_review` intentionally summarizes retained validation context into presence/count metadata, while `maintenance_review_handoff` later treated that summary object as though it still contained the original `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register` lists. Consequently, valid history links with retained context were classified as mismatched before archive construction.
+
+Decision: Keep the public history-link review summary contract unchanged, but have maintenance-review handoff reread the same repository-local history link through the existing safety-validated `_read_history_link` helper and compare its raw retained validation-context lists against replayed bundle context. Preserve exact mismatch blocking, reviewed-path checks, validation-step checks, bundle hash verification, and replay-policy gates. Align archive test fixtures with generated source-report evidence and reviewed-path-derived expected-change text rather than fabricated metadata.
+
+Alternatives considered: Remove the handoff context gate, teach the summary object to masquerade as raw context, expand the public history-review output with retained values, or update only downstream archive assertions. Removing the gate would weaken evidence integrity; treating counts as values is semantically incorrect; expanding public output would create avoidable contract churn; and assertion-only changes would hide a real product defect.
+
+Consequences: Valid retained context can now pass handoff consistency while explicit context drift still blocks. The fix adds no new write, execution, commit, push, remote, workflow-rerun, or branch-protection authority. The post-fix matrix no longer reports the earlier archive-manifest preview/source-report verification failures; remaining archive failures have advanced to the later archive-copy destination-mapping guard.
+
+Human decision still required: No.
+
 ## DEC-143 — 2026-08-15 — CI must expose exact pytest failure identities while preserving failure semantics
 
 Context: Issue #13 requires repairing the remaining red-baseline test clusters without weakening safety contracts. The connected GitHub checks surface exposed only a generic `Process completed with exit code 1` annotation for the pytest step, and direct repository cloning is unavailable in this automation runtime because outbound DNS to github.com is blocked. Continuing from aggregate historical counts would force subsequent cycles to guess which tests still fail.
