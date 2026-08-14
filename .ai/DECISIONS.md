@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-142 — 2026-08-15 — Omitted optional expected-change context is absence, not contradiction
+
+Context: Replay consistency compared every reviewed path against retained `expected_file_changes`. Older but otherwise valid evidence can retain only a subset of supported validation context, such as `validation_steps`. When `expected_file_changes` was omitted, the replay summary still populated every reviewed path as lacking expected-change context and classified the supplied context as inconsistent, despite having no contradictory expected-change evidence.
+
+Decision: Enforce reviewed-path coverage only when `expected_file_changes` is actually supplied. If that optional context field is absent, do not synthesize path mismatches from its absence. Continue to fail closed when a supplied expected-change list omits reviewed paths, when retained validation steps do not match bundle validation steps, or when context is malformed.
+
+Alternatives considered: Make `expected_file_changes` mandatory retroactively, remove context consistency checks, or update only old fixtures. Making the field mandatory would invalidate historical partial context that the bundle schema currently permits; removing consistency checks would weaken safety; fixture-only changes would hide a real semantic contradiction between optional-field handling and replay policy.
+
+Consequences: Partial retained context remains replay-compatible without fabricating evidence, while explicit contradictory context still blocks. This is a compatibility correction inside the existing read-only replay contract; it adds no write, execution, commit, push, remote, workflow-rerun, or branch-protection authority.
+
+Human decision still required: No.
+
 ## DEC-141 — 2026-08-15 — Normalize only successful argparse exits at the primary extension router
 
 Context: The repository's red baseline includes two router-help failures because extension CLIs use argparse, whose successful `--help` path raises `SystemExit(0)`, while the importable `forge` router contract expects an integer return code.
