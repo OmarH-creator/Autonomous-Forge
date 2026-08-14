@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: partial replay-context compatibility
+- Summary: Fixed a concrete replay consistency defect so retained validation context that omits optional `expected_file_changes` is not treated as contradictory path evidence. Explicit expected-change mismatches and retained validation-step mismatches still fail closed. Added deterministic regression coverage for the compatible partial-context case.
+- Branch and PR assessment: Inspected README, roadmap/state/changelog/decisions, current source/tests, GitHub Actions, issue #13, all visible branches, and PR history. Work stayed directly on `main`; historical branches are stale or superseded and no PR required integration.
+- Validation completed: Local three-case logic probe passed for partial compatible context, explicit reviewed-path mismatch, and validation-step mismatch. GitHub Actions for commit `9fd663f71ea3058654dc476141980b66ae82a063` completed with the repository-wide pytest step still failing across the matrix, so the baseline is not claimed green. Full diff review from pre-run head showed only the replay-summary logic, focused regression test, and run-state changes before README/changelog bookkeeping.
+- Commits: `0f9af30bfa58d8967c5bf9de24a2cfd57da052a4`, `9fd663f71ea3058654dc476141980b66ae82a063`, `6f2e4ce0c41cbf52b7a13b65570460e9e29ce48f`, `6359e1a8086145bfe6ba1a7ae481f23608bc426b`.
+- Follow-up notes: Continue issue #13 against the next observed deterministic compatibility/fixture cluster. Do not resume feature work until Python 3.10, 3.11, and 3.12 are green.
+
 ## 2026-08-15 — AUTO-141
 
 - Task ID: AUTO-141 — Restore router help contract on red main
@@ -23,7 +32,7 @@
 - Task ID: AUTO-139 — Preservation workflow-status freshness gate
 - Summary: Extended `forge maintenance-preservation-completeness` and `forge-maintenance-preservation-completeness` with optional `--status-evidence` and `--require-workflow-fresh` support. The final preservation gate can now require successful supplied workflow/status JSON whose commit SHA matches the archive manifest commit.
 - Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, open issues, branch search, preservation-completeness implementation, focused tests, docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; branch search returned no open branch work requiring integration.
-- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation passed for the changed preservation-completeness core, CLI module, and focused test file. Added deterministic coverage for matching workflow status, stale workflow status, required-missing workflow evidence, and CLI strict workflow freshness. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation passed for the changed preservation-completeness core, CLI module, and focused test file. Added deterministic coverage for matching workflow status, stale workflow status, required-missing workflow evidence, and CLI strict workflow freshness. Direct full checkout/full pytest execution remained unavailable from this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a reviewer checklist or provenance/signature review for storing or transferring verified preservation packages.
 
