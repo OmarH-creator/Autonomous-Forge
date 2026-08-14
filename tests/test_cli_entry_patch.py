@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from autonomous_forge.cli_entry_patch import main
 
 
@@ -93,3 +95,10 @@ def test_primary_forge_router_exposes_preservation_completeness_help(capsys):
     help_text = capsys.readouterr().out
     assert "maintenance-preservation-completeness" in help_text
     assert "--require-workflow-fresh" in help_text
+
+
+def test_primary_forge_router_does_not_swallow_parser_errors():
+    with pytest.raises(SystemExit) as exc_info:
+        main(["maintenance-preservation-completeness", "--definitely-invalid-option"])
+
+    assert exc_info.value.code != 0
