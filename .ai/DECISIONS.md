@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-141 — 2026-08-15 — Normalize only successful argparse exits at the primary extension router
+
+Context: The repository's red baseline includes two router-help failures because extension CLIs use argparse, whose successful `--help` path raises `SystemExit(0)`, while the importable `forge` router contract expects an integer return code.
+
+Decision: Add a narrow extension-dispatch helper that converts only `SystemExit(0)` and `SystemExit(None)` into return code `0`, normalizes a `None` extension return to `0`, and re-raises every non-zero `SystemExit` so parser errors remain failures. Add regression coverage proving non-zero parser exits are not swallowed.
+
+Alternatives considered: Change every extension CLI, change the tests to expect `SystemExit`, or catch all `SystemExit` values. Updating every CLI would duplicate compatibility glue, changing tests would preserve an inconsistent importable router contract, and swallowing all exits would hide invalid CLI usage.
+
+Consequences: Process-level help behavior remains successful, direct callers of `main([...])` receive the documented numeric success code for extension help, and invalid arguments continue to fail. No side-effect capability or safety gate changes.
+
+Human decision still required: No.
+
 ## DEC-140 — 2026-07-10 — Compatibility commands must also be reachable through primary `forge`
 
 Context: `forge-maintenance-replay-policy-summary` was exposed through `pyproject.toml`, but `cli_entry_patch.py` did not route `forge maintenance-replay-policy-summary`, and CI smoke coverage did not check either replay-policy route.
