@@ -35,6 +35,21 @@ def _resolved_inside_root(path: Path, *, root: Path, label: str) -> Path:
     return resolved
 
 
+def _repository_relative_entry_path(entry_path: str, *, root: Path) -> Path:
+    value = entry_path.strip()
+    if not value:
+        raise MaintenanceArchiveCopyVerifyError("archive entry path is required")
+    root_resolved = root.resolve()
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = root_resolved / candidate
+    try:
+        resolved = candidate.resolve(strict=False)
+        return resolved.relative_to(root_resolved)
+    except (OSError, ValueError) as exc:
+        raise MaintenanceArchiveCopyVerifyError("archive entry path must stay inside the configured root") from exc
+
+
 def build_maintenance_archive_copy_verify_data(
     manifest_path: Path,
     *,
@@ -55,8 +70,10 @@ def build_maintenance_archive_copy_verify_data(
 
     verified_entries: list[dict[str, Any]] = []
     for entry in manifest.get("archive_entries") or []:
-        relative_path = str(entry.get("path") or "").strip()
-        destination = archive_root_resolved / relative_path
+        source_value = str(entry.get("path") or "")
+        relative_entry = _repository_relative_entry_path(source_value, root=root)
+        relative_path = relative_entry.as_posix()
+        destination = archive_root_resolved / relative_entry
         try:
             destination_resolved = destination.resolve(strict=False)
             destination_resolved.relative_to(archive_root_resolved)
