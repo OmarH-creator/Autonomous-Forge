@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-16 — AUTO-146 verified commit readiness
+
+- Task ID: AUTO-146 — Require complete verified validation coverage before commit readiness
+- Summary: Added `forge verified-commit-readiness`, a read-only integration that consumes one guarded live-diff-verified patch record, one or more `verified-validation-run` result records, and a commit-status review. It requires every validation command retained by the patch evidence to have a successful matching verified run before commit readiness can become ready, while reusing the embedded live-diff review and existing commit-readiness status gates.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, `.forge` and `.ai` records, recent commits, open issues, all visible branches, PR history, and current Actions. Work stayed directly on `main`; historical branches remain stale or superseded and inspected PRs are merged, closed, obsolete, or unrelated. No branch or PR was created or merged.
+- Validation completed: Pre-run head `85b94578cd7a0a45c6a2b322874bc6141b7ff410` was green in Actions run `31903262061`. Initial AUTO-146 CI reached pytest on all three supported Python versions and exposed one stale assertion in the new test; runtime behavior correctly blocked incomplete validation coverage. Commit `658d384224be41bda69243fb94da646fbf24797f` aligned that assertion with the existing commit-readiness blocker contract, and Actions run `31914016579` completed successfully across Python 3.10, 3.11, and 3.12. Full diff review from the pre-run head showed only the verified-readiness implementation/CLI/router, focused tests/docs, README, and project-memory records.
+- Product commits: `c6e8a0c4d2ef44a7ca5fd66e3a68d163b00435a0` (core evidence binding), `bece38f3a0d571475bfff5a6572aefb6b8bc39b3` (CLI), `6ff97a8cf28324c98f011a8a51aaf8eb201f59f1` (primary route), `c8d86022c7b63af77b1b042e06c36162477cb327` (regression coverage), `8433da5d10590a122990ac26efce50ad58c3b05c` (docs), and `658d384224be41bda69243fb94da646fbf24797f` (CI-observed assertion correction).
+- Follow-up notes: Continue the same end-to-end milestone by carrying a ready verified-commit-readiness artifact into the existing explicit commit-create and commit-verify path, then into push handoff and durable evidence. Do not add another isolated review command.
+
 ## 2026-08-15 — AUTO-145 verified validation execution handoff
 
 - Task ID: AUTO-145 — Gate validation execution on verified live-diff patch evidence
