@@ -82,6 +82,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-109`–`AUTO-125` | Enriched context, replay, history links, reviewer handoffs | Stronger evidence, but more connected contracts |
 | `AUTO-126`–`AUTO-140` | Archive manifests, copies, packages, verification, completeness | Detailed preservation workflow |
 | `AUTO-141`–`AUTO-142` | Red-baseline recovery, compatibility defects, fixture/contract repair | Supported Python matrix restored to green |
+| `AUTO-143` | Live tracked git-diff inspection | Actual pending tracked changes can be policy-reviewed without exporting a patch |
 
 ## Main features created
 
@@ -97,7 +98,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 
 - Builds change proposals and validation plans.
 - Reviews planned files against policy.
-- Reviews supplied diffs and file contents.
+- Reviews supplied diffs or the repository's current tracked staged/unstaged diff relative to `HEAD`.
 - Detects path escapes and symlinks.
 - Creates validation previews without running commands.
 - Stores and compares local run-history records.
@@ -155,7 +156,7 @@ This is useful, but it is not a complete event log. The repository does not reco
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
 - Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, and missing confirmations.
-- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery.
+- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery; AUTO-143 regression coverage also passes the supported matrix on its implementation/test head.
 
 ### Historical failure and recovery
 
@@ -173,7 +174,7 @@ Those failures had three main causes:
 
 AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
 
-GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12.
+GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection.
 
 There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
 
@@ -186,13 +187,14 @@ Positive controls include:
 - local path and symlink containment;
 - simple secret-marker checks without printing file contents;
 - explicit confirmation flags for writes, commits, packages, and pushes;
-- `shell=False` for the narrow executor command;
+- `shell=False` for the narrow executor command and live git-diff inspection;
 - no force push and no tag push;
 - no telemetry or AI API code;
 - read-only review commands separated from side-effect commands.
 
 Important limits include:
 
+- live `git-diff-review --current` covers tracked changes relative to `HEAD`, not untracked files;
 - workflow freshness trusts supplied JSON evidence;
 - evidence can be supplied by a caller, so provenance is not fully trusted;
 - package signature and signer identity are not fully proved;
@@ -256,9 +258,9 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-- Latest run: AUTO-142, green-baseline recovery completed.
-- Change: restored the primary replay-policy help identity, repaired deterministic multi-bundle comparison fixtures, fixed preservation ranking so it uses actual retained validation-context values instead of a lossy count summary, and aligned stale planning/validation/executor tests with the current enriched safety contracts. Explicit context drift, replay-policy failures, parser errors, hash checks, path containment, overwrite guards, and confirmation boundaries remain fail-closed.
-- Validation: broad inspection covered README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke, roadmap lint, and all 655 pytest tests on Python 3.10, 3.11, and 3.12.
-- Visual updates: no new visual was needed; the existing architecture diagram remains accurate because this cycle repaired behavior and contracts rather than changing the workflow topology.
-- Current limitations: Autonomous Forge remains pre-alpha and human-in-the-loop. It does not provide an in-repository AI runtime/scheduler, full provenance/signature identity, a production release workflow, or unrestricted autonomous execution. Direct repository cloning was unavailable to this stewardship runtime, so GitHub repository and Actions APIs were used as the validation source of truth.
-- Next autonomous objective: with the red-baseline blocker removed, advance a real end-to-end maintenance capability by integrating the already shipped planning, diff-inspection, guarded patch-generation/application, validation, commit-verification, push-handoff, and durable-evidence surfaces instead of adding another standalone read-only review command.
+- Latest run: AUTO-143 — live tracked repository diff inspection.
+- Change: extended the existing `forge git-diff-review` command with `--current`, so it can policy-review the repository's actual tracked staged and unstaged changes relative to `HEAD` without first writing a `.diff`/`.patch` file. The capture runs exactly `git diff --no-ext-diff --no-textconv HEAD --` with `shell=False`, a 15-second timeout, and a 1 MB output bound, then reuses the existing fail-closed diff/path policy review.
+- Validation: broad inspection covered README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, recent commits, open issues, all visible branches, and PR history. GitHub Actions run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) passed package installation, source compilation, installed CLI smoke, roadmap lint, and pytest on Python 3.10, 3.11, and 3.12 for the implementation/test head. Final bookkeeping-head CI is inspected before the stewardship run is reported complete.
+- Visual updates: no new visual was needed. The existing workflow diagram remains accurate because AUTO-143 strengthens the existing diff-review stage rather than changing the workflow topology.
+- Current limitations: `--current` deliberately excludes untracked files and does not prove correctness or validation success. Autonomous Forge remains pre-alpha and human-in-the-loop, without a production release workflow, full evidence provenance/signature identity, or unrestricted autonomous execution.
+- Next autonomous objective: continue the same end-to-end milestone by feeding live policy-reviewed diff evidence into the existing guarded patch-generation/application and validation handoffs, then carry that evidence toward commit verification, push handoff, and durable run evidence instead of adding another isolated review/audit command.
