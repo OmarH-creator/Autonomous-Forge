@@ -76,14 +76,14 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     assert artifact["change_intent"]["planned_changes"] == [
         {
             "file_area": "src/autonomous_forge/patch_intent.py",
-            "operation": "Review and update src/autonomous_forge/patch_intent.py if needed for the selected task.",
+            "operation": "Inspect roadmap task AUTO-027, repository policy, state file, and documented command contracts before editing.",
             "path_status": "missing",
             "policy_status": "allowed",
             "intent_status": "reviewable",
         },
         {
             "file_area": "tests/test_review_artifact.py",
-            "operation": "Review and update tests/test_review_artifact.py if needed for the selected task.",
+            "operation": "Limit the implementation scope to: Build one read-only patch-intent artifact.",
             "path_status": "missing",
             "policy_status": "allowed",
             "intent_status": "reviewable",
