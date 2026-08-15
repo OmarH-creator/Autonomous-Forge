@@ -67,7 +67,8 @@ def test_missing_required_verified_validation_blocks_commit_readiness(tmp_path):
     data = read_verified_commit_readiness_data(patch, runs, status, root=tmp_path)
     assert data["readiness"] == "blocked"
     assert data["missing_verified_validation_commands"] == ["python -m pytest"]
-    assert any("required verified validation did not pass" in item for item in data["readiness_blockers"])
+    assert "post-apply validation is not validated" in data["readiness_blockers"]
+    assert "post-apply validation contains blockers" in data["readiness_blockers"]
 
 
 def test_cli_require_ready_fails_closed_for_incomplete_validation_set(tmp_path, capsys):
