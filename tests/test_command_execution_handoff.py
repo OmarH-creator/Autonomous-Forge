@@ -72,9 +72,10 @@ def test_command_execution_handoff_blocks_missing_history(tmp_path):
         "src/autonomous_forge/command_execution_handoff.py",
         "tests/test_command_execution_handoff.py",
     ]
-    assert data["implementation_steps"][0] == "Combine validation orchestration readiness and command candidates."
-    assert data["validation_steps"] == ["Run python -m pytest."]
-    assert data["risk_register"] == ["Do not execute validation commands."]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-042")
+    assert data["validation_steps"] == ["Run python -m pytest"]
+    assert data["risk_register"][0]["risk"] == "Do not execute validation commands"
+    assert data["risk_register"][0]["source"] == "roadmap"
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
     assert data["candidate_commands"][0]["execution_status"] == "not run"
     assert data["expected_result_record_update"]["mutation_allowed"] is False
@@ -158,4 +159,4 @@ def test_command_execution_handoff_cli_supports_json(tmp_path, capsys):
     assert data["title"] == "Autonomous Forge command-execution handoff preview"
     assert data["handoff_status"] == "ready-for-manual-execution-review"
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
-    assert data["implementation_steps"][0] == "Combine validation orchestration readiness and command candidates."
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-042")
