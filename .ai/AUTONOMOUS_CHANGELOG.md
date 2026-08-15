@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142 green-baseline completion
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: replay/context, comparison, and enriched-contract recovery
+- Summary: Completed issue #13. Fixed the primary replay-policy help identity; made multi-bundle maintenance-review comparison fixtures deterministic and replay-policy-valid; fixed a real preservation-ranking defect by exposing the already validated raw retained history-link context through maintenance review handoff instead of ranking the lossy count summary; and updated stale planning/validation/executor assertions to the current enriched safety contract rather than weakening runtime safeguards.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration.
+- Validation completed: The run started from 633 passed / 22 failed on the inspected Python 3.11 suite. Intermediate CI reduced that to 637/18 and then 647/8. Run `31871534812` reached 654 passed / 1 failed, isolating the final normalized validation-expectation assertion. After commit `f3864ca164728ed6b5bdf760504385b345c29b9d`, GitHub Actions run `31871553378` passed package installation, source compilation, installed CLI smoke, roadmap lint, and all 655 pytest tests on Python 3.10, 3.11, and 3.12.
+- Product commits: replay-policy help identity; `fd20a5c86422ba288d9db0bce65b35551f879b84` (raw retained review context for preservation ranking); `703d677de0f05054e02e092306b9bac6615455c1` (replay-policy-valid comparison ranking fixture); `f3864ca164728ed6b5bdf760504385b345c29b9d` (last stale normalized validation expectation), plus focused contract-test alignment commits.
+- Follow-up notes: Issue #13 exit criteria are satisfied. Resume feature delivery only while the full Python 3.10/3.11/3.12 matrix remains green; prefer integration of the existing guarded planning→diff→patch→validation→commit/push→evidence capabilities over another standalone read-only review command.
+
 ## 2026-08-15 — AUTO-142 validation-step normalization
 
 - Task ID: AUTO-142 — Restore green main baseline, phase 2: semantic validation-step deduplication
@@ -76,8 +85,8 @@
 
 - Task ID: AUTO-138 — Maintenance preservation completeness summary
 - Summary: Added `forge maintenance-preservation-completeness` and `forge-maintenance-preservation-completeness`, a read-only final review command that combines written archive-manifest verification, copied archive-root verification, and archive-package verification into one `complete` or `blocked` preservation status.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, branch search, archive manifest/copy/package verification implementation, focused tests, docs, package scripts, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; branch search returned no open branch work requiring integration.
-- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added deterministic coverage for clean completeness, missing package blocking, JSON CLI success, and fail-closed `--require-complete` behavior on package drift. Static review also corrected the package verifier's expected-existing-package blocker so a written package can be verified after package creation. Direct full checkout/full pytest execution remained unavailable in this environment.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, branch search, archive manifest/copy/package verification implementation, focused tests, docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; branch search returned no open branch work requiring integration.
+- Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Local scratch syntax compilation passed for the changed preservation-completeness core, CLI module, and focused test file. Added deterministic coverage for clean completeness, missing package blocking, JSON CLI success, and fail-closed `--require-complete` behavior on package drift. Static review also corrected the package verifier's expected-existing-package blocker so a written package can be verified after package creation. Direct full checkout/full pytest execution remained unavailable from this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a read-only evidence provenance/signature review or workflow-freshness gate if a concrete safe local contract is identified.
 
