@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-148 — 2026-08-15 — Live diff inspection must remain bounded and side-effect free
+
+Context: The end-to-end maintenance path could review a caller-supplied `.diff`/`.patch`, but it could not inspect the repository's actual pending tracked changes. Requiring manual export created a practical evidence handoff gap and allowed supplied diff evidence to drift from the current checkout.
+
+Decision: Extend the existing `forge git-diff-review` command with a mutually exclusive `--current` mode that runs exactly `git diff --no-ext-diff --no-textconv HEAD --` using `shell=False` inside the configured repository root. Reuse the existing diff parser and policy/path gates, apply a 15-second timeout and 1 MB output bound, fail closed on git errors/non-UTF-8/oversized output, and treat an empty tracked diff as clear while explicitly warning that untracked files remain outside scope.
+
+Alternatives considered: Add another standalone command, invoke a shell pipeline, include external diff/textconv hooks, or silently include untracked files. Another command would fragment the maintenance workflow; a shell expands the execution surface; external diff/textconv hooks may execute repository-configured helpers; and untracked files are not represented by ordinary `git diff HEAD` and require a separate explicit contract.
+
+Consequences: Maintainers can now review the actual tracked staged and unstaged repository delta without exporting a patch file, reducing evidence drift while preserving the existing policy review contract. GitHub Actions run `31881238816` passed the complete Python 3.10/3.11/3.12 matrix for the focused implementation/test head. No patch application, validation execution, network access, git mutation, commit, push, force-push, branch-protection change, or workflow-rerun authority was added.
+
+Human decision still required: No.
+
 ## DEC-147 — 2026-08-15 — Preservation ranking must use retained review values, not a lossy summary
 
 Context: After deterministic fixture collisions and replay-policy inconsistencies were repaired, the maintenance-review comparison ranking test exposed a product defect rather than a stale assertion. `maintenance_history_link_review` intentionally summarizes retained validation context into presence/count metadata. `maintenance_review_compare` ranks preservation candidates partly by the richness of retained validation context, but `maintenance_review_handoff` was forwarding the summary object. Every candidate therefore appeared to contain zero retained context items even when one had materially richer review evidence.
