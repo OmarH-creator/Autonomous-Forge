@@ -14,7 +14,10 @@ from autonomous_forge.maintenance_replay_policy_summary import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Summarize replay policy gates for a persisted maintenance evidence bundle.")
+    parser = argparse.ArgumentParser(
+        prog="forge maintenance-replay-policy-summary",
+        description="Summarize replay policy gates for a persisted maintenance evidence bundle.",
+    )
     parser.add_argument("--bundle", required=True, type=Path, help="Path to the persisted maintenance evidence bundle JSON.")
     parser.add_argument("--root", default=Path("."), type=Path, help="Repository root used to bound bundle/source-report reads.")
     parser.add_argument("--format", choices=("text", "json"), default="text", help="Output format.")
