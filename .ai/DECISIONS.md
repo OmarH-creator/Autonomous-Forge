@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-149 — 2026-08-15 — Verified patch apply must roll back when live tracked-diff evidence fails
+
+Context: AUTO-143 made the current tracked repository diff inspectable, but `forge patch-apply` still stopped after mutating one confirmed target and only instructed the caller to review the resulting diff later. That left a gap between the write-capable patch step and the newly available live policy-aware diff evidence.
+
+Decision: Extend the existing `forge patch-apply` command with opt-in `--verify-live-diff`. After an explicitly confirmed replacement write, capture only the requested target through `git diff --no-ext-diff --no-textconv HEAD -- <validated-target>` using `shell=False`, a 15-second timeout, and the existing 1 MB bound. Reuse the policy-aware diff parser, require a clear review containing exactly one changed file and exactly the requested target path, and restore the original target contents if git execution, decoding, bounds, parsing, policy, file-count, or target-identity verification fails.
+
+Alternatives considered: Add another standalone read-only verification command, leave verification entirely to the caller, verify the whole repository after the write, or keep the changed file when post-write verification fails. Another standalone command would fragment the end-to-end flow; caller-only review preserves the handoff gap; whole-repository verification could fail because of unrelated existing tracked work; and leaving an unverifiable mutation behind conflicts with the product's fail-closed write philosophy.
+
+Consequences: A confirmed patch application can now produce immediate evidence that the actual tracked target delta is policy-allowed, while failed verification is atomic from the caller's perspective because the original target is restored. The gate still does not inspect untracked files, run validation commands, call networks, commit, push, change remotes, force-push, alter branch protections, or rerun workflows. GitHub Actions run `31891899123` passed the supported Python 3.10/3.11/3.12 matrix for the implementation/test head.
+
+Human decision still required: No.
+
 ## DEC-148 — 2026-08-15 — Live diff inspection must remain bounded and side-effect free
 
 Context: The end-to-end maintenance path could review a caller-supplied `.diff`/`.patch`, but it could not inspect the repository's actual pending tracked changes. Requiring manual export created a practical evidence handoff gap and allowed supplied diff evidence to drift from the current checkout.
