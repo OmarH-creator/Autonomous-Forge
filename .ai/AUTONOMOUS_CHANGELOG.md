@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-144 verified guarded patch apply
+
+- Task ID: AUTO-144 — Verify the actual tracked diff after guarded patch apply
+- Summary: Extended the existing write-capable `forge patch-apply` path with optional `--verify-live-diff`. A confirmed replacement write can now be followed immediately by bounded target-scoped `git diff --no-ext-diff --no-textconv HEAD -- <target>` capture, policy review, exact one-file/one-target verification, and automatic rollback to the original target contents if live diff verification fails.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, `.forge/policy.md`, roadmap/state/changelog/decisions, recent commits, open issues, all visible branches, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration or replacement.
+- Validation completed: GitHub Actions run `31891899123` on implementation/test head `5c726ae297ddd3f524eb547512f60cb4a8985153` completed successfully across Python 3.10, 3.11, and 3.12, including package installation, source compilation, installed CLI smoke, roadmap lint, and pytest. Regression coverage verifies successful target-scoped live review and rollback when the post-write tracked diff cannot be established.
+- Product commits: `1c351e5c56e5e4b9e749e794f472b80a8ae51f10` (safe path-scoped live diff capture), `f2f5cf2fc097819069ea4a18b2130b441a01ab53` (verified apply + rollback), `b71c4e7d8243139c6b87218d6703486386381043` (CLI gate), `5c726ae297ddd3f524eb547512f60cb4a8985153` (regression coverage), plus docs/project-memory commits.
+- Follow-up notes: Continue the same end-to-end maintenance milestone by carrying verified apply evidence directly into the existing validation execution/result handoff and then commit verification. Do not add another isolated read-only audit surface.
+
 ## 2026-08-15 — AUTO-143 live tracked diff inspection
 
 - Task ID: AUTO-143 — Inspect the actual current tracked repository diff
