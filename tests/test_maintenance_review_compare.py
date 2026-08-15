@@ -61,7 +61,7 @@ def write_replayable_bundle(
         ],
     }
     bundle_path = tmp_path / ".ai" / "bundles" / f"{bundle_id}.json"
-    bundle_path.parent.mkdir(parents=True)
+    bundle_path.parent.mkdir(parents=True, exist_ok=True)
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
     return bundle_path
 
@@ -115,7 +115,7 @@ def write_link(
         "write_allowed": False,
     }
     link_path = tmp_path / ".ai" / "run-history" / f"{bundle_id}-link.json"
-    link_path.parent.mkdir(parents=True)
+    link_path.parent.mkdir(parents=True, exist_ok=True)
     link_path.write_text(json.dumps(link), encoding="utf-8")
     return link_path
 
@@ -225,4 +225,4 @@ def test_review_compare_cli_require_all_ready_blocks(tmp_path, capsys):
     assert status == 2
     output = capsys.readouterr().out
     assert "Comparison status: blocked" in output
-    assert "history pointer still has blocking quality findings" in output
+    assert "review handoff has failed required gates" in output
