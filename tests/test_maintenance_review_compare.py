@@ -143,10 +143,14 @@ def test_review_compare_selects_best_preservation_candidate(tmp_path):
         "validation_steps": ["python -m pytest"],
         "risk_register": ["linked evidence may drift"],
     }
+    larger_validation_steps = ["python -m pytest", "forge maintenance-review-compare --format json"]
     larger_context = {
-        "expected_file_changes": ["Update README.md status", "Update docs"],
+        "expected_file_changes": [
+            "Update README.md status",
+            "Update docs/MAINTENANCE_REVIEW_COMPARE.md",
+        ],
         "implementation_steps": ["build comparison handoff", "rank ready handoffs"],
-        "validation_steps": ["python -m pytest", "forge maintenance-review-compare --format json"],
+        "validation_steps": larger_validation_steps,
         "risk_register": ["linked evidence may drift", "ranking could hide blocked records"],
     }
     first_bundle = write_replayable_bundle(tmp_path, "AUTO-125", "abc1234", validation_context=small_context)
@@ -155,6 +159,7 @@ def test_review_compare_selects_best_preservation_candidate(tmp_path):
         "AUTO-126",
         "def5678",
         reviewed_paths=["README.md", "docs/MAINTENANCE_REVIEW_COMPARE.md"],
+        validation_steps=larger_validation_steps,
         validation_context=larger_context,
     )
     first_link = write_link(tmp_path, first_bundle, bundle_id="AUTO-125", commit_sha="abc1234", validation_context=small_context)
@@ -164,6 +169,7 @@ def test_review_compare_selects_best_preservation_candidate(tmp_path):
         bundle_id="AUTO-126",
         commit_sha="def5678",
         reviewed_paths=["README.md", "docs/MAINTENANCE_REVIEW_COMPARE.md"],
+        validation_steps=larger_validation_steps,
         validation_context=larger_context,
     )
 
