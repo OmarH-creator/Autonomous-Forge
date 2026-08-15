@@ -60,7 +60,7 @@ def test_build_validation_orchestration_preview_blocks_missing_history(tmp_path)
     assert data["commands_allowed"] is False
     assert data["expected_file_changes"]
     assert data["implementation_steps"]
-    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["validation_steps"] == ["Run python -m pytest"]
     assert data["risk_register"]
     assert data["command_candidate_summary"]["eligible_preview"] == 1
     assert data["history_validation_guard"]["overall_status"] == "no-records"
@@ -95,12 +95,7 @@ def test_build_validation_orchestration_preview_formats_text(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
 
-    output = build_validation_orchestration_preview(
-        VALID_PLAN,
-        VALID_POLICY,
-        state_path=state,
-        root=tmp_path,
-    )
+    output = build_validation_orchestration_preview(VALID_PLAN, VALID_POLICY, state_path=state, root=tmp_path)
 
     assert "Autonomous Forge validation orchestration preview" in output
     assert "Selected task: AUTO-040 [P1/TODO] Add validation orchestration preview" in output
@@ -118,19 +113,13 @@ def test_build_validation_orchestration_preview_supports_json(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
 
-    output = build_validation_orchestration_preview(
-        VALID_PLAN,
-        VALID_POLICY,
-        state_path=state,
-        root=tmp_path,
-        output_format="json",
-    )
+    output = build_validation_orchestration_preview(VALID_PLAN, VALID_POLICY, state_path=state, root=tmp_path, output_format="json")
     data = json.loads(output)
 
     assert data["selected_task"]["id"] == "AUTO-040"
     assert data["expected_file_changes"]
     assert data["implementation_steps"]
-    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["validation_steps"] == ["Run python -m pytest"]
     assert data["risk_register"]
     assert data["history_validation_guard"]["overall_status"] == "clear"
     assert data["commands_allowed"] is False
