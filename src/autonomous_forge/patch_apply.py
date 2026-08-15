@@ -7,6 +7,9 @@ import json
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from autonomous_forge.git_diff_review import GitDiffReviewError
+from autonomous_forge.repository_git_diff import build_repository_git_diff_review_data, capture_current_git_diff
+
 _MAX_TEXT_BYTES = 1_000_000
 _SECRET_MARKERS = ("secret", "token", "password", "api_key", "private key", "BEGIN RSA PRIVATE KEY")
 
@@ -147,6 +150,8 @@ def build_patch_apply_data(
         "apply_status": status,
         "patch_application_allowed": status == "ready",
         "file_changed": False,
+        "live_diff_verified": False,
+        "live_diff_review": None,
         "target_path": target_path,
         "validation_steps": [step.strip() for step in validation_steps],
         "patch_line_count": len(expected_preview),
@@ -160,8 +165,10 @@ def build_patch_apply_data(
             "Guarded patch apply reads one generated patch preview JSON file, one ready change-readiness JSON file, "
             "one explicit target file, and one explicit replacement text file under the repository root. It writes only "
             "the requested target path when --confirm-apply is present and the current target plus replacement exactly "
-            "reproduce the supplied preview. It does not run commands, call networks, mutate saved history, read "
-            "environment variables, commit, push, or edit any other file."
+            "reproduce the supplied preview. Optional live-diff verification runs one bounded target-scoped git diff "
+            "with shell=False and restores the original target content if that verification fails. It does not run "
+            "validation commands, call networks, mutate saved history, read environment variables, commit, push, or edit "
+            "any other file."
         ),
     }
 
@@ -174,7 +181,7 @@ def read_patch_apply_data(
     replacement_path: Path,
     root: Path = Path("."),
     confirm_apply: bool = False,
-) -> tuple[dict[str, Any], Path | None, str | None]:
+) -> tuple[dict[str, Any], Path | None, str | None, str | None]:
     """Read explicit inputs and return guarded patch-apply data plus write intent."""
     _validate_path_label(target_path)
     preview_file = _resolve_under_root(root, preview_path, kind="preview")
@@ -206,8 +213,26 @@ def read_patch_apply_data(
         replacement_source=str(replacement_path),
     )
     if data["patch_application_allowed"]:
-        return data, target_file, replacement_text
-    return data, None, None
+        return data, target_file, replacement_text, current_text
+    return data, None, None, None
+
+
+def _verify_live_target_diff(*, root: Path, policy_path: Path, target_path: str) -> dict[str, Any]:
+    policy_file = _resolve_under_root(root, policy_path, kind="policy")
+    policy_text = _read_bounded_text(policy_file, kind="policy")
+    diff_text = capture_current_git_diff(root, pathspecs=(target_path,))
+    review = build_repository_git_diff_review_data(policy_text, diff_text, root=root)
+    reviewed_paths = {item.get("path") for item in review.get("path_reviews", []) if isinstance(item, dict)}
+    blockers: list[str] = []
+    if review.get("requires_attention"):
+        blockers.append("target-scoped live git diff requires attention")
+    if review.get("summary", {}).get("files_changed") != 1:
+        blockers.append("target-scoped live git diff did not contain exactly one changed file")
+    if reviewed_paths != {target_path}:
+        blockers.append("target-scoped live git diff did not review exactly the requested target path")
+    if blockers:
+        raise PatchApplyError("; ".join(blockers))
+    return review
 
 
 def apply_patch_from_preview(
@@ -218,9 +243,11 @@ def apply_patch_from_preview(
     replacement_path: Path,
     root: Path = Path("."),
     confirm_apply: bool = False,
+    verify_live_diff: bool = False,
+    policy_path: Path = Path(".forge/policy.md"),
 ) -> dict[str, Any]:
     """Apply one replacement file after all guarded evidence checks pass."""
-    data, target_file, replacement_text = read_patch_apply_data(
+    data, target_file, replacement_text, original_text = read_patch_apply_data(
         preview_path,
         change_readiness_path=change_readiness_path,
         target_path=target_path,
@@ -228,9 +255,26 @@ def apply_patch_from_preview(
         root=root,
         confirm_apply=confirm_apply,
     )
-    if target_file is not None and replacement_text is not None:
+    if target_file is not None and replacement_text is not None and original_text is not None:
         target_file.write_text(replacement_text, encoding="utf-8")
-        data = {**data, "apply_status": "applied", "file_changed": True, "patch_application_allowed": False}
+        if verify_live_diff:
+            try:
+                live_review = _verify_live_target_diff(root=root, policy_path=policy_path, target_path=target_path)
+            except (PatchApplyError, GitDiffReviewError, OSError) as exc:
+                target_file.write_text(original_text, encoding="utf-8")
+                raise PatchApplyError(f"post-apply live git diff verification failed; original content restored: {exc}") from exc
+            data = {**data, "live_diff_verified": True, "live_diff_review": live_review}
+        data = {
+            **data,
+            "apply_status": "applied",
+            "file_changed": True,
+            "patch_application_allowed": False,
+            "next_step": (
+                "Run the listed validation steps; the applied target already passed policy-aware live git diff verification."
+                if data["live_diff_verified"]
+                else "Run the listed validation steps, review the resulting git diff, and commit only after validation passes."
+            ),
+        }
     return data
 
 
@@ -245,6 +289,7 @@ def format_patch_apply(data: dict[str, Any]) -> str:
         f"Apply status: {data['apply_status']}",
         f"Patch application allowed: {str(data['patch_application_allowed']).lower()}",
         f"File changed: {str(data['file_changed']).lower()}",
+        f"Live diff verified: {str(data['live_diff_verified']).lower()}",
         f"Target path: {data['target_path']}",
         "Validation steps:",
     ]
@@ -266,6 +311,8 @@ def run_patch_apply(
     replacement_path: Path,
     root: Path = Path("."),
     confirm_apply: bool = False,
+    verify_live_diff: bool = False,
+    policy_path: Path = Path(".forge/policy.md"),
     output_format: str = "text",
 ) -> str:
     """Apply one guarded patch replacement and return a report."""
@@ -276,6 +323,8 @@ def run_patch_apply(
         replacement_path=replacement_path,
         root=root,
         confirm_apply=confirm_apply,
+        verify_live_diff=verify_live_diff,
+        policy_path=policy_path,
     )
     if output_format == "json":
         return json.dumps(data, indent=2, sort_keys=True)
