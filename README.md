@@ -83,6 +83,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-126`–`AUTO-140` | Archive manifests, copies, packages, verification, completeness | Detailed preservation workflow |
 | `AUTO-141`–`AUTO-142` | Red-baseline recovery, compatibility defects, fixture/contract repair | Supported Python matrix restored to green |
 | `AUTO-143` | Live tracked git-diff inspection | Actual pending tracked changes can be policy-reviewed without exporting a patch |
+| `AUTO-144` | Verified guarded patch apply | Confirmed replacement writes can verify their actual tracked target diff and roll back if that verification fails |
 
 ## Main features created
 
@@ -107,7 +108,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 
 Separate commands can, after explicit confirmation:
 
-- apply a reviewed replacement patch;
+- apply a reviewed replacement patch, optionally verify the actual target-scoped tracked diff immediately after the write, and restore the original target if that verification fails;
 - run one exact validation command with `shell=False`;
 - create a local commit;
 - perform a guarded, non-force push;
@@ -155,8 +156,8 @@ This is useful, but it is not a complete event log. The repository does not reco
 - Tests use temporary directories and deterministic fixtures.
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
-- Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, and missing confirmations.
-- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery; AUTO-143 regression coverage also passes the supported matrix on its implementation/test head.
+- Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, missing confirmations, and rollback when post-write tracked-diff verification cannot be established.
+- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery; AUTO-143 and AUTO-144 regression coverage also pass the supported matrix on their implementation/test heads.
 
 ### Historical failure and recovery
 
@@ -174,7 +175,7 @@ Those failures had three main causes:
 
 AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
 
-GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection.
+GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage.
 
 There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
 
@@ -188,6 +189,7 @@ Positive controls include:
 - simple secret-marker checks without printing file contents;
 - explicit confirmation flags for writes, commits, packages, and pushes;
 - `shell=False` for the narrow executor command and live git-diff inspection;
+- optional post-write target-scoped live-diff verification with rollback to the original target contents on verification failure;
 - no force push and no tag push;
 - no telemetry or AI API code;
 - read-only review commands separated from side-effect commands.
@@ -195,6 +197,7 @@ Positive controls include:
 Important limits include:
 
 - live `git-diff-review --current` covers tracked changes relative to `HEAD`, not untracked files;
+- verified patch apply covers only the requested tracked target and does not itself run tests or prove correctness;
 - workflow freshness trusts supplied JSON evidence;
 - evidence can be supplied by a caller, so provenance is not fully trusted;
 - package signature and signer identity are not fully proved;
@@ -258,9 +261,9 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-- Latest run: AUTO-143 — live tracked repository diff inspection.
-- Change: extended the existing `forge git-diff-review` command with `--current`, so it can policy-review the repository's actual tracked staged and unstaged changes relative to `HEAD` without first writing a `.diff`/`.patch` file. The capture runs exactly `git diff --no-ext-diff --no-textconv HEAD --` with `shell=False`, a 15-second timeout, and a 1 MB output bound, then reuses the existing fail-closed diff/path policy review.
-- Validation: broad inspection covered README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, recent commits, open issues, all visible branches, and PR history. GitHub Actions run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) passed package installation, source compilation, installed CLI smoke, roadmap lint, and pytest on Python 3.10, 3.11, and 3.12 for the implementation/test head. Final bookkeeping-head CI is inspected before the stewardship run is reported complete.
-- Visual updates: no new visual was needed. The existing workflow diagram remains accurate because AUTO-143 strengthens the existing diff-review stage rather than changing the workflow topology.
-- Current limitations: `--current` deliberately excludes untracked files and does not prove correctness or validation success. Autonomous Forge remains pre-alpha and human-in-the-loop, without a production release workflow, full evidence provenance/signature identity, or unrestricted autonomous execution.
-- Next autonomous objective: continue the same end-to-end milestone by feeding live policy-reviewed diff evidence into the existing guarded patch-generation/application and validation handoffs, then carry that evidence toward commit verification, push handoff, and durable run evidence instead of adding another isolated review/audit command.
+- Latest run: AUTO-144 — verified guarded patch apply.
+- Change: extended the existing write-capable `forge patch-apply` command with opt-in `--verify-live-diff`. After an explicitly confirmed replacement write, Forge captures `git diff --no-ext-diff --no-textconv HEAD -- <validated-target>` with `shell=False`, a 15-second timeout, and the existing 1 MB bound; reuses the policy-aware diff review; requires exactly one changed file and exactly the requested target; and restores the original target contents if live verification cannot be established.
+- Validation: broad inspection covered README/docs/examples, source/tests/config/CI, `.forge/policy.md`, roadmap/state/changelog/decisions, recent commits, open issues, all visible branches, and PR history. GitHub Actions run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed package installation, source compilation, installed CLI smoke, roadmap lint, and pytest on Python 3.10, 3.11, and 3.12 for implementation/test head `5c726ae297ddd3f524eb547512f60cb4a8985153`. Final bookkeeping-head CI is inspected before the stewardship run is reported complete.
+- Visual updates: no new visual was needed. The existing workflow diagram remains accurate because AUTO-144 strengthens the existing confirmed-change stage and its handoff to validation rather than changing the workflow topology.
+- Current limitations: verified apply covers the requested tracked target only; untracked files remain outside this gate, and a successful diff review does not itself run tests or prove correctness. Autonomous Forge remains pre-alpha and human-in-the-loop, without a production release workflow, full evidence provenance/signature identity, or unrestricted autonomous execution.
+- Next autonomous objective: continue this same integration milestone by carrying `live_diff_review` evidence from a verified apply into the existing validation execution/result handoff, then use that validated evidence in commit verification and the existing push/evidence chain instead of adding another standalone audit command.
