@@ -4,13 +4,13 @@
 
 Autonomous Forge is an open-source Python tool built and maintained by scheduled AI agents. The agents were given a GitHub repository and permission to decide what to build, how to structure it, and how to improve it.
 
-This README documents what happened during the experiment.
+This README documents what happened during the experiment and the subsequent baseline-recovery work.
 
 ## Short result
 
 The experiment was successful as a research test, but the project is not production-ready.
 
-The AI grew a small repository into a large safety and maintenance framework. The code installs, compiles, and many individual commands work. However, the final main branch has failing tests. The latest GitHub Actions run failed on Python 3.10, 3.11, and 3.12.
+The AI grew a small repository into a large safety and maintenance framework. The code installs, compiles, and the supported Python 3.10/3.11/3.12 matrix is green again after a dedicated baseline-recovery milestone. That recovery does not by itself make the project production-ready; the framework remains pre-alpha and deliberately human-in-the-loop.
 
 The best description is:
 
@@ -38,11 +38,11 @@ The repository does not call an AI model. The external scheduler and AI agents s
 
 ## What happened
 
-The repository started with only a README and a license. By the final commit, it contained:
+The repository started with only a README and a license. By the end of the original three-day experiment, it contained:
 
 - Total lines added across all Git history: 49,200
 - Total lines deleted across history: 11,616
-- Actual lines currently present: 37,584 lines
+- Actual lines then present: 37,584 lines
 - 283 tracked files.
 - 112 Python source files.
 - 90 Python test files.
@@ -81,6 +81,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-063`–`AUTO-108` | Patch reviews, patch apply, git review, commit and push gates | Near end-to-end maintenance chain |
 | `AUTO-109`–`AUTO-125` | Enriched context, replay, history links, reviewer handoffs | Stronger evidence, but more connected contracts |
 | `AUTO-126`–`AUTO-140` | Archive manifests, copies, packages, verification, completeness | Detailed preservation workflow |
+| `AUTO-141`–`AUTO-142` | Red-baseline recovery, compatibility defects, fixture/contract repair | Supported Python matrix restored to green |
 
 ## Main features created
 
@@ -135,65 +136,46 @@ The experiment used two roles:
 1. a product-and-engineering role that selected and shipped improvements;
 2. a maintenance role focused on failing tests, CI, and maintenance PRs.
 
-Most product work was committed directly to `main`. The maintenance work created or updated branches and pull requests. The repository history contains eight pull requests: two merged, five closed without merging, and one open community pull request.
+Most product work was committed directly to `main`. Historical maintenance work created or updated branches and pull requests; later stewardship cycles use `main` directly and treat old branch/PR work as inspect-before-integrate evidence rather than as the default delivery path.
 
-The `.ai` directory acted as project memory:
+The `.ai` directory acts as project memory:
 
 - `.ai/AUTONOMOUS_PLAN.md`
 - `.ai/AUTONOMOUS_STATE.md`
 - `.ai/AUTONOMOUS_CHANGELOG.md`
 - `.ai/DECISIONS.md`
 
-This was useful, but it was not a complete event log. The repository does not record a model ID, scheduler ID, token use, or a reliable agent ID for every commit. Therefore, the exact work split between the two AI agents cannot be proved from Git history alone.
+This is useful, but it is not a complete event log. The repository does not record a model ID, scheduler ID, token use, or a reliable agent ID for every commit. Therefore, the exact work split between AI agents cannot be proved from Git history alone.
 
 ## Testing and CI
 
-### What worked
+### What works
 
-- 614 named test functions were found across 90 test files.
-- The suite collected 652 tests in the audit environment.
 - Tests use temporary directories and deterministic fixtures.
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
 - Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, and missing confirmations.
+- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery.
 
-### What failed
+### Historical failure and recovery
 
-The final local audit produced:
+A prior audit produced:
 
 ```text
 569 passed, 82 failed, 1 skipped
 ```
 
-The latest audited [GitHub Actions run](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/29054022486) passed installation, compilation, CLI smoke checks, and roadmap linting. All three Python jobs failed at the test step.
+Those failures had three main causes:
 
-The 82 local failures had three main causes:
+- maintenance, archive, and replay fixtures that predated newer context-consistency rules;
+- planning, validation, executor, and review assertions that predated enriched output contracts;
+- router-help behavior where direct Python callers saw successful argparse `SystemExit(0)` rather than the router's numeric return-code contract.
 
-- 59 maintenance, archive, and replay tests: newer context-consistency rules made older fixtures blocked.
-- 21 planning, validation, executor, and review tests: newer output fields were added, but older assertions still expected the previous output.
-- 2 router help tests: calling the Python `main()` function with `--help` raised `SystemExit(0)`, although process-level help exited successfully. AUTO-141 repaired this router contract.
+AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
 
-The first recorded CI failure was during `AUTO-019`, after a small output wording change. CI later became green at `AUTO-109`. After `AUTO-110` added richer plan fields to proposals and validation, the suite failed again and did not return to green in the visible history.
+GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12.
 
-Across the available Actions history in the audit:
-
-| Result | Runs |
-|---|---:|
-| Success | 242 |
-| Failure | 1,153 |
-| Action required | 1 |
-| Total | 1,396 |
-
-```mermaid
-pie title GitHub Actions results
-    "Failure" : 1153
-    "Success" : 242
-    "Action required" : 1
-```
-
-This is the most important weakness of the experiment: the agents kept adding features while the branch was failing.
-
-There is no lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The only workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
+There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
 
 ## Is it safe?
 
@@ -216,9 +198,8 @@ Important limits include:
 - package signature and signer identity are not fully proved;
 - secret detection is not a complete secret scanner;
 - some commands can cause real local or remote side effects after confirmation;
-- `main` is currently not branch protected;
-- there is no shared lock for the external scheduled agents;
-- the high-level overview documentation still describes the older read-only boundary.
+- there is no shared lock for external scheduled agents;
+- some high-level overview documentation may lag newer guarded capabilities.
 
 ## Why did the AI choose this project?
 
@@ -240,11 +221,11 @@ The project is self-referential: an AI-maintained repository created a tool for 
 
 ### What succeeded
 
-The AI showed that it can grow a repository from a two-file start into a structured project with a clear architecture, many tests, safety boundaries, and durable engineering memory.
+The AI showed that it can grow a repository from a two-file start into a structured project with a clear architecture, many tests, safety boundaries, durable engineering memory, and—after a dedicated recovery milestone—a green supported-version test baseline.
 
-### What did not succeed
+### What remains incomplete
 
-It did not keep the main branch green. It also did not create an AI runtime, an in-repository scheduler, a clean end-to-end demo, or a production release.
+It has not created an in-repository AI runtime, scheduler, polished end-to-end product demo, production release, or fully trusted evidence-provenance/signature system. A green matrix removes the immediate release blocker; it does not prove the entire maintenance workflow safe for unattended use.
 
 ### What it is useful for today
 
@@ -263,10 +244,10 @@ Do not yet use it as an unattended tool for important repositories.
 2. Add one shared lock or lease for all scheduled agents.
 3. Add a circuit breaker after repeated CI failures.
 4. Record agent role, run ID, start/end time, commit list, and CI result. Do not record private prompts.
-5. Use one coherent commit per stewardship cycle, or cancel obsolete CI runs.
+5. Use one coherent commit per stewardship cycle where practical, or cancel obsolete CI runs.
 6. Treat JSON output schemas as contracts and update fixtures before changing them.
 7. Add one end-to-end test in a temporary repository: plan → review → patch → validate → commit → evidence.
-8. Fix the current failures before adding more preservation features.
+8. Keep the supported Python matrix green before adding more product surface.
 9. Choose a concrete user problem and measure whether the project solves it.
 
 The central lesson is simple:
@@ -275,9 +256,9 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-- Latest run: AUTO-142, green-baseline recovery — semantic validation-step normalization.
-- Change: fixed a shared validation-plan defect where equivalent validation steps such as `Run python -m pytest` and `Run python -m pytest.` could survive as separate entries and create duplicate downstream command candidates. The shared validation-plan builder now compares steps after whitespace normalization and terminal-period removal while preserving the first documented spelling and original order.
-- Validation: broad inspection covered README/docs/source/tests/config/CI, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. GitHub Actions run `31861022809` on regression-test head `43a74adf533239a1c52b5509bd10e25f97be8865` passed package installation, source compilation, installed CLI smoke, and roadmap lint on Python 3.10, 3.11, and 3.12. The inspected Python 3.11 pytest result improved from 631 passed / 23 failed to 633 passed / 22 failed. The new deterministic deduplication regression test passed. `main` is still not claimed green.
-- Visual updates: none; this change normalizes validation evidence inside the existing planning/execution workflow, and the current architecture diagrams remain accurate.
-- Current limitations: 22 failures remain in the inspected Python 3.11 job: stale enriched planning/validation/executor assertions, one replay-policy primary-router help assertion, and four maintenance-review-compare failures including three fixture directory-collision cases. Direct repository cloning/test execution is unavailable in this runtime because outbound DNS to github.com is blocked. GitHub Actions also warns that pinned checkout/setup-python revisions target deprecated Node.js 20, but that warning is not the current P0 failure cause.
-- Next autonomous objective: continue issue #13 by updating the stale enriched planning/validation/executor expectations to the current safety-preserving contract, then repair the replay-policy help assertion and maintenance-review-compare fixture/output failures until Python 3.10, 3.11, and 3.12 are green.
+- Latest run: AUTO-142, green-baseline recovery completed.
+- Change: restored the primary replay-policy help identity, repaired deterministic multi-bundle comparison fixtures, fixed preservation ranking so it uses actual retained validation-context values instead of a lossy count summary, and aligned stale planning/validation/executor tests with the current enriched safety contracts. Explicit context drift, replay-policy failures, parser errors, hash checks, path containment, overwrite guards, and confirmation boundaries remain fail-closed.
+- Validation: broad inspection covered README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke, roadmap lint, and all 655 pytest tests on Python 3.10, 3.11, and 3.12.
+- Visual updates: no new visual was needed; the existing architecture diagram remains accurate because this cycle repaired behavior and contracts rather than changing the workflow topology.
+- Current limitations: Autonomous Forge remains pre-alpha and human-in-the-loop. It does not provide an in-repository AI runtime/scheduler, full provenance/signature identity, a production release workflow, or unrestricted autonomous execution. Direct repository cloning was unavailable to this stewardship runtime, so GitHub repository and Actions APIs were used as the validation source of truth.
+- Next autonomous objective: with the red-baseline blocker removed, advance a real end-to-end maintenance capability by integrating the already shipped planning, diff-inspection, guarded patch-generation/application, validation, commit-verification, push-handoff, and durable-evidence surfaces instead of adding another standalone read-only review command.
