@@ -24,6 +24,21 @@ CHANGE_READINESS = {
     "reviewed_paths": ["README.md"],
 }
 
+POLICY = """## Allowed paths
+- `README.md`
+- `src/**`
+- `tests/**`
+
+## Prohibited paths
+- `.env`
+
+## Human approval required
+- Adding network access.
+
+## Validation expectations
+- Run targeted tests.
+"""
+
 
 def _preview(original="hello\nold\n", replacement="hello\nnew\n"):
     return build_patch_generation_preview_data(
@@ -43,7 +58,22 @@ def _write_patch_apply_inputs(tmp_path):
     preview.write_text(json.dumps(_preview()), encoding="utf-8")
     change_readiness = tmp_path / "change-readiness.json"
     change_readiness.write_text(json.dumps(CHANGE_READINESS), encoding="utf-8")
+    policy = tmp_path / ".forge" / "policy.md"
+    policy.parent.mkdir()
+    policy.write_text(POLICY, encoding="utf-8")
     return target, replacement, preview, change_readiness
+
+
+def _readme_diff():
+    return """diff --git a/README.md b/README.md
+index 1111111..2222222 100644
+--- a/README.md
++++ b/README.md
+@@ -1,2 +1,2 @@
+ hello
+-old
++new
+"""
 
 
 def test_build_patch_apply_data_allows_confirmed_matching_preview():
@@ -59,6 +89,7 @@ def test_build_patch_apply_data_allows_confirmed_matching_preview():
     assert data["apply_status"] == "ready"
     assert data["patch_application_allowed"] is True
     assert data["file_changed"] is False
+    assert data["live_diff_verified"] is False
     assert data["apply_blockers"] == []
 
 
@@ -140,7 +171,65 @@ def test_patch_apply_cli_writes_only_after_confirmed_evidence(tmp_path, capsys):
     assert data["apply_status"] == "applied"
     assert data["file_changed"] is True
     assert data["patch_application_allowed"] is False
+    assert data["live_diff_verified"] is False
     assert target.read_text(encoding="utf-8") == "hello\nnew\n"
+
+
+def test_patch_apply_cli_verifies_target_scoped_live_diff(tmp_path, monkeypatch, capsys):
+    target, replacement, preview, change_readiness = _write_patch_apply_inputs(tmp_path)
+    calls = []
+
+    def fake_capture(root, *, pathspecs=()):
+        calls.append((root, pathspecs))
+        return _readme_diff()
+
+    monkeypatch.setattr("autonomous_forge.patch_apply.capture_current_git_diff", fake_capture)
+
+    assert forge_main([
+        "patch-apply",
+        "--root", str(tmp_path),
+        "--preview", str(preview),
+        "--change-readiness", str(change_readiness),
+        "--path", "README.md",
+        "--replacement", str(replacement),
+        "--confirm-apply",
+        "--verify-live-diff",
+        "--require-applied",
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert calls == [(tmp_path, ("README.md",))]
+    assert data["apply_status"] == "applied"
+    assert data["file_changed"] is True
+    assert data["live_diff_verified"] is True
+    assert data["live_diff_review"]["summary"]["files_changed"] == 1
+    assert target.read_text(encoding="utf-8") == "hello\nnew\n"
+
+
+def test_patch_apply_cli_rolls_back_when_live_diff_verification_fails(tmp_path, monkeypatch, capsys):
+    target, replacement, preview, change_readiness = _write_patch_apply_inputs(tmp_path)
+    monkeypatch.setattr(
+        "autonomous_forge.patch_apply.capture_current_git_diff",
+        lambda root, *, pathspecs=(): "",
+    )
+
+    assert forge_main([
+        "patch-apply",
+        "--root", str(tmp_path),
+        "--preview", str(preview),
+        "--change-readiness", str(change_readiness),
+        "--path", "README.md",
+        "--replacement", str(replacement),
+        "--confirm-apply",
+        "--verify-live-diff",
+        "--require-applied",
+    ]) == 2
+
+    assert target.read_text(encoding="utf-8") == "hello\nold\n"
+    output = capsys.readouterr().out
+    assert "post-apply live git diff verification failed" in output
+    assert "original content restored" in output
 
 
 def test_patch_apply_cli_reports_blocked_without_require_applied(tmp_path, capsys):
