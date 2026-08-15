@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-150 — 2026-08-15 — Patch-scoped validation execution must require verified live-diff evidence
+
+Context: AUTO-144 could prove that one explicitly confirmed replacement produced a clear policy-reviewed tracked diff for exactly the requested target, while the existing `executor-run` could execute one exact approved validation command. Those capabilities were still disconnected: a caller could run validation without carrying proof that the command belonged to the actual verified target change.
+
+Decision: Add `forge verified-validation-run` as an execution-capable integration gate. Before delegating to the existing executor contract, require repository-local guarded patch-apply JSON showing `apply_status=applied`, `file_changed=true`, closed `patch_application_allowed`, `live_diff_verified=true`, a clear embedded live-diff review with exactly one changed path equal to the applied target, and a requested command present in the patch's retained validation steps. Preserve the existing executor exact-candidate matching, explicit `--confirm-executor-dry-run`, bounded timeout, `shell=False`, and explicit-only result persistence.
+
+Alternatives considered: Automatically execute validation inside `patch-apply`, weaken `executor-run` to accept patch metadata implicitly, create another read-only handoff summary, or leave the association to the caller. Running validation inside patch apply would combine file mutation and arbitrary process execution in one side-effect boundary; weakening the executor would bypass its established contract; another read-only summary would not advance the end-to-end workflow; and caller-only association preserves the evidence gap.
+
+Consequences: Forge can now move from an actual verified post-write diff directly into one observed validation execution without reconstructing the patch context by hand. Invalid/unverified/multi-file/target-mismatched evidence blocks before subprocess creation, and the command still does not apply patches, automatically persist validation history, create commits, push, poll workflows, change remotes, force-push, or alter branch protections. Deterministic regression tests and installed primary-route smoke coverage accompany the integration.
+
+Human decision still required: No.
+
 ## DEC-149 — 2026-08-15 — Verified patch apply must roll back when live tracked-diff evidence fails
 
 Context: AUTO-143 made the current tracked repository diff inspectable, but `forge patch-apply` still stopped after mutating one confirmed target and only instructed the caller to review the resulting diff later. That left a gap between the write-capable patch step and the newly available live policy-aware diff evidence.
