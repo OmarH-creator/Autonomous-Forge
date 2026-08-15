@@ -40,12 +40,7 @@ Notes: Do not execute commands.
 def _validation_plan_data(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
-    plan_data = build_repository_plan_data(
-        VALID_PLAN,
-        VALID_POLICY,
-        state_path=state,
-        root=tmp_path,
-    )
+    plan_data = build_repository_plan_data(VALID_PLAN, VALID_POLICY, state_path=state, root=tmp_path)
     proposal_data = build_change_proposal_data(plan_data)
     return build_validation_plan_data(proposal_data, root=tmp_path)
 
@@ -59,20 +54,24 @@ def test_build_validation_preview_data_classifies_commands(tmp_path):
     assert preview["selected_task"]["id"] == "AUTO-024"
     assert preview["expected_file_changes"]
     assert preview["implementation_steps"]
-    assert preview["validation_steps"][0] == "Run targeted tests."
+    assert preview["validation_steps"] == [
+        "Run python -m pytest",
+        "Run targeted tests.",
+        "Run python -m pytest; rm -rf build.",
+    ]
     assert preview["risk_register"]
     assert preview["command_candidates"] == [
+        {
+            "source_step": "Run python -m pytest",
+            "command": "python -m pytest",
+            "eligibility": "eligible preview",
+            "reason": "matches a documented local Python validation command prefix",
+        },
         {
             "source_step": "Run targeted tests.",
             "command": "targeted tests",
             "eligibility": "unknown",
             "reason": "candidate is not in the conservative validation command preview allowlist",
-        },
-        {
-            "source_step": "Run python -m pytest.",
-            "command": "python -m pytest",
-            "eligibility": "eligible preview",
-            "reason": "matches a documented local Python validation command prefix",
         },
         {
             "source_step": "Run python -m pytest; rm -rf build.",
@@ -87,12 +86,7 @@ def test_build_validation_preview_formats_text(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
 
-    output = build_validation_preview(
-        VALID_PLAN,
-        VALID_POLICY,
-        state_path=state,
-        root=tmp_path,
-    )
+    output = build_validation_preview(VALID_PLAN, VALID_POLICY, state_path=state, root=tmp_path)
 
     assert "Autonomous Forge validation-run preview" in output
     assert "Selected task: AUTO-024 [P1/TODO] Add guarded validation-run previews" in output
@@ -111,22 +105,17 @@ def test_build_validation_preview_supports_json(tmp_path):
     state = tmp_path / "AUTONOMOUS_STATE.md"
     state.write_text("# State\n", encoding="utf-8")
 
-    output = build_validation_preview(
-        VALID_PLAN,
-        VALID_POLICY,
-        state_path=state,
-        root=tmp_path,
-        output_format="json",
-    )
+    output = build_validation_preview(VALID_PLAN, VALID_POLICY, state_path=state, root=tmp_path, output_format="json")
     data = json.loads(output)
 
     assert data["selected_task"]["id"] == "AUTO-024"
     assert data["expected_file_changes"]
     assert data["implementation_steps"]
-    assert data["validation_steps"][1] == "Run python -m pytest."
+    assert data["validation_steps"][0] == "Run python -m pytest"
+    assert data["validation_steps"][1] == "Run targeted tests."
     assert data["risk_register"]
-    assert data["command_candidates"][1]["command"] == "python -m pytest"
-    assert data["command_candidates"][1]["eligibility"] == "eligible preview"
+    assert data["command_candidates"][0]["command"] == "python -m pytest"
+    assert data["command_candidates"][0]["eligibility"] == "eligible preview"
     assert data["commands_allowed"] is False
 
 
