@@ -84,6 +84,8 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-141`–`AUTO-142` | Red-baseline recovery, compatibility defects, fixture/contract repair | Supported Python matrix restored to green |
 | `AUTO-143` | Live tracked git-diff inspection | Actual pending tracked changes can be policy-reviewed without exporting a patch |
 | `AUTO-144` | Verified guarded patch apply | Confirmed replacement writes can verify their actual tracked target diff and roll back if that verification fails |
+| `AUTO-145` | Verified validation execution | One exact validation command can be tied to a live-diff-verified patch |
+| `AUTO-146` | Verified commit readiness | All retained patch validation steps must have successful verified runs before commit readiness can be ready |
 
 ## Main features created
 
@@ -103,6 +105,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 - Detects path escapes and symlinks.
 - Creates validation previews without running commands.
 - Stores and compares local run-history records.
+- Can bind successful observed validation results back to the exact verified patch evidence that authorized them.
 
 ### Controlled changes
 
@@ -157,7 +160,7 @@ This is useful, but it is not a complete event log. The repository does not reco
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
 - Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, missing confirmations, and rollback when post-write tracked-diff verification cannot be established.
-- The current supported-version matrix passes all 655 pytest tests after AUTO-142 baseline recovery; AUTO-143 and AUTO-144 regression coverage also pass the supported matrix on their implementation/test heads.
+- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-145 also passed their supported-version implementation/test heads. AUTO-146 final-head CI is inspected as part of the stewardship run before it is claimed green.
 
 ### Historical failure and recovery
 
@@ -175,7 +178,7 @@ Those failures had three main causes:
 
 AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
 
-GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage.
+GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage. AUTO-145 final run [31903262061](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31903262061) passed the supported matrix after adding validation execution tied to verified patch evidence.
 
 There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
 
@@ -190,6 +193,7 @@ Positive controls include:
 - explicit confirmation flags for writes, commits, packages, and pushes;
 - `shell=False` for the narrow executor command and live git-diff inspection;
 - optional post-write target-scoped live-diff verification with rollback to the original target contents on verification failure;
+- verified validation results can be tied back to the exact guarded patch evidence before commit readiness;
 - no force push and no tag push;
 - no telemetry or AI API code;
 - read-only review commands separated from side-effect commands.
@@ -198,6 +202,7 @@ Important limits include:
 
 - live `git-diff-review --current` covers tracked changes relative to `HEAD`, not untracked files;
 - verified patch apply covers only the requested tracked target and does not itself run tests or prove correctness;
+- verified commit readiness proves coverage of the validation commands retained by the patch, not that those commands are sufficient to establish correctness;
 - workflow freshness trusts supplied JSON evidence;
 - evidence can be supplied by a caller, so provenance is not fully trusted;
 - package signature and signer identity are not fully proved;
@@ -261,11 +266,11 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-145 — verified validation execution handoff**.
+Latest stewardship run: **AUTO-146 — complete verified-validation coverage for commit readiness**.
 
-- **Changed:** `forge verified-validation-run` now requires a successfully applied guarded patch whose embedded target-scoped live git diff is clear, covers exactly one file, and matches the applied target before the existing narrow executor may run a listed validation command.
-- **Safety:** the existing `--confirm-executor-dry-run`, exact executor-contract candidate matching, `shell=False`, timeout bounds, and explicit result-persistence handoff remain in force. The new command does not apply patches, auto-write validation history, commit, push, poll workflows, or change remotes.
-- **Validation:** deterministic tests cover successful exact-command execution, rejection before subprocess creation when live-diff proof is absent, rejection of validation commands not retained by the patch evidence, preservation of the executor confirmation gate, and the primary installed `forge ... --help` route. Final supported-version CI is checked after the run records are committed.
-- **Visual updates:** none; the existing workflow diagram already represents validation after a confirmed change, and no architecture relationship changed enough to justify a new diagram.
-- **Current limitations:** the command validates one exact command at a time and trusts repository-local JSON evidence produced by Forge; it does not prove that every relevant validation step has run or automatically bridge into commit creation.
-- **Next autonomous objective:** carry successful verified-validation evidence into commit-readiness/commit verification so the same evidence chain can progress toward commit, push handoff, and durable maintenance evidence without caller-reconstructed context.
+- **Changed:** `forge verified-commit-readiness` now consumes one repository-local guarded patch-apply record, one or more `forge verified-validation-run` JSON results, and a commit-status review. Readiness cannot become `ready` until every validation step retained by the patch has a matching successful verified run. Target and patch-source contradictions fail closed, and the embedded live-diff review plus existing commit-readiness status gates are reused instead of reconstructed by the caller.
+- **Safety:** the command is read-only. Evidence inputs are bounded repository-local JSON and symlinks/path escapes are refused. It does not stage files, create commits, push, poll workflows, change remotes, force-push, or alter branch protections.
+- **Validation:** deterministic tests cover complete multi-command readiness, missing required validation blocking, strict CLI failure for incomplete coverage, target-mismatch refusal, and the primary installed help route. The pre-run head was green across Python 3.10, 3.11, and 3.12; final-head CI is inspected before this run is declared green.
+- **Visual updates:** none; the existing workflow diagram already places validation immediately before commit/push checks, and this change strengthens evidence continuity inside that existing relationship rather than adding a new architecture path.
+- **Current limitations:** Forge still trusts repository-local evidence produced by its guarded commands and observed return codes. The new gate proves coverage of the patch's listed validation commands, not that those commands are sufficient for correctness, and it does not itself create or verify a commit.
+- **Next autonomous objective:** carry a `ready` verified-commit-readiness artifact into the existing confirmation-gated commit creation and post-commit verification path, preserving the same target/diff/validation evidence through the new commit SHA and then into push handoff and durable evidence.
