@@ -65,9 +65,9 @@ def test_build_validation_plan_data_uses_proposal_data(tmp_path):
         "Run or document the strongest practical validation steps before committing.",
     ]
     assert validation["validation_steps"] == [
+        "Run python -m pytest",
         "Run targeted tests.",
         "Run full pytest.",
-        "Run python -m pytest",
     ]
     assert validation["risk_register"][0]["source"] == "roadmap"
     assert validation["risk_register"][0]["risk"] == "Path checks are advisory only"
@@ -187,7 +187,7 @@ def test_validate_plan_command_prints_json(tmp_path, capsys):
     assert data["selected_task"]["id"] == "AUTO-023"
     assert data["expected_file_changes"][2] == "tests"
     assert data["implementation_steps"][2].startswith("Update the expected file areas only when needed:")
-    assert data["validation_steps"][0] == "Run targeted tests."
+    assert data["validation_steps"][0] == "Run python -m pytest"
     assert data["risk_register"][0]["risk"] == "Path checks are advisory only"
     assert data["path_checks"][2] == {"area": "tests", "path_status": "present", "policy_status": "allowed"}
     assert data["commands_allowed"] is False
