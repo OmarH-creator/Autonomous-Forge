@@ -33,9 +33,10 @@ def test_executor_contract_defines_future_confirmation_and_refusals(tmp_path):
         "src/autonomous_forge/executor_gate.py",
         "tests/test_executor_gate.py",
     ]
-    assert data["implementation_steps"][0] == "Build a pre-execution gate preview from command-execution handoff data and saved-history guards."
-    assert data["validation_steps"] == ["Run python -m pytest."]
-    assert data["risk_register"] == ["Do not add command execution."]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-043")
+    assert data["validation_steps"] == ["Run python -m pytest"]
+    assert data["risk_register"][0]["risk"] == "Do not add command execution"
+    assert data["risk_register"][0]["source"] == "roadmap"
     assert "future caller omits --confirm-executor-dry-run" in data["refusal_cases"]
     assert "reviewed expected file changes, implementation steps, validation steps, and risk register" in data["required_future_inputs"]
     assert data["result_capture_shape"]["write_command"] == "forge validation-result-write --confirm-write"
@@ -98,4 +99,4 @@ def test_executor_contract_cli_supports_json(tmp_path, capsys):
     assert data["future_confirmation_flag"] == "--confirm-executor-dry-run"
     assert data["candidate_commands"][0]["command"] == "python -m pytest"
     assert data["executor_dry_run_allowed_now"] is False
-    assert data["validation_steps"] == ["Run python -m pytest."]
+    assert data["validation_steps"] == ["Run python -m pytest"]
