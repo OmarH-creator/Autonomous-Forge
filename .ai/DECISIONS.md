@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-151 — 2026-08-16 — Commit readiness must require complete verified validation coverage
+
+Context: AUTO-145 tied one observed validation command to one guarded patch whose actual target-scoped tracked diff had already been policy-reviewed. The existing commit-readiness gate still consumed separately reconstructed post-apply-validation and diff artifacts, so callers could lose the patch-to-validation association and there was no gate proving that every validation step retained by the patch had a successful verified run.
+
+Decision: Add `forge verified-commit-readiness` as a read-only integration gate. Require repository-local bounded JSON for one guarded patch apply, one or more `verified-validation-run` results, and one commit-status review. Revalidate the guarded patch target and closed verified-write state, require every counted validation run to have completed successfully with return code zero for the same target and the exact same patch evidence file, require its command to be retained by the patch validation plan, aggregate coverage across runs, and keep readiness blocked while any retained validation command is missing. Reuse the patch's embedded live-diff review and the existing commit-readiness status gates rather than asking the caller to reconstruct them.
+
+Alternatives considered: Treat one successful validation as sufficient, automatically execute all remaining validation commands, synthesize independent post-apply/diff files for the existing command, or weaken commit-readiness to trust caller assertions. One successful command does not prove coverage of the retained validation plan; automatic execution would expand this read-only boundary into process execution; generated intermediate files add unnecessary evidence drift; and caller assertions would break the evidence continuity this milestone is intended to establish.
+
+Consequences: Forge can now carry a verified target diff plus all observed required validation results into commit readiness without adding commit authority. Missing or failed validation remains blocking, target/source contradictions fail closed, and the command does not stage files, create commits, push, poll workflows, change remotes, force-push, or alter branch protections. The next integration slice can bind a ready artifact to the existing confirmation-gated commit-create and commit-verify path.
+
+Human decision still required: No.
+
 ## DEC-150 — 2026-08-15 — Patch-scoped validation execution must require verified live-diff evidence
 
 Context: AUTO-144 could prove that one explicitly confirmed replacement produced a clear policy-reviewed tracked diff for exactly the requested target, while the existing `executor-run` could execute one exact approved validation command. Those capabilities were still disconnected: a caller could run validation without carrying proof that the command belonged to the actual verified target change.
