@@ -161,7 +161,7 @@ def build_maintenance_review_handoff_data(link_path: Path, *, root: Path = Path(
         "history_bundle_context_consistency": context_consistency,
         "reviewed_paths": list(link_review.get("reviewed_paths") or []),
         "validation_steps": list(link_review.get("validation_steps") or []),
-        "validation_context": link_review.get("validation_context") or {},
+        "validation_context": _link_context_items(link_payload.get("validation_context")),
         "handoff_blockers": blockers,
         "preservation_guidance": [
             "Keep the run-history link, linked bundle JSON, and referenced source reports together.",
