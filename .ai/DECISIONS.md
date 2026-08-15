@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-146 — 2026-08-15 — Equivalent validation steps should collapse at the shared planning boundary
+
+Context: The remaining baseline failures showed that a roadmap validation step such as `Run python -m pytest` and a policy/task form such as `Run python -m pytest.` could survive as distinct validation steps. Downstream validation previews then emitted duplicate command candidates for the same executable command, creating redundant review evidence and stale executor expectations.
+
+Decision: Normalize validation steps only for duplicate comparison by collapsing whitespace and ignoring terminal periods. Preserve the first documented spelling and original order in output. Apply the rule once in the shared validation-plan builder so downstream review, orchestration, and executor surfaces inherit the same deterministic set.
+
+Alternatives considered: Deduplicate only command candidates, strip punctuation from all emitted steps, or update tests to accept duplicates. Command-only deduplication would leave contradictory validation-plan evidence; rewriting emitted text would create unnecessary contract churn; and accepting duplicates would preserve a real product defect.
+
+Consequences: Semantically duplicate validation steps no longer create duplicate downstream command candidates. Distinct steps remain distinct, first-source wording is retained, and no execution, policy, parser, integrity, write, commit, push, or remote safety boundary is weakened. GitHub Actions run `31861022809` improved the inspected Python 3.11 suite from 631 passed / 23 failed to 633 passed / 22 failed.
+
+Human decision still required: No.
+
 ## DEC-145 — 2026-08-15 — Archive destinations must derive from canonical repository-relative source paths
 
 Context: After handoff-context recovery, the remaining archive pipeline reached destination mapping and failed broadly. Written manifests can contain absolute paths that are still valid because they resolve inside the configured repository root. `pathlib` discards a left-hand prefix when the right-hand operand is absolute, so both archive-copy preview and copied-root verification could unintentionally map a valid absolute source back to its live repository location instead of beneath the requested archive root. Existing collision and archive-root containment guards correctly blocked the result, causing the downstream package and preservation chain to fail.
