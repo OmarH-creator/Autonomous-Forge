@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-142 validation-step normalization
+
+- Task ID: AUTO-142 — Restore green main baseline, phase 2: semantic validation-step deduplication
+- Summary: Fixed a shared validation-plan defect where semantically identical validation steps differing only by whitespace or a trailing period survived as separate entries. The validation-plan boundary now deduplicates those cosmetic variants while preserving the first documented spelling and order, preventing duplicate downstream command candidates without weakening execution or evidence safeguards.
+- Branch and PR assessment: Inspected README/docs/source/tests/config/CI, roadmap/state/changelog/decisions, issue #13, recent commits, all visible branches, and PR history. Work stayed directly on `main`; historical branches remain stale or superseded and no PR required integration.
+- Validation completed: Added deterministic regression coverage in `tests/test_validation_step_dedup.py`. GitHub Actions run `31861022809` passed install, compile, installed CLI smoke, and roadmap lint on Python 3.10, 3.11, and 3.12. Python 3.11 pytest improved from 631 passed / 23 failed to 633 passed / 22 failed. The remaining failures are separate stale enriched-contract assertions, one replay-policy help assertion, and four maintenance-review-compare fixture/output failures.
+- Commits: `d9a51b68089eec7926ce6d5310e232b61f6c54cb` (normalization), `43a74adf533239a1c52b5509bd10e25f97be8865` (regression coverage), plus project-memory follow-up commits.
+- Follow-up notes: Continue issue #13 with the stale enriched planning/validation/executor assertions, then the replay-policy help assertion and maintenance-review-compare failures. Do not resume feature work until all matrix jobs are green.
+
 ## 2026-08-15 — AUTO-142 archive-path recovery
 
 - Task ID: AUTO-142 — Restore green main baseline, phase 2: canonical archive destination mapping
