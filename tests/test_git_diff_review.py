@@ -1,7 +1,9 @@
 import json
+from types import SimpleNamespace
 
 from autonomous_forge.cli_entry_patch import main as forge_main
 from autonomous_forge.git_diff_review import build_git_diff_review, build_git_diff_review_data
+from autonomous_forge.repository_git_diff import read_repository_git_diff_review
 
 
 VALID_POLICY = """## Allowed paths
@@ -215,3 +217,66 @@ def test_git_diff_review_refuses_diff_outside_root(tmp_path, capsys):
     ]) == 2
 
     assert "Git-diff review refused" in capsys.readouterr().out
+
+
+def test_repository_git_diff_review_runs_bounded_local_git_diff(tmp_path, monkeypatch):
+    policy = tmp_path / "policy.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    (tmp_path / "src" / "autonomous_forge").mkdir(parents=True)
+    (tmp_path / "src" / "autonomous_forge" / "example.py").write_text("changed", encoding="utf-8")
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout=SAFE_DIFF, stderr="")
+
+    monkeypatch.setattr("autonomous_forge.repository_git_diff.subprocess.run", fake_run)
+
+    data = json.loads(read_repository_git_diff_review(policy, root=tmp_path, output_format="json"))
+
+    assert data["source"] == "current tracked repository diff against HEAD"
+    assert data["requires_attention"] is False
+    command, kwargs = calls[0]
+    assert command == ["git", "diff", "--no-ext-diff", "--no-textconv", "HEAD", "--"]
+    assert kwargs["cwd"] == tmp_path.resolve()
+    assert kwargs["shell"] is False
+    assert kwargs["timeout"] == 15
+
+
+def test_repository_git_diff_review_treats_clean_tracked_state_as_clear(tmp_path, monkeypatch):
+    policy = tmp_path / "policy.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    monkeypatch.setattr(
+        "autonomous_forge.repository_git_diff.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+
+    data = json.loads(read_repository_git_diff_review(policy, root=tmp_path, output_format="json"))
+
+    assert data["summary"]["files_changed"] == 0
+    assert data["requires_attention"] is False
+    assert "untracked files separately" in data["next_step"]
+
+
+def test_git_diff_review_current_cli_uses_live_repository_diff(tmp_path, monkeypatch, capsys):
+    policy = tmp_path / "policy.md"
+    policy.write_text(VALID_POLICY, encoding="utf-8")
+    (tmp_path / "src" / "autonomous_forge").mkdir(parents=True)
+    (tmp_path / "src" / "autonomous_forge" / "example.py").write_text("changed", encoding="utf-8")
+    monkeypatch.setattr(
+        "autonomous_forge.repository_git_diff.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=SAFE_DIFF, stderr=""),
+    )
+
+    assert forge_main([
+        "git-diff-review",
+        "--policy", str(policy),
+        "--root", str(tmp_path),
+        "--current",
+        "--require-clear",
+        "--format", "json",
+    ]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    assert data["source"] == "current tracked repository diff against HEAD"
+    assert data["summary"]["files_changed"] == 1
