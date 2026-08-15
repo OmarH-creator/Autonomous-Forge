@@ -26,6 +26,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="required explicit confirmation before the target file is overwritten",
     )
     parser.add_argument(
+        "--verify-live-diff",
+        action="store_true",
+        help="after writing, require a clear target-scoped live git diff review or restore the original file",
+    )
+    parser.add_argument(
+        "--policy",
+        default=".forge/policy.md",
+        help="repository policy used by optional live git diff verification",
+    )
+    parser.add_argument(
         "--require-applied",
         action="store_true",
         help="return exit code 2 unless the target file was changed",
@@ -51,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
             replacement_path=Path(args.replacement),
             root=Path(args.root),
             confirm_apply=args.confirm_apply,
+            verify_live_diff=args.verify_live_diff,
+            policy_path=Path(args.policy),
         )
     except FileNotFoundError as exc:
         print(f"Patch apply input not found: {exc.filename}")
