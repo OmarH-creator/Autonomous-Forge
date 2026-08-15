@@ -39,9 +39,10 @@ def test_executor_dry_run_accepts_exact_candidate_with_confirmation(tmp_path):
         "src/autonomous_forge/executor_gate.py",
         "tests/test_executor_gate.py",
     ]
-    assert data["implementation_steps"][0] == "Build a pre-execution gate preview from command-execution handoff data and saved-history guards."
-    assert data["validation_steps"] == ["Run python -m pytest."]
-    assert data["risk_register"] == ["Do not add command execution."]
+    assert data["implementation_steps"][0].startswith("Inspect roadmap task AUTO-043")
+    assert data["validation_steps"] == ["Run python -m pytest"]
+    assert data["risk_register"][0]["risk"] == "Do not add command execution"
+    assert data["risk_register"][0]["source"] == "roadmap"
     assert data["simulated_execution"]["execution_status"] == "planned-not-run"
     assert data["block_reasons"] == []
 
@@ -144,4 +145,5 @@ def test_executor_dry_run_cli_supports_json(tmp_path, capsys):
     assert data["requested_command"] == "python -m pytest"
     assert data["dry_run_status"] == "ready-to-run-if-executor-existed"
     assert data["validation_execution"] == "not run"
-    assert data["risk_register"] == ["Do not add command execution."]
+    assert data["risk_register"][0]["risk"] == "Do not add command execution"
+    assert any(item["source"] == "policy" for item in data["risk_register"])
