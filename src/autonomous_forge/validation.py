@@ -10,16 +10,28 @@ from autonomous_forge.planner import build_repository_plan_data
 from autonomous_forge.proposal import build_change_proposal_data
 
 
+def _validation_step_key(value: str) -> str:
+    """Return a comparison key that ignores cosmetic terminal punctuation."""
+    return " ".join(value.split()).rstrip(".").strip()
+
+
 def _validation_steps(proposal_data: dict[str, Any]) -> list[str]:
-    """Return stable validation steps without duplicates."""
+    """Return stable validation steps without semantic duplicates."""
     steps: list[str] = []
-    for step in proposal_data["validation_steps"]:
-        if step not in steps:
+    seen: set[str] = set()
+
+    def append_unique(step: str) -> None:
+        key = _validation_step_key(step)
+        if key and key not in seen:
+            seen.add(key)
             steps.append(step)
 
+    for step in proposal_data["validation_steps"]:
+        append_unique(step)
+
     task_validation = proposal_data.get("task_validation")
-    if task_validation and task_validation not in steps:
-        steps.append(task_validation)
+    if task_validation:
+        append_unique(task_validation)
 
     return steps
 
