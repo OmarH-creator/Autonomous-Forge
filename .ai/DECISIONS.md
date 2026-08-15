@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-147 — 2026-08-15 — Preservation ranking must use retained review values, not a lossy summary
+
+Context: After deterministic fixture collisions and replay-policy inconsistencies were repaired, the maintenance-review comparison ranking test exposed a product defect rather than a stale assertion. `maintenance_history_link_review` intentionally summarizes retained validation context into presence/count metadata. `maintenance_review_compare` ranks preservation candidates partly by the richness of retained validation context, but `maintenance_review_handoff` was forwarding the summary object. Every candidate therefore appeared to contain zero retained context items even when one had materially richer review evidence.
+
+Decision: Keep the public history-link quality summary unchanged, but have maintenance-review handoff expose the already safety-validated raw retained validation-context lists for downstream comparison/ranking. Continue using the existing raw-value comparison against replayed bundle context, and keep replay-policy, bundle-hash, reviewed-path, validation-step, malformed-evidence, and handoff gates fail-closed. Update stale tests to assert the current enriched structured contracts and normalized validation steps rather than reverting product output to older weaker shapes.
+
+Alternatives considered: Rank the history-review count summary directly, remove retained-context richness from ranking, expand the public history-review summary into raw values, or change the ranking expectation to accept a weaker candidate. Ranking counts from the lossy shape cannot distinguish richer evidence; removing the signal would make candidate selection less useful; changing the public review contract creates unnecessary surface churn; and weakening the test would preserve a real selection defect.
+
+Consequences: Ready preservation candidates are now ranked using actual retained review context while blocked handoffs remain excluded. The baseline-recovery run also corrected the primary replay-policy help identity, repaired replay-policy-valid comparison fixtures, and aligned stale planning/validation/executor tests to the stronger enriched context contract. GitHub Actions run `31871553378` passed installation, compilation, installed CLI smoke, roadmap lint, and all 655 tests on Python 3.10, 3.11, and 3.12. No write, remote, force-push, branch-protection, uncontrolled execution, workflow-rerun, or evidence-integrity safeguard was weakened.
+
+Human decision still required: No.
+
 ## DEC-146 — 2026-08-15 — Equivalent validation steps should collapse at the shared planning boundary
 
 Context: The remaining baseline failures showed that a roadmap validation step such as `Run python -m pytest` and a policy/task form such as `Run python -m pytest.` could survive as distinct validation steps. Downstream validation previews then emitted duplicate command candidates for the same executable command, creating redundant review evidence and stale executor expectations.
@@ -92,7 +104,7 @@ Decision: Extend `forge maintenance-preservation-completeness` and `forge-mainte
 
 Alternatives considered: Create another standalone freshness command, always require status evidence, or poll GitHub workflows directly. A standalone command would fragment the final preservation decision, always requiring status evidence would break older local-only evidence sets, and polling workflows would expand the command beyond repository-local deterministic evidence review.
 
-Consequences: Maintainers can make preservation completeness stricter when workflow evidence exists, while the default local-only preservation check remains backward compatible. The gate trusts supplied JSON and does not write files, poll GitHub, rerun workflows, stage, commit, push, prove signer identity, or prove package provenance.
+Consequences: Maintainers can make preservation completeness stricter when workflow evidence exists, while the default local-only preservation check remains backward compatible. The gate trusts supplied JSON and does not write files, poll GitHub, rerun workflows, prove signer identity, prove package provenance, or prove validation coverage.
 
 Human decision still required: No.
 
