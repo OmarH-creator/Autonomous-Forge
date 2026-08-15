@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-15 — AUTO-145 verified validation execution handoff
+
+- Task ID: AUTO-145 — Gate validation execution on verified live-diff patch evidence
+- Summary: Added `forge verified-validation-run`, an execution-capable integration that requires repository-local guarded patch-apply evidence proving an applied file change, closed patch-application authority, successful target-scoped live-diff verification, one reviewed file matching the applied target, and a requested command retained by that patch's validation steps before delegating to the existing narrow validation executor.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, `.forge` and `.ai` records, recent commits, open issues, all visible branches, PR history, and current Actions. Work stayed directly on `main`; historical branches remain stale or superseded and inspected PRs are merged, closed, obsolete, or unrelated. No branch or PR was created or merged.
+- Validation completed: Pre-run final AUTO-144 head `087f323c2a6f06c6ef5252d90cc6df7db777fc6e` is green in Actions run `31892112542`. AUTO-145 adds deterministic coverage for successful exact shell-free validation, refusal before runner creation when live-diff proof is absent, rejection when the requested command is not retained by patch evidence, preservation of the executor confirmation gate, and the primary installed help route. Installed-command smoke coverage was added; final supported-version CI is inspected after all run records are committed.
+- Product commits: `36d7f2f27795cdeef474f686ad9fdc6f84288ec8` (verified evidence gate and executor integration), `c82b611f96dcd76d9a99eeca7c29ae40f106436b` (CLI), `ebb31cb1d77d43b6ab57d2515212d61a9134f289` (primary route), `0db5c0eb35dc9de471ba1a729ef38fd0bde0851f` (regression coverage), `91ee76c3a4bebc1db54a599ac912b0a90bccf38a` (docs), and `8cbe01c8297ab859daa70c2181353cfc2573c2fc` (installed CLI smoke).
+- Follow-up notes: Continue the same end-to-end milestone by carrying successful verified-validation evidence into commit-readiness/commit verification, then push handoff and durable evidence. Do not add another isolated read-only review command.
+
 ## 2026-08-15 — AUTO-144 verified guarded patch apply
 
 - Task ID: AUTO-144 — Verify the actual tracked diff after guarded patch apply
