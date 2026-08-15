@@ -61,7 +61,7 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     assert artifact["validation_preview"]["commands_allowed"] is False
     assert artifact["validation_preview"]["command_candidates"] == [
         {
-            "source_step": "Run python -m pytest.",
+            "source_step": "Run python -m pytest",
             "command": "python -m pytest",
             "eligibility": "eligible preview",
             "reason": "matches a documented local Python validation command prefix",
