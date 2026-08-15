@@ -99,7 +99,7 @@ def test_build_review_artifact_data_combines_safe_review_surfaces(tmp_path):
     assert first_patch["intent_status"] == "reviewable"
     assert first_patch["ready_for_patch_review"] is True
     assert first_patch["blockers"] == ["none"]
-    assert first_patch["validation_expectations"] == ["Run python -m pytest."]
+    assert first_patch["validation_expectations"] == ["Run python -m pytest"]
     assert "selected roadmap task" in first_patch["patch_rationale"]
     assert artifact["explicit_path_review"]["summary"] == {
         "total": 2,
