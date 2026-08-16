@@ -13,6 +13,10 @@ from autonomous_forge.maintenance_evidence_bundle import (
     write_maintenance_evidence_bundle,
     write_maintenance_history_link,
 )
+from autonomous_forge.verified_maintenance_provenance import (
+    VerifiedMaintenanceProvenanceError,
+    read_and_enrich_maintenance_bundle_with_verified_provenance,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,6 +31,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--commit-verify", required=True, help="repository-local commit-verify JSON report")
     parser.add_argument("--push-handoff", required=True, help="repository-local pushed push-handoff JSON report")
     parser.add_argument("--post-push-verify", required=True, help="repository-local post-push verification JSON report")
+    parser.add_argument(
+        "--verified-push-handoff",
+        default=None,
+        help=(
+            "optional repository-local verified-push-handoff JSON; when supplied, require its commit/path/validation "
+            "provenance to agree with the maintenance bundle and verified post-push report"
+        ),
+    )
     parser.add_argument("--bundle-id", default="maintenance-evidence-bundle", help="stable single-line bundle identifier")
     parser.add_argument("--output", default=None, help="optional repository-local .json output path for durable persistence")
     parser.add_argument("--confirm-write", action="store_true", help="persist --output only when the bundle is complete")
@@ -78,6 +90,13 @@ def main(argv: list[str] | None = None) -> int:
             root=Path(args.root),
             bundle_id=args.bundle_id,
         )
+        if args.verified_push_handoff:
+            data = read_and_enrich_maintenance_bundle_with_verified_provenance(
+                data,
+                verified_push_handoff_path=Path(args.verified_push_handoff),
+                post_push_verify_path=Path(args.post_push_verify),
+                root=Path(args.root),
+            )
         if args.output:
             data = write_maintenance_evidence_bundle(
                 data,
@@ -98,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         print(f"Maintenance evidence bundle input not found: {exc.filename}")
         return 2
-    except MaintenanceEvidenceBundleError as exc:
+    except (MaintenanceEvidenceBundleError, VerifiedMaintenanceProvenanceError) as exc:
         print(f"Maintenance evidence bundle refused: {exc}")
         return 2
     except ValueError as exc:
