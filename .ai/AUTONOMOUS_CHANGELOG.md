@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-08-16 — AUTO-147 verified commit creation
+
+- Task ID: AUTO-147 — Carry ready verified commit-readiness evidence through local commit creation and immediate verification
+- Summary: Added `forge verified-commit-create`, a confirmation-gated integration that accepts repository-local ready `verified-commit-readiness` JSON, reuses the existing reviewed commit-metadata contract, stages only reviewed paths, creates one local commit, and immediately verifies the resulting commit SHA, reviewed summary, and exact changed-path set. A created commit that fails immediate verification is reported as `created_unverified`; strict callers can require success with `--require-verified`.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, `.ai` plan/state/changelog/decisions, recent commits, open issues, all visible branches, PR history, and current Actions. Work stayed directly on `main`; historical branches remain stale or superseded and inspected PRs are merged, closed, obsolete, or unrelated. No branch or PR was created or merged.
+- Validation completed: Deterministic tests cover missing-confirmation no-git behavior, successful creation plus immediate verification, unreviewed-path post-commit blocking, blocked-readiness no-git behavior, and the primary installed `forge verified-commit-create --help` route. Actions run `31923545476` on implementation/test/documentation head `5680655b2a2a3edabf3a9acabd3dac0ca6904cb8` passed install, source compilation, installed CLI smoke, roadmap lint, and pytest across Python 3.10, 3.11, and 3.12. Final README/state/project-memory heads are checked before the run is reported complete.
+- Product commits: `bc13ef5d9249021c3f0b4d0079c529bf56a56e65` (verified commit creation core), `dd0914876021ec3a5c199127263b24250cf73290` (CLI), `968c875144ebd173dcd3d6de699fe6b32f3beabe` (primary route), `891615520738a41eeb06fd6e58f5212260d56885` (regression coverage), `5680655b2a2a3edabf3a9acabd3dac0ca6904cb8` (docs), plus README/state/project-memory follow-up commits.
+- Follow-up notes: Continue the same end-to-end milestone by carrying a verified commit-creation report into push readiness, guarded non-force push handoff, post-push verification, and durable maintenance evidence. Do not add another isolated read-only review command.
+
 ## 2026-08-16 — AUTO-146 verified commit readiness
 
 - Task ID: AUTO-146 — Require complete verified validation coverage before commit readiness
@@ -103,7 +112,7 @@
 
 - Task ID: AUTO-140 — Primary replay-policy route and smoke coverage
 - Summary: Fixed a release-surface blocker by routing `forge maintenance-replay-policy-summary` through the installed primary `forge` entry point while preserving the existing `forge-maintenance-replay-policy-summary` compatibility script.
-- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, open issues, router implementation, replay-policy CLI, focused tests, docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
+- Branch and PR assessment: Inspected repository metadata, README/status, roadmap/state/changelog/decisions, recent commits, recent PRs, open issues, branch search, preservation-completeness implementation, focused tests, docs, and workflow smoke coverage. Work stayed directly on `main`. Prior PRs are merged, closed, or obsolete; no open PR or branch required integration.
 - Validation completed: Static source/test/docs/workflow review completed through the GitHub repository API. Added focused router help coverage and CI smoke coverage for both primary and compatibility replay-policy summary routes. Local scratch syntax compilation passed for the changed router and focused router test file. Direct full checkout/full pytest execution remained unavailable in this environment.
 - Commit hash: pending final commit
 - Follow-up notes: Add a reviewer checklist or provenance/signature review for storing or transferring verified preservation packages.
