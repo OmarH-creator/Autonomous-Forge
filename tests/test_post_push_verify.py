@@ -23,6 +23,23 @@ PUSHED_HANDOFF = {
     "push_handoff_blockers": [],
 }
 
+VERIFIED_PUSHED_HANDOFF = {
+    "title": "Autonomous Forge verified push handoff report",
+    "mode": "verified commit-to-push handoff",
+    "handoff_status": "pushed",
+    "verified_commit": "abc1234",
+    "branch": "main",
+    "remote": "origin",
+    "reviewed_paths": ["README.md", "src/autonomous_forge/push_handoff.py"],
+    "verified_validation_commands": ["python -m pytest -q"],
+    "push_confirmed": True,
+    "push_executed": True,
+    "push_allowed": True,
+    "provenance_preserved": True,
+    "blockers": [],
+    "push_handoff": PUSHED_HANDOFF,
+}
+
 CLEAR_STATUS = {
     "title": "Autonomous Forge commit status review",
     "commit_sha": "abc1234",
@@ -44,9 +61,8 @@ def fake_git(outputs, calls):
     return runner
 
 
-def test_build_post_push_verify_confirms_remote_head(tmp_path):
-    calls = []
-    runner = fake_git(
+def _remote_head_runner(calls):
+    return fake_git(
         {
             ("rev-parse", "--verify", "origin/main"): "abc1234",
             ("merge-base", "--is-ancestor", "abc1234", "origin/main"): "",
@@ -54,13 +70,52 @@ def test_build_post_push_verify_confirms_remote_head(tmp_path):
         calls,
     )
 
-    data = build_post_push_verify_data(PUSHED_HANDOFF, CLEAR_STATUS, root=tmp_path, git_runner=runner)
+
+def test_build_post_push_verify_confirms_remote_head(tmp_path):
+    calls = []
+    data = build_post_push_verify_data(PUSHED_HANDOFF, CLEAR_STATUS, root=tmp_path, git_runner=_remote_head_runner(calls))
 
     assert data["verification_status"] == "verified"
     assert data["post_push_verified"] is True
     assert data["commit_location"] == "remote branch head"
     assert data["fetch_executed"] is False
+    assert data["verified_handoff_input"] is False
     assert ["merge-base", "--is-ancestor", "abc1234", "origin/main"] in calls
+
+
+def test_build_post_push_verify_preserves_verified_handoff_provenance(tmp_path):
+    calls = []
+    data = build_post_push_verify_data(
+        VERIFIED_PUSHED_HANDOFF,
+        CLEAR_STATUS,
+        root=tmp_path,
+        git_runner=_remote_head_runner(calls),
+    )
+
+    assert data["verification_status"] == "verified"
+    assert data["verified_handoff_input"] is True
+    assert data["provenance_preserved"] is True
+    assert data["verified_validation_commands"] == ["python -m pytest -q"]
+    assert data["reviewed_paths"] == PUSHED_HANDOFF["reviewed_paths"]
+
+
+def test_build_post_push_verify_blocks_verified_handoff_path_drift(tmp_path):
+    calls = []
+    drifted = {**VERIFIED_PUSHED_HANDOFF, "reviewed_paths": ["README.md"]}
+    data = build_post_push_verify_data(drifted, CLEAR_STATUS, root=tmp_path, git_runner=_remote_head_runner(calls))
+
+    assert data["verification_status"] == "blocked"
+    assert data["provenance_preserved"] is False
+    assert "verified push-handoff reviewed paths disagree with nested guarded handoff" in data["post_push_blockers"]
+
+
+def test_build_post_push_verify_blocks_verified_handoff_commit_drift(tmp_path):
+    calls = []
+    drifted = {**VERIFIED_PUSHED_HANDOFF, "verified_commit": "def5678"}
+    data = build_post_push_verify_data(drifted, CLEAR_STATUS, root=tmp_path, git_runner=_remote_head_runner(calls))
+
+    assert data["verification_status"] == "blocked"
+    assert "verified push-handoff commit disagrees with nested guarded handoff" in data["post_push_blockers"]
 
 
 def test_build_post_push_verify_can_fetch_before_verification(tmp_path):
@@ -74,13 +129,7 @@ def test_build_post_push_verify_can_fetch_before_verification(tmp_path):
         calls,
     )
 
-    data = build_post_push_verify_data(
-        PUSHED_HANDOFF,
-        CLEAR_STATUS,
-        root=tmp_path,
-        git_runner=runner,
-        fetch=True,
-    )
+    data = build_post_push_verify_data(PUSHED_HANDOFF, CLEAR_STATUS, root=tmp_path, git_runner=runner, fetch=True)
 
     assert data["verification_status"] == "verified"
     assert data["commit_location"] == "reachable from remote branch but not branch head"
@@ -90,19 +139,11 @@ def test_build_post_push_verify_can_fetch_before_verification(tmp_path):
 
 def test_build_post_push_verify_blocks_unpushed_handoff(tmp_path):
     calls = []
-    runner = fake_git(
-        {
-            ("rev-parse", "--verify", "origin/main"): "abc1234",
-            ("merge-base", "--is-ancestor", "abc1234", "origin/main"): "",
-        },
-        calls,
-    )
-
     data = build_post_push_verify_data(
         {**PUSHED_HANDOFF, "handoff_status": "ready", "push_executed": False},
         CLEAR_STATUS,
         root=tmp_path,
-        git_runner=runner,
+        git_runner=_remote_head_runner(calls),
     )
 
     assert data["verification_status"] == "blocked"
@@ -112,19 +153,11 @@ def test_build_post_push_verify_blocks_unpushed_handoff(tmp_path):
 
 def test_build_post_push_verify_blocks_status_mismatch(tmp_path):
     calls = []
-    runner = fake_git(
-        {
-            ("rev-parse", "--verify", "origin/main"): "abc1234",
-            ("merge-base", "--is-ancestor", "abc1234", "origin/main"): "",
-        },
-        calls,
-    )
-
     data = build_post_push_verify_data(
         PUSHED_HANDOFF,
         {**CLEAR_STATUS, "commit_sha": "def5678"},
         root=tmp_path,
-        git_runner=runner,
+        git_runner=_remote_head_runner(calls),
     )
 
     assert data["verification_status"] == "blocked"
@@ -133,14 +166,6 @@ def test_build_post_push_verify_blocks_status_mismatch(tmp_path):
 
 def test_build_post_push_verify_blocks_unclear_status(tmp_path):
     calls = []
-    runner = fake_git(
-        {
-            ("rev-parse", "--verify", "origin/main"): "abc1234",
-            ("merge-base", "--is-ancestor", "abc1234", "origin/main"): "",
-        },
-        calls,
-    )
-
     data = build_post_push_verify_data(
         PUSHED_HANDOFF,
         {
@@ -151,7 +176,7 @@ def test_build_post_push_verify_blocks_unclear_status(tmp_path):
             "summary": {"total": 1, "success": 0, "failure": 0, "pending": 1, "unknown": 0},
         },
         root=tmp_path,
-        git_runner=runner,
+        git_runner=_remote_head_runner(calls),
     )
 
     assert data["verification_status"] == "blocked"
@@ -195,18 +220,12 @@ def test_read_post_push_verify_refuses_unsafe_path(tmp_path):
 def test_read_post_push_verify_reads_repository_local_json(tmp_path):
     push_handoff = tmp_path / "push-handoff.json"
     status_review = tmp_path / "status-review.json"
-    push_handoff.write_text(json.dumps(PUSHED_HANDOFF), encoding="utf-8")
+    push_handoff.write_text(json.dumps(VERIFIED_PUSHED_HANDOFF), encoding="utf-8")
     status_review.write_text(json.dumps(CLEAR_STATUS), encoding="utf-8")
     calls = []
-    runner = fake_git(
-        {
-            ("rev-parse", "--verify", "origin/main"): "abc1234",
-            ("merge-base", "--is-ancestor", "abc1234", "origin/main"): "",
-        },
-        calls,
-    )
 
-    data = read_post_push_verify(push_handoff, status_review, root=tmp_path, git_runner=runner)
+    data = read_post_push_verify(push_handoff, status_review, root=tmp_path, git_runner=_remote_head_runner(calls))
 
     assert data["verification_status"] == "verified"
     assert data["summary"]["reviewed_paths"] == 2
+    assert data["summary"]["verified_validation_commands"] == 1
