@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-152 — 2026-08-16 — Verified commit creation must preserve evidence continuity and verify the result immediately
+
+Context: AUTO-146 made commit readiness `ready` only after the guarded patch's actual tracked target diff was verified and every retained validation command had a matching successful verified run. The existing commit-create path still accepted a separately prepared generic commit proposal, while commit verification was another later handoff. That separation allowed the verified patch/validation association to be lost at the first git-history mutation.
+
+Decision: Add `forge verified-commit-create` as the confirmation-gated commit integration for ready verified evidence. Require bounded repository-local `verified-commit-readiness` JSON, preserve the existing reviewed commit-metadata rules, require explicit commit confirmation, stage only the readiness artifact's reviewed paths, create exactly one local commit, and immediately inspect the resulting commit SHA, reviewed summary, and exact changed-path set. If git creates a commit but the immediate verification does not match, report `created_unverified` and make strict continuation fail instead of resetting or rewriting history automatically.
+
+Alternatives considered: Let callers translate verified readiness into the legacy generic proposal manually, broaden the legacy commit-create command to accept multiple evidence schemas implicitly, keep commit verification as a separate caller-orchestrated step, or automatically reset a commit that fails verification. Manual translation and separate verification preserve the evidence gap; widening the legacy command weakens its stable input contract; and automatic reset/rewrite would introduce a new destructive git-history mutation that is not justified merely because verification failed.
+
+Consequences: The patch → live diff → verified validation → verified readiness chain can now cross the local commit boundary while retaining the reviewed target and validation context. Non-ready evidence and missing confirmation block before git mutation; staging remains reviewed-path scoped; a created-but-unverified commit is visible and cannot silently proceed. The command does not push, change remotes, force-push, push tags, alter branch protections, poll workflows, or call networks.
+
+Human decision still required: No.
+
 ## DEC-151 — 2026-08-16 — Commit readiness must require complete verified validation coverage
 
 Context: AUTO-145 tied one observed validation command to one guarded patch whose actual target-scoped tracked diff had already been policy-reviewed. The existing commit-readiness gate still consumed separately reconstructed post-apply-validation and diff artifacts, so callers could lose the patch-to-validation association and there was no gate proving that every validation step retained by the patch had a successful verified run.
