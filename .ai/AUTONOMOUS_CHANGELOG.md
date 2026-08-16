@@ -1,5 +1,15 @@
 # Autonomous Changelog
 
+## 2026-08-17 — AUTO-152 end-to-end guarded maintenance integration proof
+
+- Task ID: AUTO-152 — Prove guarded maintenance workflow end to end
+- Summary: Added a deterministic disposable-repository integration test covering policy-aware planning, confirmed live-diff-verified patch apply, verified validation, commit readiness and verified commit creation, guarded non-force push to a local bare remote, post-push verification, canonical maintenance evidence writing, and durable run-history linking.
+- Branch and PR assessment: Inspected README/docs/examples, source/tests/config/CI, policy and `.ai` records, recent commits, open issues, all visible branches, and PR history. Historical branches are stale/superseded and inspected PRs are merged, closed, obsolete, or unrelated. Work stayed on `main`.
+- Validation: Initial CI exposed a test-only mismatch against `selected_task.expected_files`; production planner exposes `expected_file_changes` at the top level. Corrected the assertion without changing production behavior. Actions run `31978493467` on `593ef27159ffe95d57ad426d4d5e57b6d1e9b3f5` then passed install, compile, installed CLI smoke, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12.
+- Safety: Real Git writes, commit, push, fetch, evidence persistence, and history-link persistence are confined to disposable local repositories and existing explicit confirmation gates. External trust/status/branch-protection inputs are deterministic fixtures, not fabricated production evidence.
+- Product commits: `5d9f1f9b38fea569d12bc150924343bf798432fa`, `593ef27159ffe95d57ad426d4d5e57b6d1e9b3f5`.
+- Follow-up: Consider a single orchestration surface only if every current side-effect confirmation and fail-closed evidence contract remains explicit; otherwise prioritize fresh external evidence acquisition.
+
 ## 2026-08-16 — AUTO-147 verified commit creation
 
 - Task ID: AUTO-147 — Carry ready verified commit-readiness evidence through local commit creation and immediate verification
