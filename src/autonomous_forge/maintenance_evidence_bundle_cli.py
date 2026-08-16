@@ -6,6 +6,10 @@ import argparse
 import json
 from pathlib import Path
 
+from autonomous_forge.canonical_maintenance_evidence import (
+    CanonicalMaintenanceEvidenceError,
+    read_canonical_verified_maintenance_bundle_data,
+)
 from autonomous_forge.maintenance_evidence_bundle import (
     MaintenanceEvidenceBundleError,
     format_maintenance_evidence_bundle,
@@ -29,14 +33,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--patch-apply", required=True, help="repository-local patch-apply JSON report")
     parser.add_argument("--post-apply-validation", required=True, help="repository-local post-apply validation JSON report")
     parser.add_argument("--commit-verify", required=True, help="repository-local commit-verify JSON report")
-    parser.add_argument("--push-handoff", required=True, help="repository-local pushed push-handoff JSON report")
+    parser.add_argument(
+        "--push-handoff",
+        default=None,
+        help=(
+            "legacy repository-local pushed push-handoff JSON report; optional when --verified-push-handoff is supplied"
+        ),
+    )
     parser.add_argument("--post-push-verify", required=True, help="repository-local post-push verification JSON report")
     parser.add_argument(
         "--verified-push-handoff",
         default=None,
         help=(
-            "optional repository-local verified-push-handoff JSON; when supplied, require its commit/path/validation "
-            "provenance to agree with the maintenance bundle and verified post-push report"
+            "repository-local verified-push-handoff JSON; can be used as the canonical push-stage input without a "
+            "second raw --push-handoff file"
         ),
     )
     parser.add_argument("--bundle-id", default="maintenance-evidence-bundle", help="stable single-line bundle identifier")
@@ -81,21 +91,36 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        data = read_maintenance_evidence_bundle_data(
-            patch_apply_path=Path(args.patch_apply),
-            post_apply_validation_path=Path(args.post_apply_validation),
-            commit_verify_path=Path(args.commit_verify),
-            push_handoff_path=Path(args.push_handoff),
-            post_push_verify_path=Path(args.post_push_verify),
-            root=Path(args.root),
-            bundle_id=args.bundle_id,
-        )
-        if args.verified_push_handoff:
-            data = read_and_enrich_maintenance_bundle_with_verified_provenance(
-                data,
+        if not args.push_handoff and not args.verified_push_handoff:
+            raise MaintenanceEvidenceBundleError(
+                "one of --push-handoff or --verified-push-handoff is required"
+            )
+        if args.push_handoff:
+            data = read_maintenance_evidence_bundle_data(
+                patch_apply_path=Path(args.patch_apply),
+                post_apply_validation_path=Path(args.post_apply_validation),
+                commit_verify_path=Path(args.commit_verify),
+                push_handoff_path=Path(args.push_handoff),
+                post_push_verify_path=Path(args.post_push_verify),
+                root=Path(args.root),
+                bundle_id=args.bundle_id,
+            )
+            if args.verified_push_handoff:
+                data = read_and_enrich_maintenance_bundle_with_verified_provenance(
+                    data,
+                    verified_push_handoff_path=Path(args.verified_push_handoff),
+                    post_push_verify_path=Path(args.post_push_verify),
+                    root=Path(args.root),
+                )
+        else:
+            data = read_canonical_verified_maintenance_bundle_data(
+                patch_apply_path=Path(args.patch_apply),
+                post_apply_validation_path=Path(args.post_apply_validation),
+                commit_verify_path=Path(args.commit_verify),
                 verified_push_handoff_path=Path(args.verified_push_handoff),
                 post_push_verify_path=Path(args.post_push_verify),
                 root=Path(args.root),
+                bundle_id=args.bundle_id,
             )
         if args.output:
             data = write_maintenance_evidence_bundle(
@@ -117,7 +142,11 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         print(f"Maintenance evidence bundle input not found: {exc.filename}")
         return 2
-    except (MaintenanceEvidenceBundleError, VerifiedMaintenanceProvenanceError) as exc:
+    except (
+        CanonicalMaintenanceEvidenceError,
+        MaintenanceEvidenceBundleError,
+        VerifiedMaintenanceProvenanceError,
+    ) as exc:
         print(f"Maintenance evidence bundle refused: {exc}")
         return 2
     except ValueError as exc:

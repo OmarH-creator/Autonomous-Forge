@@ -1,10 +1,10 @@
 # Verified maintenance provenance
 
-`forge maintenance-evidence-bundle` can preserve the newer verified commit/push/post-push chain inside the existing durable maintenance bundle instead of dropping that provenance at the archival boundary.
+`forge maintenance-evidence-bundle` can preserve the verified commit/push/post-push chain inside the durable maintenance bundle without dropping that provenance at the archival boundary.
 
-## Usage
+## Canonical verified usage
 
-The existing five evidence inputs remain required for backward compatibility. Add `--verified-push-handoff` when the push was produced by `forge verified-push-handoff` and the post-push report was produced from that verified wrapper:
+When the push was produced by `forge verified-push-handoff`, the verified wrapper is now sufficient for the push stage. A second standalone raw `push-handoff.json` file is no longer required:
 
 ```bash
 forge maintenance-evidence-bundle \
@@ -12,13 +12,12 @@ forge maintenance-evidence-bundle \
   --patch-apply .ai/evidence/patch-apply.json \
   --post-apply-validation .ai/evidence/post-apply-validation.json \
   --commit-verify .ai/evidence/commit-verify.json \
-  --push-handoff .ai/evidence/push-handoff.json \
   --verified-push-handoff .ai/evidence/verified-push-handoff.json \
   --post-push-verify .ai/evidence/post-push-verify.json \
-  --bundle-id AUTO-150 \
-  --output .ai/evidence/AUTO-150-bundle.json \
+  --bundle-id AUTO-151 \
+  --output .ai/evidence/AUTO-151-bundle.json \
   --confirm-write \
-  --history-link .ai/run-history/AUTO-150-link.json \
+  --history-link .ai/run-history/AUTO-151-link.json \
   --confirm-history-link \
   --require-complete \
   --require-written \
@@ -26,19 +25,20 @@ forge maintenance-evidence-bundle \
   --format json
 ```
 
+The legacy `--push-handoff` form remains supported. Callers may also provide both raw and verified inputs; in that compatibility mode Forge builds the established raw bundle first and then applies the verified-provenance consistency checks.
+
 ## What is verified
 
-When `--verified-push-handoff` is supplied, the bundle remains complete only when all of the following agree:
+In canonical verified mode, Forge refuses the bundle unless:
 
-- the maintenance bundle is already complete under the existing patch, validation, commit, push, and post-push checks;
-- the verified push wrapper proves an explicitly confirmed completed push with provenance preserved and no blockers;
-- commit SHA, branch, remote, and reviewed paths match the maintenance bundle;
+- the verified wrapper proves an explicitly confirmed completed push, reports no blockers, and says provenance was preserved;
+- the wrapper contains the nested guarded push-handoff evidence produced by the existing push gate;
+- wrapper and nested handoff agree on commit SHA, branch, remote, reviewed paths, push completion, and the no-force/no-remote-mutation boundary;
+- the established maintenance-bundle checks still accept the nested guarded handoff against patch, validation, commit, and post-push evidence;
 - the post-push report proves it consumed verified handoff evidence and preserved provenance;
-- the post-push commit, branch, remote, and reviewed paths still match the bundle;
-- verified validation commands in the push wrapper and post-push report are identical;
-- those verified validation commands exactly match the validation steps retained by the maintenance bundle.
+- commit SHA, branch, remote, reviewed paths, and verified validation commands remain consistent through the durable bundle.
 
-The verified wrapper is read only from a bounded repository-local UTF-8 JSON file. Its SHA-256 and byte count are retained under `verified_provenance.verified_push_source` for stale-input detection.
+The verified wrapper is read only from a bounded repository-local UTF-8 JSON file. Its SHA-256 and byte count are retained under `verified_provenance.verified_push_source`. For downstream compatibility, the durable `source_reports` array keeps the historical `push_handoff` stage key, but that stage now fingerprints the canonical verified-wrapper file and the bundle records `push_evidence_source: "verified_push_handoff"`.
 
 ## Example output fragment
 
@@ -46,6 +46,11 @@ The verified wrapper is read only from a bounded repository-local UTF-8 JSON fil
 {
   "bundle_status": "complete",
   "bundle_complete": true,
+  "push_evidence_source": "verified_push_handoff",
+  "summary": {
+    "canonical_verified_push": true,
+    "source_reports": 5
+  },
   "verified_provenance": {
     "status": "complete",
     "provenance_preserved": true,
@@ -62,8 +67,10 @@ The verified wrapper is read only from a bounded repository-local UTF-8 JSON fil
 }
 ```
 
-If any provenance field drifts, the maintenance bundle is changed to `blocked`, `bundle_complete` becomes `false`, and the specific mismatch is appended to `bundle_blockers`. No file is written unless the existing explicit write gate is also satisfied.
+The historical five-stage source-report schema is intentionally retained so existing bundle hash verification, history links, replay, and archive preservation do not need a parallel schema. The difference is that the push-stage fingerprint points at the verified wrapper rather than at a duplicate raw push JSON file.
+
+If any provenance field drifts, canonical bundle construction fails closed or the maintenance bundle is marked `blocked`. No bundle or history link is written unless the existing explicit confirmation gates are also satisfied.
 
 ## Safety boundary
 
-This extension adds no new subprocess execution, Git operation, network access, push, force-push, remote mutation, or workflow mutation. It only reads bounded repository-local JSON, compares already produced evidence, and enriches the existing maintenance bundle. Existing explicit confirmation remains required for durable bundle and run-history writes.
+This change adds no subprocess execution, Git operation, network access, push, force-push, remote mutation, or workflow mutation. It only reads bounded repository-local JSON, validates the wrapper/nested handoff relationship, reuses established maintenance-bundle checks, fingerprints the canonical push evidence, and enriches the existing durable bundle. Existing explicit confirmation remains required for bundle and run-history writes.
