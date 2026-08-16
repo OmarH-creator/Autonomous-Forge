@@ -86,6 +86,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-144` | Verified guarded patch apply | Confirmed replacement writes can verify their actual tracked target diff and roll back if that verification fails |
 | `AUTO-145` | Verified validation execution | One exact validation command can be tied to a live-diff-verified patch |
 | `AUTO-146` | Verified commit readiness | All retained patch validation steps must have successful verified runs before commit readiness can be ready |
+| `AUTO-147` | Verified commit creation | Ready verified evidence can create one confirmed local commit and immediately verify its SHA, summary, and exact changed paths |
 
 ## Main features created
 
@@ -113,7 +114,7 @@ Separate commands can, after explicit confirmation:
 
 - apply a reviewed replacement patch, optionally verify the actual target-scoped tracked diff immediately after the write, and restore the original target if that verification fails;
 - run one exact validation command with `shell=False`;
-- create a local commit;
+- create a local commit, including a verified path that requires ready patch/validation evidence and immediately checks the resulting commit SHA, summary, and exact changed paths;
 - perform a guarded, non-force push;
 - write a local evidence copy or archive package.
 
@@ -160,7 +161,7 @@ This is useful, but it is not a complete event log. The repository does not reco
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
 - Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, missing confirmations, and rollback when post-write tracked-diff verification cannot be established.
-- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-145 also passed their supported-version implementation/test heads. AUTO-146 implementation/test head `658d384224be41bda69243fb94da646fbf24797f` passed the full Python 3.10/3.11/3.12 workflow in Actions run `31914016579`.
+- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-146 also passed their supported-version implementation/test heads. AUTO-147 implementation/test/documentation head `5680655b2a2a3edabf3a9acabd3dac0ca6904cb8` passed the full Python 3.10/3.11/3.12 workflow in Actions run `31923545476`.
 
 ### Historical failure and recovery
 
@@ -178,7 +179,7 @@ Those failures had three main causes:
 
 AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
 
-GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage. AUTO-145 final run [31903262061](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31903262061) passed the supported matrix after adding validation execution tied to verified patch evidence. AUTO-146 implementation/test run [31914016579](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31914016579) passed after the new complete-validation coverage gate and its focused tests were added.
+GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage. AUTO-145 final run [31903262061](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31903262061) passed the supported matrix after adding validation execution tied to verified patch evidence. AUTO-146 implementation/test run [31914016579](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31914016579) passed after the new complete-validation coverage gate and its focused tests were added. AUTO-147 implementation/test/documentation run [31923545476](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31923545476) passed after adding verified commit creation and immediate post-commit verification.
 
 There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
 
@@ -194,6 +195,7 @@ Positive controls include:
 - `shell=False` for the narrow executor command and live git-diff inspection;
 - optional post-write target-scoped live-diff verification with rollback to the original target contents on verification failure;
 - verified validation results can be tied back to the exact guarded patch evidence before commit readiness;
+- verified commit creation stages only reviewed paths and immediately checks the created commit's SHA, summary, and exact changed-path set;
 - no force push and no tag push;
 - no telemetry or AI API code;
 - read-only review commands separated from side-effect commands.
@@ -203,6 +205,7 @@ Important limits include:
 - live `git-diff-review --current` covers tracked changes relative to `HEAD`, not untracked files;
 - verified patch apply covers only the requested tracked target and does not itself run tests or prove correctness;
 - verified commit readiness proves coverage of the validation commands retained by the patch, not that those commands are sufficient to establish correctness;
+- verified commit creation does not roll back or rewrite history if a created commit later fails immediate verification; it reports `created_unverified` and blocks strict continuation instead;
 - workflow freshness trusts supplied JSON evidence;
 - evidence can be supplied by a caller, so provenance is not fully trusted;
 - package signature and signer identity are not fully proved;
@@ -266,11 +269,11 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-146 — complete verified-validation coverage for commit readiness**.
+Latest stewardship run: **AUTO-147 — verified commit creation with immediate post-commit verification**.
 
-- **Changed:** `forge verified-commit-readiness` now consumes one repository-local guarded patch-apply record, one or more `forge verified-validation-run` JSON results, and a commit-status review. Readiness cannot become `ready` until every validation step retained by the patch has a matching successful verified run. Target and patch-source contradictions fail closed, and the embedded live-diff review plus existing commit-readiness status gates are reused instead of reconstructed by the caller.
-- **Safety:** the command is read-only. Evidence inputs are bounded repository-local JSON and symlinks/path escapes are refused. It does not stage files, create commits, push, poll workflows, change remotes, force-push, or alter branch protections.
-- **Validation:** deterministic tests cover complete multi-command readiness, missing required validation blocking, strict CLI failure for incomplete coverage, target-mismatch refusal, and the primary installed help route. Actions run `31914016579` passed the AUTO-146 implementation/test head on Python 3.10, 3.11, and 3.12 after one new-test assertion was aligned with the existing fail-closed commit-readiness blocker contract. This final README/bookkeeping head is checked before the run is reported complete.
-- **Visual updates:** none; the existing workflow diagram already places validation immediately before commit/push checks, and this change strengthens evidence continuity inside that existing relationship rather than adding a new architecture path.
-- **Current limitations:** Forge still trusts repository-local evidence produced by its guarded commands and observed return codes. The new gate proves coverage of the patch's listed validation commands, not that those commands are sufficient for correctness, and it does not itself create or verify a commit.
-- **Next autonomous objective:** carry a `ready` verified-commit-readiness artifact into the existing confirmation-gated commit creation and post-commit verification path, preserving the same target/diff/validation evidence through the new commit SHA and then into push handoff and durable evidence.
+- **Changed:** `forge verified-commit-create` now consumes a ready `forge verified-commit-readiness` artifact, explicit reviewed commit metadata, and an explicit commit confirmation. It stages only the artifact's reviewed paths, creates one local commit, then immediately verifies the created SHA, reviewed summary, and exact changed-path set. The command exposes `--require-verified` so automation can fail closed if a commit exists but cannot be proven to match the reviewed path set.
+- **Safety:** non-ready or contradictory verified-readiness evidence blocks before git is invoked. The command does not push, change remotes, force-push, push tags, alter branch protections, poll workflows, or call networks. A post-create verification failure is surfaced as `created_unverified`; Forge deliberately does not reset or rewrite history automatically.
+- **Validation:** deterministic tests cover missing-confirmation no-git behavior, successful creation plus immediate verification, unreviewed-path post-commit blocking, blocked-readiness no-git behavior, and the primary `forge verified-commit-create --help` route. Actions run `31923545476` passed the AUTO-147 implementation/test/documentation head on Python 3.10, 3.11, and 3.12, including package installation, source compilation, installed CLI smoke, roadmap lint, and pytest. The final README/state bookkeeping head is checked before the run is reported complete.
+- **Visual updates:** none; the existing workflow diagram already places commit/push checks directly after validation, and AUTO-147 strengthens evidence continuity inside that existing edge rather than adding a new architecture path.
+- **Current limitations:** verified readiness remains repository-local caller-supplied JSON, validation sufficiency is not proved, and a created-but-unverified commit requires human handling because Forge will not rewrite history automatically. Push evidence is still a separate downstream chain.
+- **Next autonomous objective:** carry a verified commit-creation report into the existing push-readiness and guarded push-handoff flow, preserving the same patch/diff/validation/commit evidence through remote handoff and durable maintenance evidence.
