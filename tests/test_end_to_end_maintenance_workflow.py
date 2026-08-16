@@ -129,7 +129,7 @@ def test_plan_to_durable_history_runs_as_one_guarded_local_workflow(tmp_path, ca
 
     plan = build_repository_plan_data(PLAN, POLICY, state_path=state_path, root=repo)
     assert plan["selected_task"]["id"] == "AUTO-152"
-    assert plan["selected_task"]["expected_files"] == ["README.md"]
+    assert plan["expected_file_changes"] == ["README.md"]
 
     replacement = repo / "replacement.txt"
     replacement.write_text("hello\nnew\n", encoding="utf-8")
