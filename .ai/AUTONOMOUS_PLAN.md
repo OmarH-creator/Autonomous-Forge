@@ -170,6 +170,18 @@ Validation: Actions run `31923545476` on implementation/test/documentation head 
 Risks or assumptions: The command trusts bounded repository-local verified-readiness JSON and does not prove that the selected validation commands are sufficient. If a commit is created but immediate verification fails, Forge reports the mismatch rather than rewriting history or resetting the commit automatically.
 Notes: Continue the same end-to-end milestone by carrying the verified commit-creation report into push readiness, guarded non-force push handoff, post-push verification, and durable maintenance evidence rather than adding another standalone review command.
 
+### AUTO-152 — Prove guarded maintenance workflow end to end
+Priority: P1
+Status: DONE
+Goal: Prove the existing plan → guarded patch → verified validation → commit → push → post-push → durable history chain in one disposable repository.
+Why it matters: The individual safety gates were green independently, but the product needed evidence that their contracts compose without losing provenance or bypassing confirmation.
+Scope: Add one deterministic temporary-repository integration test using a local bare Git remote; exercise real local Git and write operations while keeping external trust/status/protection evidence deterministic.
+Expected files or areas: `tests/test_end_to_end_maintenance_workflow.py`, `README.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`.
+Acceptance criteria: The test selects AUTO-152 with policy-aware planning, applies and live-diff-verifies one reviewed change, runs its exact validation command, creates and verifies a reviewed commit, performs a non-force push to a disposable remote, verifies post-push reachability, writes a complete canonical maintenance bundle, and links durable run history; all explicit safety confirmations stay required.
+Validation: Actions run `31978493467` passed install, compile, installed CLI smoke, roadmap validation, and pytest across Python 3.10, 3.11, and 3.12.
+Risks or assumptions: External commit trust, workflow status, and branch-protection evidence are deterministic fixtures; the test does not prove remote GitHub freshness or signer identity.
+Notes: Initial CI failure was a test-only assertion against a nonexistent planner key; corrected to the established top-level `expected_file_changes` contract without changing production behavior.
+
 ## Future Ideas
 
 - Hash-linked local run reports.
