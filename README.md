@@ -88,6 +88,7 @@ One task was usually split into several commits: core code, CLI wiring, tests, s
 | `AUTO-146` | Verified commit readiness | All retained patch validation steps must have successful verified runs before commit readiness can be ready |
 | `AUTO-147` | Verified commit creation | Ready verified evidence can create one confirmed local commit and immediately verify its SHA, summary, and exact changed paths |
 | `AUTO-148` | Verified guarded push handoff | Verified commit-creation provenance now flows through trust/status/branch-policy readiness into the existing explicit non-force push gate |
+| `AUTO-149` | Verified post-push provenance | The existing post-push verifier now accepts verified push handoff evidence, checks wrapper/nested evidence consistency, and retains validation provenance after remote reachability verification |
 
 ## Main features created
 
@@ -162,7 +163,7 @@ This is useful, but it is not a complete event log. The repository does not reco
 - CI tests Python 3.10, 3.11, and 3.12.
 - CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
 - Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, missing confirmations, and rollback when post-write tracked-diff verification cannot be established.
-- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-147 also passed their supported-version implementation/test heads. AUTO-148 implementation head `f2c98fd3fd1436c15866c36183328e19e17da111` passed the complete Python 3.10/3.11/3.12 workflow in Actions run `31933115623`.
+- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-148 also passed their supported-version implementation/test heads. AUTO-149 extends the existing post-push verifier with provenance continuity and deterministic drift tests.
 
 ### Historical failure and recovery
 
@@ -198,6 +199,7 @@ Positive controls include:
 - verified validation results can be tied back to the exact guarded patch evidence before commit readiness;
 - verified commit creation stages only reviewed paths and immediately checks the created commit's SHA, summary, and exact changed-path set;
 - verified push handoff refuses git activity until commit creation, trust, workflow status, and protected-branch evidence agree on the same reviewed commit;
+- post-push verification now accepts that verified handoff directly, refuses wrapper/nested provenance drift, and retains reviewed paths plus verified validation commands after remote reachability checks;
 - no force push and no tag push;
 - no telemetry or AI API code;
 - read-only review commands separated from side-effect commands.
@@ -209,6 +211,7 @@ Important limits include:
 - verified commit readiness proves coverage of the validation commands retained by the patch, not that those commands are sufficient to establish correctness;
 - verified commit creation does not roll back or rewrite history if a created commit later fails immediate verification; it reports `created_unverified` and blocks strict continuation instead;
 - verified push handoff trusts repository-local trust/status/branch-protection JSON and does not itself fetch fresh remote workflow or protection evidence;
+- post-push verification trusts supplied status-review evidence and local remote-tracking refs unless `--fetch` is explicitly requested;
 - workflow freshness trusts supplied JSON evidence;
 - evidence can be supplied by a caller, so provenance is not fully trusted;
 - package signature and signer identity are not fully proved;
@@ -272,11 +275,11 @@ The central lesson is simple:
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-148 — verified guarded push handoff**.
+Latest stewardship run: **AUTO-149 — verified post-push provenance continuity**.
 
-- **Changed:** `forge verified-push-handoff` now consumes a successful `forge verified-commit-create` report plus matching commit-trust, commit-status, and protected-branch evidence. It synthesizes the existing commit-verification contract, reuses `push-readiness`, and only enters the existing local git push handoff after the complete evidence chain is ready. With `--confirm-push`, the only remote mutation is the existing explicit `git push <remote> <commit>:refs/heads/<branch>` path.
-- **Safety:** unverified commit creation, path drift, trust/SHA drift, failing or incomplete statuses, branch-policy mismatches, non-fast-forward updates, wrong branch/upstream/HEAD, and missing confirmation all fail closed. The command never force-pushes, pushes tags, changes remotes, changes branch protections, or bypasses the existing guarded handoff.
-- **Validation:** deterministic tests cover ready review-only handoff, exact confirmed non-force push execution, pre-git blocking for unverified commit creation and trust mismatch, non-fast-forward refusal, repository-local JSON reading, and primary CLI help routing. Actions run `31933115623` passed install, source compilation, CLI smoke, roadmap lint, and pytest across Python 3.10, 3.11, and 3.12 on implementation head `f2c98fd3fd1436c15866c36183328e19e17da111`; a follow-up CI smoke entry now directly exercises `forge verified-push-handoff --help`.
-- **Visual updates:** none; the existing workflow diagram already shows commit and push checks as one stage, and AUTO-148 strengthens the evidence continuity and side-effect gate inside that existing path rather than changing the architecture.
-- **Current limitations:** the new command still trusts repository-local supplied commit-trust, status, and branch-protection JSON; it does not fetch fresh remote evidence itself, verify the post-push remote SHA, or persist durable maintenance evidence automatically.
-- **Next autonomous objective:** carry the pushed verified-handoff artifact into the existing `post-push-verify` and durable maintenance evidence chain so the same patch/diff/validation/commit provenance is proven after the remote handoff.
+- **Changed:** the existing `forge post-push-verify` command now accepts a successful `forge verified-push-handoff --format json` artifact directly. It unwraps the nested guarded push report only after checking that commit, branch, remote, reviewed paths, explicit push confirmation, and provenance state remain consistent, then reuses the existing remote-ref and clear-status verification path. Its output retains the verified validation commands for the next durable-evidence step.
+- **Safety:** verified-wrapper drift fails closed before the result can be marked verified. Existing branch/remote/path validation, clear-status requirements, `git rev-parse`, `git merge-base --is-ancestor`, optional bounded `git fetch --prune <remote> <branch>`, and all no-force/no-push/no-shell guarantees remain unchanged.
+- **Validation:** deterministic tests cover successful verified-wrapper verification, reviewed-path drift refusal, commit drift refusal, legacy raw push-handoff compatibility, repository-local JSON loading, clear-status mismatch handling, fetch behavior, and missing remote reachability. GitHub Actions remains the authoritative supported-version check for the final head.
+- **Visual updates:** none; AUTO-149 strengthens provenance continuity inside the existing commit/push/evidence flow, so changing the architecture diagram would add no new factual structure.
+- **Current limitations:** post-push verification still trusts supplied commit-status JSON and local remote-tracking refs unless `--fetch` is explicitly requested; it proves consistency and reachability, not signer identity or that the retained validation commands were sufficient.
+- **Next autonomous objective:** feed verified post-push evidence into the existing maintenance evidence bundle and run-history path so patch, live diff, validation, commit, push, and post-push provenance become one durable replayable record.
