@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-153 — 2026-08-17 — Prove composition before adding orchestration
+
+Context: AUTO-143 through AUTO-151 created the individual live-diff, patch, validation, commit, push, post-push, and durable-evidence gates, but successful isolated tests did not prove that their contracts compose as one workflow.
+
+Decision: Add one deterministic end-to-end test using a disposable working repository and local bare Git remote. Exercise real local Git and write transitions through the existing confirmation-gated APIs. Keep commit-trust, workflow-status, and branch-protection inputs as clearly labeled deterministic fixtures rather than adding network dependencies to the test. Do not add an orchestration command in the same run.
+
+Alternatives considered: Add another read-only audit command; immediately add a one-shot executor; mock every Git transition; depend on live GitHub state in deterministic tests.
+
+Consequences: Forge now has repeatable evidence that its existing local maintenance stages compose through durable history while preserving explicit gates. This does not prove fresh GitHub status/protection evidence or signer identity; orchestration remains a separate decision.
+
+Human decision still required: Yes for any future workflow that would collapse or automate existing side-effect confirmations.
+
 ## DEC-152 — 2026-08-16 — Verified commit creation must preserve evidence continuity and verify the result immediately
 
 Context: AUTO-146 made commit readiness `ready` only after the guarded patch's actual tracked target diff was verified and every retained validation command had a matching successful verified run. The existing commit-create path still accepted a separately prepared generic commit proposal, while commit verification was another later handoff. That separation allowed the verified patch/validation association to be lost at the first git-history mutation.
