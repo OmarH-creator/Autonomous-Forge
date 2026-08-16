@@ -71,6 +71,7 @@ jobs:
           forge post-push-verify --help
           forge push-handoff --help
           forge push-readiness --help
+          forge verified-push-handoff --help
           forge verified-validation-run --help
           forge-change-readiness --help
           forge-commit-create --help
