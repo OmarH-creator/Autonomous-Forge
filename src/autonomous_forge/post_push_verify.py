@@ -15,6 +15,7 @@ _REMOTE_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _SAFE_BOUNDARY = (
     "Post-push verification consumes pushed push-handoff evidence and clear commit-status evidence, "
     "then inspects local remote-tracking refs to confirm the commit is reachable from the intended branch. "
+    "Verified push-handoff wrappers are accepted only when their provenance agrees with the nested guarded handoff. "
     "It fetches only when explicitly requested, never pushes, force-pushes, creates commits, stages files, "
     "changes remotes, changes branch protections, reruns workflows, or uses shell execution."
 )
@@ -139,6 +140,58 @@ def _validate_push_handoff(report: dict[str, Any]) -> tuple[list[str], str, str,
     return blockers, commit_sha, branch, remote, reviewed_paths
 
 
+def _unwrap_verified_push_handoff(report: dict[str, Any]) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
+    """Return the guarded handoff plus provenance carried by AUTO-148 evidence."""
+    if report.get("title") != "Autonomous Forge verified push handoff report":
+        return report, [], {
+            "verified_handoff_input": False,
+            "provenance_preserved": False,
+            "verified_validation_commands": [],
+        }
+
+    blockers: list[str] = []
+    if report.get("mode") != "verified commit-to-push handoff":
+        blockers.append("verified push-handoff mode is invalid")
+    if report.get("handoff_status") != "pushed" or report.get("push_executed") is not True:
+        blockers.append("verified push-handoff does not prove a completed push")
+    if report.get("push_confirmed") is not True:
+        blockers.append("verified push-handoff was not explicitly confirmed")
+    if report.get("provenance_preserved") is not True:
+        blockers.append("verified push-handoff does not preserve provenance")
+    if report.get("blockers"):
+        blockers.append("verified push-handoff contains blockers")
+
+    nested = report.get("push_handoff")
+    if not isinstance(nested, dict):
+        blockers.append("verified push-handoff lacks nested guarded push evidence")
+        nested = {}
+
+    wrapper_commit = _clean_text(report.get("verified_commit"))
+    nested_commit = _clean_text(nested.get("verified_commit"))
+    if wrapper_commit != nested_commit:
+        blockers.append("verified push-handoff commit disagrees with nested guarded handoff")
+    if _clean_text(report.get("branch")) != _clean_text(nested.get("branch")):
+        blockers.append("verified push-handoff branch disagrees with nested guarded handoff")
+    if _clean_text(report.get("remote")) != _clean_text(nested.get("remote")):
+        blockers.append("verified push-handoff remote disagrees with nested guarded handoff")
+
+    wrapper_paths = report.get("reviewed_paths") if isinstance(report.get("reviewed_paths"), list) else []
+    nested_paths = nested.get("reviewed_paths") if isinstance(nested.get("reviewed_paths"), list) else []
+    if sorted(_clean_text(value) for value in wrapper_paths) != sorted(_clean_text(value) for value in nested_paths):
+        blockers.append("verified push-handoff reviewed paths disagree with nested guarded handoff")
+
+    commands_value = report.get("verified_validation_commands")
+    commands = [_clean_text(value) for value in commands_value] if isinstance(commands_value, list) else []
+    if any(not command for command in commands):
+        blockers.append("verified push-handoff contains a blank validation command")
+
+    return nested, blockers, {
+        "verified_handoff_input": True,
+        "provenance_preserved": not blockers,
+        "verified_validation_commands": commands,
+    }
+
+
 def _validate_status_review(report: dict[str, Any], *, commit_sha: str) -> tuple[list[str], dict[str, Any]]:
     blockers: list[str] = []
     if report.get("title") != "Autonomous Forge commit status review":
@@ -175,7 +228,9 @@ def build_post_push_verify_data(
     if not isinstance(status_review, dict):
         raise PostPushVerifyError("status-review evidence must be a JSON object")
     root = root.resolve()
-    blockers, commit_sha, branch, remote, reviewed_paths = _validate_push_handoff(push_handoff)
+    guarded_handoff, provenance_blockers, provenance = _unwrap_verified_push_handoff(push_handoff)
+    blockers, commit_sha, branch, remote, reviewed_paths = _validate_push_handoff(guarded_handoff)
+    blockers = [*provenance_blockers, *blockers]
     status_blockers, status_summary = _validate_status_review(status_review, commit_sha=commit_sha)
     blockers.extend(status_blockers)
 
@@ -221,17 +276,21 @@ def build_post_push_verify_data(
         "fetch_requested": fetch,
         "fetch_executed": fetch_executed,
         "reviewed_paths": reviewed_paths,
+        "verified_handoff_input": provenance["verified_handoff_input"],
+        "provenance_preserved": provenance["provenance_preserved"] if provenance["verified_handoff_input"] else False,
+        "verified_validation_commands": provenance["verified_validation_commands"],
         "status_summary": status_summary,
         "summary": {
             "reviewed_paths": len(reviewed_paths),
+            "verified_validation_commands": len(provenance["verified_validation_commands"]),
             "blockers": len(blockers),
             "status_success": int(status_summary.get("success") or 0),
         },
         "post_push_blockers": blockers,
         "next_step": (
-            "Record the verified post-push evidence and monitor future workflow/status changes."
+            "Record the verified post-push evidence and durable maintenance evidence."
             if verification_status == "verified"
-            else "Resolve push evidence, remote-ref, or status blockers before treating the push as complete."
+            else "Resolve push evidence, provenance, remote-ref, or status blockers before treating the push as complete."
         ),
         "safety_boundary": _SAFE_BOUNDARY,
     }
@@ -252,8 +311,12 @@ def format_post_push_verify(data: dict[str, Any]) -> str:
         f"Commit location: {data['commit_location']}",
         f"Fetch requested: {str(data['fetch_requested']).lower()}",
         f"Fetch executed: {str(data['fetch_executed']).lower()}",
+        f"Verified handoff input: {str(data['verified_handoff_input']).lower()}",
+        f"Provenance preserved: {str(data['provenance_preserved']).lower()}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
+        "Verified validation commands:",
+        *[f"- {command}" for command in data["verified_validation_commands"]],
         "Status summary:",
         *[f"- {key}: {value}" for key, value in data["status_summary"].items()],
         "Post-push blockers:",
