@@ -1,15 +1,15 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-148 — Carry verified commit creation through guarded push handoff
+- Current task ID: AUTO-149 — Preserve verified provenance through post-push verification
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-08-16T11:12:00+04:00
-- Last successful implementation commit hash: `f2c98fd3fd1436c15866c36183328e19e17da111`
-- Latest run summary: Added `forge verified-push-handoff`, which consumes successful verified commit-creation evidence plus matching commit-trust, commit-status, and protected-branch evidence, reuses existing push-readiness and push-handoff gates, preserves reviewed paths and verified validation commands, and can execute only the existing explicitly confirmed fast-forward-only non-force push.
-- Files changed in the latest run: `src/autonomous_forge/verified_push_handoff.py`, `src/autonomous_forge/verified_push_handoff_cli.py`, `src/autonomous_forge/cli_entry_patch.py`, `tests/test_verified_push_handoff.py`, `docs/VERIFIED_PUSH_HANDOFF.md`, `.github/workflows/test.yml`, README, and this state record.
-- Validation commands and results: Actions run `31933115623` on implementation head `f2c98fd3fd1436c15866c36183328e19e17da111` passed package installation, source compilation, installed CLI smoke, roadmap lint, and pytest across Python 3.10, 3.11, and 3.12. Follow-up CI smoke coverage now directly invokes `forge verified-push-handoff --help`; final bookkeeping heads are inspected separately before completion is reported.
+- Last run timestamp: 2026-08-16T15:04:44+04:00
+- Last successful implementation commit hash: `e988e3f05af1aa987e2b21ff30e4ccaa80a3370e`
+- Latest run summary: Extended the existing `forge post-push-verify` boundary so it can consume a pushed `forge verified-push-handoff` wrapper directly, fail closed when wrapper commit/branch/remote/reviewed-path provenance disagrees with the nested guarded handoff, verify remote reachability with the existing bounded git checks, and retain verified validation commands in the post-push report for durable evidence.
+- Files changed in the latest run: `src/autonomous_forge/post_push_verify.py`, `tests/test_post_push_verify.py`, `docs/POST_PUSH_VERIFY.md`, README, and this state record.
+- Validation commands and results: deterministic tests were added for verified-wrapper success, reviewed-path drift, commit drift, repository-local JSON reading, and legacy raw push-handoff compatibility. GitHub Actions is the authoritative supported-version validation because this runtime cannot clone the public repository directly; final-head workflow status is inspected before completion is reported.
 - Branch and PR assessment: Work stayed directly on `main`. Historical feature and maintenance branches remain stale or superseded; inspected PRs are merged, closed, obsolete, or unrelated. No branch or PR was created or merged.
-- Current blockers: None known in product logic. Final bookkeeping-head CI is inspected before the run is declared complete.
-- Known risks and assumptions: The verified push handoff still trusts repository-local supplied commit-trust, status, and branch-protection JSON. It does not itself fetch fresh remote policy/status evidence, verify the remote ref after push, rerun workflows, force-push, push tags, change remotes, or change branch protections.
-- Recommended next task: Carry successful verified-push-handoff evidence into post-push verification and durable maintenance evidence so the same patch/diff/validation/commit provenance is proven after remote handoff.
+- Current blockers: None known in product logic. Supported-version CI must remain green before the next product slice proceeds.
+- Known risks and assumptions: `post-push-verify` still relies on supplied commit-status JSON and local remote-tracking refs unless `--fetch` is explicitly requested. It proves retained evidence consistency and remote reachability, not signer identity or the sufficiency of validation commands.
+- Recommended next task: Feed verified post-push evidence into the existing maintenance evidence bundle/history path so patch, live diff, validation, commit, push, and post-push provenance become one durable replayable record.
