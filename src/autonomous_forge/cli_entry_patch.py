@@ -43,6 +43,7 @@ from autonomous_forge.push_handoff_cli import main as _push_handoff_main
 from autonomous_forge.push_readiness_cli import main as _push_readiness_main
 from autonomous_forge.verified_commit_create_cli import main as _verified_commit_create_main
 from autonomous_forge.verified_commit_readiness_cli import main as _verified_commit_readiness_main
+from autonomous_forge.verified_push_handoff_cli import main as _verified_push_handoff_main
 from autonomous_forge.verified_validation_run_cli import main as _verified_validation_run_main
 
 
@@ -85,6 +86,7 @@ _EXTENSION_COMMANDS = {
     "push-readiness": _push_readiness_main,
     "verified-commit-create": _verified_commit_create_main,
     "verified-commit-readiness": _verified_commit_readiness_main,
+    "verified-push-handoff": _verified_push_handoff_main,
     "verified-validation-run": _verified_validation_run_main,
 }
 
