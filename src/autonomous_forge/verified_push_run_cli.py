@@ -13,12 +13,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forge verified-push-run",
         description=(
-            "Carry a committed verified-change-run artifact through guarded push and post-push verification while "
-            "keeping push confirmation explicit."
+            "Carry committed verified change evidence through guarded push and post-push verification while keeping "
+            "push confirmation explicit."
         ),
     )
     parser.add_argument("--root", default=".")
-    parser.add_argument("--change-run", required=True)
+    change_input = parser.add_mutually_exclusive_group(required=True)
+    change_input.add_argument("--change-run")
+    change_input.add_argument("--change-apply-run")
     parser.add_argument("--commit-trust", required=True)
     parser.add_argument("--status-review", required=True)
     parser.add_argument("--branch-protection", required=True)
@@ -35,6 +37,7 @@ def _format_text(data: dict) -> str:
     lines = [
         str(data["title"]),
         f"Workflow status: {data['workflow_status']}",
+        f"Change evidence: {data.get('change_evidence_kind', 'unknown')}",
         f"Push confirmed: {str(data['push_confirmed']).lower()}",
         f"Fetch after push: {str(data['fetch_after_push']).lower()}",
     ]
@@ -59,9 +62,10 @@ def _format_text(data: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    change_evidence = args.change_apply_run or args.change_run
     try:
         data = read_verified_push_run(
-            Path(args.change_run),
+            Path(change_evidence),
             Path(args.commit_trust),
             Path(args.status_review),
             Path(args.branch_protection),

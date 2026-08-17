@@ -1,4 +1,4 @@
-"""Orchestrate a committed verified change through guarded push and post-push verification."""
+"""Orchestrate committed verified change evidence through guarded push and post-push verification."""
 
 from __future__ import annotations
 
@@ -39,6 +39,49 @@ def _read_json(path: Path, *, root: Path, label: str) -> dict[str, Any]:
     return data
 
 
+def _unwrap_change_evidence(change_evidence: dict[str, Any]) -> tuple[dict[str, Any] | None, str, list[str]]:
+    """Return canonical verified-change-run evidence from either supported orchestration shape."""
+    title = change_evidence.get("title")
+    if title == "Autonomous Forge verified change run":
+        return change_evidence, "verified_change_run", []
+
+    blockers: list[str] = []
+    if title != "Autonomous Forge verified change apply run":
+        return None, "unknown", ["input is not verified-change-run or verified-change-apply-run evidence"]
+
+    if change_evidence.get("workflow_status") != "committed":
+        blockers.append("verified change apply run did not finish in committed status")
+    if change_evidence.get("apply_confirmed") is not True:
+        blockers.append("verified change apply run does not prove explicit patch-apply confirmation")
+    if change_evidence.get("validation_confirmed") is not True:
+        blockers.append("verified change apply run does not prove explicit validation confirmation")
+    if change_evidence.get("commit_confirmed") is not True:
+        blockers.append("verified change apply run does not prove explicit commit confirmation")
+    if change_evidence.get("patch_evidence_embedded") is not True:
+        blockers.append("verified change apply run does not retain embedded patch evidence")
+    if change_evidence.get("push_allowed") is not False or change_evidence.get("remote_changes_allowed") is not False:
+        blockers.append("verified change apply run must keep push authority closed")
+
+    patch_apply = change_evidence.get("patch_apply")
+    if not isinstance(patch_apply, dict):
+        blockers.append("verified change apply run lacks guarded patch evidence")
+    else:
+        if patch_apply.get("apply_status") != "applied":
+            blockers.append("verified change apply run does not prove guarded patch application")
+        if patch_apply.get("live_diff_verified") is not True:
+            blockers.append("verified change apply run does not prove live-diff verification")
+
+    nested = change_evidence.get("change_run")
+    if not isinstance(nested, dict):
+        blockers.append("verified change apply run lacks embedded verified-change-run evidence")
+        return None, "verified_change_apply_run", blockers
+    if nested.get("workflow_status") != change_evidence.get("workflow_status"):
+        blockers.append("embedded verified change status disagrees with change-apply wrapper")
+    if nested.get("commit_confirmed") is not change_evidence.get("commit_confirmed"):
+        blockers.append("embedded commit confirmation disagrees with change-apply wrapper")
+    return nested, "verified_change_apply_run", blockers
+
+
 def _extract_verified_commit(change_run: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     blockers: list[str] = []
     if change_run.get("title") != "Autonomous Forge verified change run":
@@ -74,7 +117,7 @@ def _extract_verified_commit(change_run: dict[str, Any]) -> tuple[dict[str, Any]
 
 
 def build_verified_push_run_data(
-    change_run: dict[str, Any],
+    change_evidence: dict[str, Any],
     commit_trust: dict[str, Any],
     status_review: dict[str, Any],
     branch_protection: dict[str, Any],
@@ -87,11 +130,19 @@ def build_verified_push_run_data(
     root: Path = Path("."),
 ) -> dict[str, Any]:
     """Carry verified change provenance across an independently confirmed push boundary."""
-    commit_report, blockers = _extract_verified_commit(change_run)
+    change_run, evidence_kind, unwrap_blockers = _unwrap_change_evidence(change_evidence)
+    commit_report: dict[str, Any] | None = None
+    blockers = list(unwrap_blockers)
+    if change_run is not None:
+        commit_report, commit_blockers = _extract_verified_commit(change_run)
+        blockers.extend(commit_blockers)
+
     base = {
         "title": "Autonomous Forge verified push run",
         "mode": "confirmation-gated push and post-push orchestration",
         "workflow_status": "blocked",
+        "change_evidence_kind": evidence_kind,
+        "change_apply_run": change_evidence if evidence_kind == "verified_change_apply_run" else None,
         "push_confirmed": confirm_push,
         "fetch_after_push": fetch_after_push,
         "verified_push_handoff": None,
@@ -101,10 +152,12 @@ def build_verified_push_run_data(
         "tag_push_allowed": False,
         "remote_changes_allowed": False,
         "safety_boundary": (
-            "Verified push run accepts only a committed verified-change-run artifact. It preserves push as a separate "
-            "explicit confirmation gate, reuses Forge's trust/status/branch-protection readiness and fast-forward-only "
-            "guarded push contract, and performs post-push remote verification only after a completed push. It never "
-            "force-pushes, pushes tags, changes remotes or branch protections, or treats missing confirmation as authority."
+            "Verified push run accepts a committed verified-change-run artifact or the committed verified-change-apply-run "
+            "wrapper that safely embeds it. Wrapper mode additionally requires confirmed guarded patch application, "
+            "live-diff verification, validation, and commit creation before the nested commit evidence is used. Push remains "
+            "a separate explicit confirmation gate and Forge reuses its trust/status/branch-protection readiness, "
+            "fast-forward-only guarded push, and post-push verification contracts. It never force-pushes, pushes tags, "
+            "changes remotes or branch protections, or treats earlier confirmations as push authority."
         ),
     }
     if blockers or commit_report is None:
@@ -143,7 +196,7 @@ def build_verified_push_run_data(
 
 
 def read_verified_push_run(
-    change_run_path: Path,
+    change_evidence_path: Path,
     commit_trust_path: Path,
     status_review_path: Path,
     branch_protection_path: Path,
@@ -157,7 +210,7 @@ def read_verified_push_run(
 ) -> dict[str, Any]:
     """Read bounded repository-local evidence and run the guarded push orchestration."""
     return build_verified_push_run_data(
-        _read_json(change_run_path, root=root, label="verified change run"),
+        _read_json(change_evidence_path, root=root, label="verified change evidence"),
         _read_json(commit_trust_path, root=root, label="commit trust"),
         _read_json(status_review_path, root=root, label="status review"),
         _read_json(branch_protection_path, root=root, label="branch protection"),
