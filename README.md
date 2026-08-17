@@ -54,7 +54,7 @@ The maintenance chain now includes:
 - `forge verified-change-run`: executes every retained validation step, builds verified commit readiness, and can create and immediately verify the reviewed local commit. Validation and commit creation keep separate confirmations.
 - `forge verified-change-apply-run`: composes the guarded replacement write, mandatory live-diff verification, all retained validation steps, and optional verified local commit without requiring a caller-managed intermediate patch-apply JSON file. Patch apply, validation, and commit creation remain three independent confirmations.
 - `forge verified-push-run`: consumes either a completed committed `verified-change-run` artifact or the newer committed `verified-change-apply-run` wrapper, carries the verified commit through commit-trust, status, and branch-protection readiness, and can execute the existing guarded non-force push only with a **separate `--confirm-push` authority gate**. Wrapper mode verifies the retained patch/application/validation/commit evidence before using the nested commit and preserves that wrapper in the push result. After a completed push it performs post-push remote verification; optional fetching is separately requested with `--fetch-after-push`.
-- `forge verified-maintenance-run`: consumes that completed `post_push_verified` orchestration artifact plus the earlier patch, validation, and commit-verification evidence, builds the canonical provenance-complete maintenance bundle, and can persist the bundle plus its `.ai/run-history/` link under two **separate** write confirmations. It does not require users to extract duplicate standalone push-handoff and post-push JSON files first.
+- `forge verified-maintenance-run`: consumes a completed `post_push_verified` push-run artifact and, when it retains `change_apply_run`, derives the canonical patch, validation, and commit stages directly from that embedded provenance. The durable bundle and `.ai/run-history/` link remain under two **separate** write confirmations. Older push-run artifacts can still use the historical three explicit stage files together.
 - the underlying `verified-push-handoff`, `post-push-verify`, maintenance evidence, replay, archive, package, and preservation commands remain independently usable and reviewable.
 
 A typical push-stage invocation using the embedded apply-to-commit artifact is:
@@ -75,18 +75,15 @@ forge verified-push-run \
 
 For backward compatibility, `--change-run` remains available and is mutually exclusive with `--change-apply-run`. Without `--confirm-push`, the command can report `ready_for_push` but cannot treat validation or commit confirmation as push authority.
 
-A completed push run can then be preserved without splitting its embedded push/post-push evidence back into extra files:
+A completed push run that retains the change-apply wrapper can then be preserved without splitting any earlier stages back into duplicate JSON files:
 
 ```bash
 forge verified-maintenance-run \
-  --patch-apply .ai/evidence/patch-apply.json \
-  --post-apply-validation .ai/evidence/post-apply-validation.json \
-  --commit-verify .ai/evidence/commit-verify.json \
   --verified-push-run .ai/evidence/verified-push-run.json \
-  --bundle-id AUTO-155 \
-  --output .ai/evidence/AUTO-155-bundle.json \
+  --bundle-id AUTO-158 \
+  --output .ai/evidence/AUTO-158-bundle.json \
   --confirm-bundle-write \
-  --history-link .ai/run-history/AUTO-155.json \
+  --history-link .ai/run-history/AUTO-158.json \
   --confirm-history-link \
   --require-complete \
   --require-history-linked \
@@ -122,6 +119,7 @@ The project began as a tiny roadmap-driven CLI and grew into a connected mainten
 | `AUTO-155` | Third orchestration surface: post-push-verified run through separately confirmed canonical durable bundle and run-history persistence |
 | `AUTO-156` | Guarded patch application through verified validation/commit using embedded SHA-bound patch evidence instead of an intermediate patch JSON handoff |
 | `AUTO-157` | Verified push orchestration accepts and preserves the committed change-apply wrapper without splitting nested change evidence back into another JSON handoff |
+| `AUTO-158` | Durable maintenance orchestration derives patch, validation, and commit stages directly from the retained change-apply wrapper, eliminating the remaining canonical stage-file split |
 
 ## Testing and CI
 
@@ -129,7 +127,7 @@ The main workflow tests Python **3.10, 3.11, and 3.12**. It installs the package
 
 A historical audit reached `569 passed, 82 failed, 1 skipped`. AUTO-141/AUTO-142 paused feature work and repaired the actual compatibility, fixture, routing, context-consistency, and archive-path defects instead of suppressing failures. The supported matrix has remained green through the subsequent verified-maintenance integration work.
 
-AUTO-156 final head `b1eb018cb4b15acc98771f2d304362a62c739ac8` passed Actions run `32041811743`; Python 3.10, 3.11, and 3.12 each passed package installation, compilation, installed CLI smoke, roadmap validation, and pytest. AUTO-157 validation is recorded in the Current Autonomous Status below.
+AUTO-157 final head `bb96744cf3cb2ad904e5011199af1938e700bb52` is the pre-AUTO-158 baseline. AUTO-158 validation is recorded in the Current Autonomous Status below and the final GitHub Actions result is the source of truth.
 
 There is still no dedicated lint, type-check, coverage, or release workflow, and there are no tagged releases.
 
@@ -175,11 +173,11 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-157 — embedded change-apply provenance into verified push orchestration**.
+Latest stewardship run: **AUTO-158 — derive durable maintenance stages from retained change-apply provenance**.
 
-- **Changed:** `forge verified-push-run` now accepts either `--change-run` or mutually exclusive `--change-apply-run`. Wrapper mode verifies committed status, explicit apply/validation/commit confirmations, retained patch evidence, successful guarded apply, live-diff verification, closed push authority, and nested change-run consistency before using the verified commit. The accepted wrapper is retained in the push-run result for downstream durable provenance.
-- **Safety:** push remains a separate explicit authority gate. Wrapper drift or missing evidence blocks before the push handoff. Existing standalone change-run input remains backward compatible. No force-push, tag push, remote mutation, branch-protection change, or fresh network trust acquisition was added.
-- **Validation:** deterministic tests cover direct wrapper acceptance, preserved wrapper provenance, fail-closed wrapper status drift, and the new CLI input. GitHub Actions on the final AUTO-157 head is the source of truth for supported-version validation.
-- **Visual updates:** none; the existing maintenance-flow diagram already shows verified commit flowing into guarded push and post-push verification, so another visual would duplicate the architecture.
-- **Current limitations:** `verified-maintenance-run` still requires earlier patch/validation/commit evidence as separate inputs even though the successful push artifact can now retain the complete change-apply wrapper.
-- **Next autonomous objective:** let `verified-maintenance-run` derive its canonical patch/validation/commit stages directly from the retained `change_apply_run` inside a successful verified-push-run artifact, preserving provenance through durable evidence without caller-managed duplicate JSON files.
+- **Changed:** `forge verified-maintenance-run` now needs only `--verified-push-run` for the canonical modern workflow when that artifact retains a committed `change_apply_run`. Forge derives the guarded patch, aggregate successful validation handoff, and commit-verification compatibility stage from the embedded evidence instead of requiring three caller-managed duplicate JSON files. The legacy three-file mode remains supported only when all three files are supplied together.
+- **Safety:** embedded mode rechecks explicit apply/validation/commit confirmations, applied and live-diff-verified patch state, complete successful validation coverage for the same target, ready commit evidence, exact canonical patch SHA-256 continuity, verified commit creation, and closed push/remote authority before durable evidence can become complete. Bundle and history writes still require separate confirmations.
+- **Validation:** deterministic tests cover canonical embedded-stage derivation, patch-digest drift refusal, partial legacy-input refusal, canonical CLI persistence, separate bundle/history authority, and backward-compatible legacy inputs. GitHub Actions on the final AUTO-158 head is the source of truth for Python 3.10/3.11/3.12 validation.
+- **Visual updates:** none; the existing maintenance-flow diagram already shows the complete patch → validation → commit → push → post-push → durable-evidence architecture.
+- **Current limitations:** commit-trust, workflow-status, and branch-protection remain supplied repository-local evidence, and legacy verified-push-run artifacts without retained `change_apply_run` still need the historical three stage files.
+- **Next autonomous objective:** extend the disposable-repository end-to-end integration test so the proven full workflow finishes through the new single-artifact verified-push-run → durable maintenance handoff, then reassess fresh external trust/status/protection acquisition as the next bounded capability.
