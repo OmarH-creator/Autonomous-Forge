@@ -6,6 +6,7 @@ from autonomous_forge.verified_maintenance_run import (
     read_verified_maintenance_run_data,
 )
 from autonomous_forge.verified_maintenance_run_cli import main
+from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 
 PATCH_APPLY = {
@@ -14,6 +15,7 @@ PATCH_APPLY = {
     "apply_status": "applied",
     "patch_application_allowed": False,
     "file_changed": True,
+    "live_diff_verified": True,
     "target_path": "README.md",
     "validation_steps": ["python -m pytest"],
 }
@@ -73,6 +75,61 @@ POST_PUSH = {
     "verified_validation_commands": ["python -m pytest"],
     "post_push_blockers": [],
 }
+
+
+def _change_apply_run():
+    digest = patch_apply_sha256(PATCH_APPLY)
+    validation_run = {
+        "title": "Autonomous Forge verified validation run",
+        "requested_command": "python -m pytest",
+        "validation_result": "passed",
+        "return_code": 0,
+        "verified_target_path": "README.md",
+        "live_diff_verified": True,
+        "patch_apply_sha256": digest,
+    }
+    readiness = {
+        "title": "Autonomous Forge verified commit readiness",
+        "readiness": "ready",
+        "patch_apply_sha256": digest,
+        "verified_validation_commands": ["python -m pytest"],
+        "reviewed_paths": ["README.md"],
+    }
+    commit_report = {
+        "title": "Autonomous Forge verified commit creation report",
+        "commit_status": "created",
+        "commit_created": True,
+        "commit_verified": True,
+        "commit_blockers": [],
+        "created_commit": "abc1234",
+        "inspected_paths": ["README.md"],
+        "verified_validation_commands": ["python -m pytest"],
+    }
+    change_run = {
+        "title": "Autonomous Forge verified change run",
+        "workflow_status": "committed",
+        "required_validation_steps": ["python -m pytest"],
+        "validation_runs": [validation_run],
+        "commit_readiness": readiness,
+        "commit_confirmed": True,
+        "commit_report": commit_report,
+        "push_allowed": False,
+        "remote_changes_allowed": False,
+    }
+    return {
+        "title": "Autonomous Forge verified change apply run",
+        "workflow_status": "committed",
+        "apply_confirmed": True,
+        "validation_confirmed": True,
+        "commit_confirmed": True,
+        "patch_evidence_embedded": True,
+        "patch_apply": PATCH_APPLY,
+        "change_run": change_run,
+        "push_allowed": False,
+        "remote_changes_allowed": False,
+    }
+
+
 PUSH_RUN = {
     "title": "Autonomous Forge verified push run",
     "workflow_status": "post_push_verified",
@@ -81,6 +138,7 @@ PUSH_RUN = {
     "verified_push_handoff": VERIFIED_PUSH,
     "post_push_verification": POST_PUSH,
 }
+EMBEDDED_PUSH_RUN = {**PUSH_RUN, "change_apply_run": _change_apply_run()}
 
 
 def _write_inputs(tmp_path, *, push_run=PUSH_RUN):
@@ -105,12 +163,22 @@ def _build(tmp_path, *, push_run=PUSH_RUN):
     )
 
 
+def _build_embedded(tmp_path, *, push_run=EMBEDDED_PUSH_RUN):
+    (tmp_path / "push-run.json").write_text(json.dumps(push_run), encoding="utf-8")
+    return read_verified_maintenance_run_data(
+        verified_push_run_path=tmp_path / "push-run.json",
+        root=tmp_path,
+        bundle_id="AUTO-158",
+    )
+
+
 def test_verified_push_run_becomes_complete_canonical_bundle(tmp_path):
     data = _build(tmp_path)
 
     assert data["bundle_status"] == "complete"
     assert data["bundle_complete"] is True
     assert data["push_evidence_source"] == "verified_push_run"
+    assert data["maintenance_input_source"] == "legacy_stage_files"
     assert data["verified_provenance"]["status"] == "complete"
     assert data["summary"]["verified_push_run"] is True
     reports = data["source_reports"]
@@ -126,6 +194,48 @@ def test_verified_push_run_becomes_complete_canonical_bundle(tmp_path):
     assert reports[3]["sha256"] == reports[4]["sha256"]
 
 
+def test_embedded_change_apply_run_supplies_all_canonical_stages(tmp_path):
+    data = _build_embedded(tmp_path)
+
+    assert data["bundle_status"] == "complete"
+    assert data["bundle_complete"] is True
+    assert data["maintenance_input_source"] == "embedded_change_apply_run"
+    assert data["summary"]["embedded_change_apply_run"] is True
+    assert data["commit_sha"] == "abc1234"
+    assert data["validation_steps"] == ["python -m pytest"]
+    assert data["reviewed_paths"] == ["README.md"]
+    assert data["verified_provenance"]["status"] == "complete"
+    assert {item["path"] for item in data["source_reports"]} == {str(tmp_path / "push-run.json")}
+
+
+def test_embedded_change_apply_run_refuses_patch_digest_drift(tmp_path):
+    push_run = json.loads(json.dumps(EMBEDDED_PUSH_RUN))
+    push_run["change_apply_run"]["patch_apply"]["target_path"] = "docs/README.md"
+    (tmp_path / "push-run.json").write_text(json.dumps(push_run), encoding="utf-8")
+
+    try:
+        _build_embedded(tmp_path, push_run=push_run)
+    except VerifiedMaintenanceRunError as exc:
+        assert "disagrees with verified commit readiness" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("tampered embedded patch evidence was not refused")
+
+
+def test_verified_maintenance_run_refuses_partial_legacy_stage_inputs(tmp_path):
+    (tmp_path / "push-run.json").write_text(json.dumps(EMBEDDED_PUSH_RUN), encoding="utf-8")
+
+    try:
+        read_verified_maintenance_run_data(
+            patch_apply_path=tmp_path / "patch.json",
+            verified_push_run_path=tmp_path / "push-run.json",
+            root=tmp_path,
+        )
+    except VerifiedMaintenanceRunError as exc:
+        assert "requires --patch-apply" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("partial legacy stage inputs were not refused")
+
+
 def test_verified_maintenance_run_refuses_unverified_push_status(tmp_path):
     blocked = {**PUSH_RUN, "workflow_status": "pushed_unverified"}
     _write_inputs(tmp_path, push_run=blocked)
@@ -136,6 +246,29 @@ def test_verified_maintenance_run_refuses_unverified_push_status(tmp_path):
         assert "post_push_verified" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("unverified push run was not refused")
+
+
+def test_cli_can_persist_embedded_bundle_without_legacy_stage_files(tmp_path):
+    _write_inputs(tmp_path, push_run=EMBEDDED_PUSH_RUN)
+    base = [
+        "--root", str(tmp_path),
+        "--verified-push-run", "push-run.json",
+        "--bundle-id", "AUTO-158",
+        "--output", "bundle.json",
+        "--history-link", ".ai/run-history/AUTO-158.json",
+        "--confirm-bundle-write",
+        "--require-history-linked",
+        "--format", "json",
+    ]
+
+    assert main(base) == 2
+    assert (tmp_path / "bundle.json").is_file()
+    assert not (tmp_path / ".ai/run-history/AUTO-158.json").exists()
+
+    (tmp_path / "bundle.json").unlink()
+    assert main([*base, "--confirm-history-link"]) == 0
+    assert (tmp_path / "bundle.json").is_file()
+    assert (tmp_path / ".ai/run-history/AUTO-158.json").is_file()
 
 
 def test_cli_keeps_bundle_and_history_writes_as_separate_confirmations(tmp_path):
