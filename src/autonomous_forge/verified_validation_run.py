@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path, PurePosixPath
@@ -45,13 +46,14 @@ def _resolve_input(root: Path, raw_path: Path) -> Path:
     return resolved
 
 
-def _read_verified_patch_apply(root: Path, patch_apply_path: Path, requested_command: str) -> dict[str, Any]:
-    path = _resolve_input(root, patch_apply_path)
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise VerifiedValidationRunError("patch-apply evidence must be valid UTF-8 JSON") from exc
-    if not isinstance(data, dict) or data.get("title") != "Autonomous Forge guarded patch apply":
+def patch_apply_sha256(data: dict[str, Any]) -> str:
+    """Return a deterministic digest for structured patch-apply evidence."""
+    encoded = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _validate_verified_patch_apply(data: dict[str, Any], requested_command: str) -> dict[str, Any]:
+    if data.get("title") != "Autonomous Forge guarded patch apply":
         raise VerifiedValidationRunError("patch-apply evidence has unexpected title")
     target = data.get("target_path")
     if not isinstance(target, str):
@@ -83,9 +85,21 @@ def _read_verified_patch_apply(root: Path, patch_apply_path: Path, requested_com
     return data
 
 
-def run_verified_validation(
-    patch_apply_path: Path,
+def _read_verified_patch_apply(root: Path, patch_apply_path: Path, requested_command: str) -> dict[str, Any]:
+    path = _resolve_input(root, patch_apply_path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise VerifiedValidationRunError("patch-apply evidence must be valid UTF-8 JSON") from exc
+    if not isinstance(data, dict):
+        raise VerifiedValidationRunError("patch-apply evidence must be a JSON object")
+    return _validate_verified_patch_apply(data, requested_command)
+
+
+def run_verified_validation_from_data(
+    patch_apply: dict[str, Any],
     *,
+    patch_apply_source: str,
     plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
     policy_path: Path = Path(".forge/policy.md"),
     state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
@@ -96,8 +110,10 @@ def run_verified_validation(
     output_format: str = "text",
     runner: Runner = subprocess.run,
 ) -> str:
-    """Validate a verified applied target through the existing narrow executor contract."""
-    patch_apply = _read_verified_patch_apply(root, patch_apply_path, requested_command)
+    """Validate in-memory verified patch evidence through the existing narrow executor contract."""
+    verified_patch = _validate_verified_patch_apply(patch_apply, requested_command)
+    if not isinstance(patch_apply_source, str) or not patch_apply_source.strip():
+        raise VerifiedValidationRunError("patch-apply source identity must be non-empty")
     try:
         contract = json.loads(
             build_executor_contract(
@@ -123,14 +139,16 @@ def run_verified_validation(
         **executor,
         "title": "Autonomous Forge verified validation run",
         "source": "live-diff-verified guarded patch apply plus executor contract",
-        "patch_apply_source": str(patch_apply_path),
-        "verified_target_path": patch_apply["target_path"],
+        "patch_apply_source": patch_apply_source,
+        "patch_apply_sha256": patch_apply_sha256(verified_patch),
+        "verified_target_path": verified_patch["target_path"],
         "live_diff_verified": True,
         "safety_boundary": (
             "Verified validation run requires an applied patch report whose embedded target-scoped live git diff "
-            "is clear, exact-one-file, and matches the requested target. It then delegates one exact approved "
-            "validation command to the existing shell=false executor gate. It does not apply patches, write validation "
-            "history automatically, commit, push, poll workflows, change remotes, or weaken executor confirmation gates."
+            "is clear, exact-one-file, and matches the requested target. It binds the validation observation to the "
+            "canonical SHA-256 of that patch evidence, then delegates one exact approved validation command to the "
+            "existing shell=false executor gate. It does not apply patches, write validation history automatically, "
+            "commit, push, poll workflows, change remotes, or weaken executor confirmation gates."
         ),
     }
     if output_format == "json":
@@ -147,3 +165,33 @@ def run_verified_validation(
     )
     executor_text = format_executor_run({**executor, "safety_boundary": data["safety_boundary"]})
     return f"{prefix}\n{executor_text}"
+
+
+def run_verified_validation(
+    patch_apply_path: Path,
+    *,
+    plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
+    policy_path: Path = Path(".forge/policy.md"),
+    state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
+    root: Path = Path("."),
+    requested_command: str,
+    confirm_executor_dry_run: bool = False,
+    timeout_seconds: int = 300,
+    output_format: str = "text",
+    runner: Runner = subprocess.run,
+) -> str:
+    """Validate a verified applied target through the existing narrow executor contract."""
+    patch_apply = _read_verified_patch_apply(root, patch_apply_path, requested_command)
+    return run_verified_validation_from_data(
+        patch_apply,
+        patch_apply_source=str(patch_apply_path),
+        plan_path=plan_path,
+        policy_path=policy_path,
+        state_path=state_path,
+        root=root,
+        requested_command=requested_command,
+        confirm_executor_dry_run=confirm_executor_dry_run,
+        timeout_seconds=timeout_seconds,
+        output_format=output_format,
+        runner=runner,
+    )
