@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from autonomous_forge.commit_readiness import build_commit_readiness_data
+from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 _MAX_JSON_BYTES = 1_000_000
 
@@ -75,7 +76,13 @@ def _validated_patch(data: dict[str, Any]) -> tuple[str, list[str], dict[str, An
 
 
 def _validation_command(
-    data: dict[str, Any], *, target: str, required_steps: list[str], patch_file: Path, root: Path
+    data: dict[str, Any],
+    *,
+    target: str,
+    required_steps: list[str],
+    patch_digest: str,
+    patch_file: Path | None,
+    root: Path,
 ) -> str:
     if data.get("execution_status") != "completed" or data.get("validation_result") != "passed":
         return ""
@@ -86,13 +93,20 @@ def _validation_command(
     command = data.get("requested_command")
     if not isinstance(command, str) or command.strip() not in required_steps:
         raise VerifiedCommitReadinessError("verified validation command is not retained by patch evidence")
-    source = data.get("patch_apply_source")
-    if not isinstance(source, str) or not source.strip():
-        raise VerifiedCommitReadinessError("verified validation lacks patch_apply_source")
-    source_path = Path(source)
-    resolved_source = _resolve_json(source_path, root=root, label="verified validation patch source")
-    if resolved_source != patch_file:
-        raise VerifiedCommitReadinessError("verified validation references a different patch-apply evidence file")
+
+    observed_digest = data.get("patch_apply_sha256")
+    if observed_digest is not None:
+        if not isinstance(observed_digest, str) or observed_digest != patch_digest:
+            raise VerifiedCommitReadinessError("verified validation references different patch-apply evidence")
+    else:
+        if patch_file is None:
+            raise VerifiedCommitReadinessError("verified validation lacks hash binding for embedded patch evidence")
+        source = data.get("patch_apply_source")
+        if not isinstance(source, str) or not source.strip():
+            raise VerifiedCommitReadinessError("verified validation lacks patch_apply_source")
+        resolved_source = _resolve_json(Path(source), root=root, label="verified validation patch source")
+        if resolved_source != patch_file:
+            raise VerifiedCommitReadinessError("verified validation references a different patch-apply evidence file")
     return command.strip()
 
 
@@ -101,14 +115,22 @@ def build_verified_commit_readiness_data(
     validation_runs: list[dict[str, Any]],
     status_review: dict[str, Any],
     *,
-    patch_file: Path,
+    patch_file: Path | None,
     root: Path,
 ) -> dict[str, Any]:
     """Bind successful verified validation runs to one patch before commit readiness."""
     target, required_steps, diff_review = _validated_patch(patch_apply)
+    patch_digest = patch_apply_sha256(patch_apply)
     executed: list[str] = []
     for run in validation_runs:
-        command = _validation_command(run, target=target, required_steps=required_steps, patch_file=patch_file, root=root)
+        command = _validation_command(
+            run,
+            target=target,
+            required_steps=required_steps,
+            patch_digest=patch_digest,
+            patch_file=patch_file,
+            root=root,
+        )
         if command and command not in executed:
             executed.append(command)
     missing = [step for step in required_steps if step not in executed]
@@ -129,14 +151,16 @@ def build_verified_commit_readiness_data(
         {
             "title": "Autonomous Forge verified commit readiness",
             "source": "verified guarded patch apply plus successful verified validation runs and status review",
+            "patch_apply_sha256": patch_digest,
             "verified_validation_runs": len(validation_runs),
             "verified_validation_commands": executed,
             "missing_verified_validation_commands": missing,
             "safety_boundary": (
-                "Verified commit readiness is read-only. It binds repository-local guarded patch evidence to successful "
-                "verified-validation results, requires every retained patch validation step to have passed, then reuses "
-                "the existing commit-readiness diff and status gates. It does not stage files, create commits, push, "
-                "poll workflows, change remotes, force-push, or alter branch protections."
+                "Verified commit readiness is read-only. It binds guarded patch evidence to successful verified-validation "
+                "results using either the existing repository-local file identity or a canonical patch-evidence SHA-256, "
+                "requires every retained validation step to have passed, then reuses the existing commit-readiness diff "
+                "and status gates. It does not stage files, create commits, push, poll workflows, change remotes, "
+                "force-push, or alter branch protections."
             ),
         }
     )
