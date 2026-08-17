@@ -28,9 +28,21 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--root", default=".")
-    parser.add_argument("--patch-apply", required=True)
-    parser.add_argument("--post-apply-validation", required=True)
-    parser.add_argument("--commit-verify", required=True)
+    parser.add_argument(
+        "--patch-apply",
+        default=None,
+        help="legacy patch-apply JSON; omit with the other legacy stage files when verified-push-run retains change-apply provenance",
+    )
+    parser.add_argument(
+        "--post-apply-validation",
+        default=None,
+        help="legacy post-apply-validation JSON; must be supplied together with the other legacy stage files",
+    )
+    parser.add_argument(
+        "--commit-verify",
+        default=None,
+        help="legacy commit-verification JSON; must be supplied together with the other legacy stage files",
+    )
     parser.add_argument("--verified-push-run", required=True)
     parser.add_argument("--bundle-id", default="maintenance-evidence-bundle")
     parser.add_argument("--output", default=None, help="repository-local .json bundle output")
@@ -48,9 +60,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         data = read_verified_maintenance_run_data(
-            patch_apply_path=Path(args.patch_apply),
-            post_apply_validation_path=Path(args.post_apply_validation),
-            commit_verify_path=Path(args.commit_verify),
+            patch_apply_path=Path(args.patch_apply) if args.patch_apply else None,
+            post_apply_validation_path=Path(args.post_apply_validation) if args.post_apply_validation else None,
+            commit_verify_path=Path(args.commit_verify) if args.commit_verify else None,
             verified_push_run_path=Path(args.verified_push_run),
             root=Path(args.root),
             bundle_id=args.bundle_id,
