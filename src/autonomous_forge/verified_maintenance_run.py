@@ -12,6 +12,12 @@ from autonomous_forge.verified_maintenance_provenance import enrich_maintenance_
 from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 _MAX_JSON_BYTES = 1_000_000
+_VALIDATION_CONTEXT_FIELDS = (
+    "expected_file_changes",
+    "implementation_steps",
+    "validation_steps",
+    "risk_register",
+)
 
 
 class VerifiedMaintenanceRunError(ValueError):
@@ -79,7 +85,22 @@ def _verified_push_parts(push_run: dict[str, Any]) -> tuple[dict[str, Any], dict
     return wrapper, raw_push, post_push
 
 
-def _successful_validation_commands(change_run: dict[str, Any], *, target_path: str) -> list[str]:
+def _validation_context(run: dict[str, Any]) -> dict[str, list[Any]]:
+    context: dict[str, list[Any]] = {}
+    for field in _VALIDATION_CONTEXT_FIELDS:
+        value = run.get(field)
+        if not isinstance(value, list):
+            raise VerifiedMaintenanceRunError(f"embedded verified validation evidence lacks list context field: {field}")
+        context[field] = list(value)
+    return context
+
+
+def _successful_validation_commands(
+    change_run: dict[str, Any],
+    *,
+    target_path: str,
+    patch_digest: str,
+) -> tuple[list[str], dict[str, list[Any]]]:
     required = change_run.get("required_validation_steps")
     runs = change_run.get("validation_runs")
     if not isinstance(required, list) or not required or not all(isinstance(item, str) and item.strip() for item in required):
@@ -88,22 +109,30 @@ def _successful_validation_commands(change_run: dict[str, Any], *, target_path: 
         raise VerifiedMaintenanceRunError("embedded verified change run does not retain every validation observation")
 
     observed: list[str] = []
+    retained_context: dict[str, list[Any]] | None = None
     for run in runs:
         if not isinstance(run, dict) or run.get("title") != "Autonomous Forge verified validation run":
             raise VerifiedMaintenanceRunError("embedded verified change run contains unexpected validation evidence")
         command = str(run.get("requested_command") or "").strip()
         if not command:
             raise VerifiedMaintenanceRunError("embedded verified validation evidence lacks requested_command")
-        if run.get("validation_result") != "passed" or run.get("return_code") != 0:
+        if run.get("execution_status") != "completed" or run.get("validation_result") != "passed" or run.get("return_code") != 0:
             raise VerifiedMaintenanceRunError("embedded verified change run contains a failed validation observation")
         if run.get("verified_target_path") != target_path or run.get("live_diff_verified") is not True:
             raise VerifiedMaintenanceRunError("embedded verified validation evidence disagrees with guarded patch target")
+        if run.get("patch_apply_sha256") != patch_digest:
+            raise VerifiedMaintenanceRunError("embedded verified validation evidence references different guarded patch evidence")
+        current_context = _validation_context(run)
+        if retained_context is None:
+            retained_context = current_context
+        elif current_context != retained_context:
+            raise VerifiedMaintenanceRunError("embedded verified validation observations disagree on retained validation context")
         observed.append(command)
 
     cleaned_required = [item.strip() for item in required]
     if observed != cleaned_required:
         raise VerifiedMaintenanceRunError("embedded validation observations do not match required validation steps")
-    return observed
+    return observed, retained_context or {field: [] for field in _VALIDATION_CONTEXT_FIELDS}
 
 
 def _derive_change_stages(push_run: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -152,10 +181,15 @@ def _derive_change_stages(push_run: dict[str, Any]) -> tuple[dict[str, Any], dic
         raise VerifiedMaintenanceRunError("embedded verified change run does not prove confirmed commit completion")
     if not isinstance(readiness, dict) or readiness.get("readiness") != "ready":
         raise VerifiedMaintenanceRunError("embedded verified change run lacks ready commit evidence")
+    patch_digest = patch_apply_sha256(patch_apply)
     retained_digest = readiness.get("patch_apply_sha256")
-    if not isinstance(retained_digest, str) or retained_digest != patch_apply_sha256(patch_apply):
+    if not isinstance(retained_digest, str) or retained_digest != patch_digest:
         raise VerifiedMaintenanceRunError("embedded guarded patch evidence disagrees with verified commit readiness")
-    observed_commands = _successful_validation_commands(change_run, target_path=target_path)
+    observed_commands, validation_context = _successful_validation_commands(
+        change_run,
+        target_path=target_path,
+        patch_digest=patch_digest,
+    )
     readiness_commands = readiness.get("verified_validation_commands")
     if readiness_commands != observed_commands:
         raise VerifiedMaintenanceRunError("verified commit readiness disagrees with retained validation observations")
@@ -173,8 +207,9 @@ def _derive_change_stages(push_run: dict[str, Any]) -> tuple[dict[str, Any], dic
     inspected_paths = commit_report.get("inspected_paths")
     if not inspected_commit or not isinstance(inspected_paths, list) or not inspected_paths:
         raise VerifiedMaintenanceRunError("verified commit creation lacks commit SHA or inspected paths")
+    if target_path not in inspected_paths:
+        raise VerifiedMaintenanceRunError("verified commit creation does not include the guarded patch target")
 
-    validation_context = patch_apply.get("validation_context")
     post_apply = {
         "title": "Autonomous Forge post-apply validation handoff",
         "validation_status": "validated",
@@ -182,6 +217,7 @@ def _derive_change_stages(push_run: dict[str, Any]) -> tuple[dict[str, Any], dic
         "target_path": target_path,
         "commit_allowed": False,
         "verified_validation_commands": observed_commands,
+        "validation_context": validation_context,
     }
     commit_verify = {
         "title": "Autonomous Forge commit verification report",
@@ -191,10 +227,8 @@ def _derive_change_stages(push_run: dict[str, Any]) -> tuple[dict[str, Any], dic
         "inspected_paths": list(inspected_paths),
         "push_allowed": False,
         "verified_validation_commands": observed_commands,
+        "validation_context": validation_context,
     }
-    if isinstance(validation_context, dict):
-        post_apply["validation_context"] = validation_context
-        commit_verify["validation_context"] = validation_context
     return patch_apply, post_apply, commit_verify
 
 
