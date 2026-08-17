@@ -1,19 +1,23 @@
 import autonomous_forge.verified_push_run as verified_push_run
 from autonomous_forge.cli_entry_patch import main as forge_main
+from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 
-def _change_run() -> dict:
+def _change_run(*, patch_digest: str | None = None) -> dict:
     commands = ["python -m pytest -q"]
+    readiness = {
+        "readiness": "ready",
+        "verified_validation_commands": commands,
+    }
+    if patch_digest is not None:
+        readiness["patch_apply_sha256"] = patch_digest
     return {
         "title": "Autonomous Forge verified change run",
         "workflow_status": "committed",
         "commit_confirmed": True,
         "push_allowed": False,
         "remote_changes_allowed": False,
-        "commit_readiness": {
-            "readiness": "ready",
-            "verified_validation_commands": commands,
-        },
+        "commit_readiness": readiness,
         "commit_report": {
             "title": "Autonomous Forge verified commit creation report",
             "commit_status": "created",
@@ -31,6 +35,20 @@ def _change_run() -> dict:
 
 
 def _change_apply_run() -> dict:
+    patch = {
+        "title": "Autonomous Forge guarded patch apply",
+        "apply_status": "applied",
+        "file_changed": True,
+        "patch_application_allowed": False,
+        "live_diff_verified": True,
+        "target_path": "README.md",
+        "validation_steps": ["python -m pytest -q"],
+        "live_diff_review": {
+            "requires_attention": False,
+            "summary": {"files_changed": 1},
+            "path_reviews": [{"path": "README.md"}],
+        },
+    }
     return {
         "title": "Autonomous Forge verified change apply run",
         "workflow_status": "committed",
@@ -38,12 +56,8 @@ def _change_apply_run() -> dict:
         "validation_confirmed": True,
         "commit_confirmed": True,
         "patch_evidence_embedded": True,
-        "patch_apply": {
-            "apply_status": "applied",
-            "live_diff_verified": True,
-            "target_path": "README.md",
-        },
-        "change_run": _change_run(),
+        "patch_apply": patch,
+        "change_run": _change_run(patch_digest=patch_apply_sha256(patch)),
         "push_allowed": False,
         "remote_changes_allowed": False,
     }
@@ -117,6 +131,21 @@ def test_verified_push_run_refuses_change_apply_wrapper_drift_before_push(monkey
     assert data["workflow_status"] == "blocked"
     assert "verified change apply run did not finish in committed status" in data["blockers"]
     assert "embedded verified change status disagrees with change-apply wrapper" in data["blockers"]
+
+
+def test_verified_push_run_refuses_tampered_wrapper_patch_before_push(monkeypatch, tmp_path):
+    wrapper = _change_apply_run()
+    wrapper["patch_apply"]["target_path"] = "docs/README.md"
+    monkeypatch.setattr(
+        verified_push_run,
+        "build_verified_push_handoff_data",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("push handoff must not run")),
+    )
+
+    data = verified_push_run.build_verified_push_run_data(wrapper, {}, {}, {}, root=tmp_path, confirm_push=True)
+
+    assert data["workflow_status"] == "blocked"
+    assert "embedded guarded patch evidence disagrees with verified commit readiness" in data["blockers"]
 
 
 def test_verified_push_run_pushes_then_verifies(monkeypatch, tmp_path):

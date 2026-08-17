@@ -28,12 +28,13 @@ Before using embedded commit evidence, wrapper mode requires the change-apply ru
 
 - committed workflow status;
 - explicit patch-apply, validation, and commit confirmations;
-- retained embedded patch evidence;
+- retained embedded patch evidence with the expected guarded-patch title;
 - successful guarded patch application and live-diff verification;
 - closed push/remote-change authority;
-- a nested verified-change-run whose workflow status and commit confirmation agree with the wrapper.
+- a nested verified-change-run whose workflow status and commit confirmation agree with the wrapper;
+- an exact canonical SHA-256 match between the wrapper's embedded patch evidence and the `patch_apply_sha256` retained by verified commit readiness.
 
-The verified-push-run result retains the accepted `change_apply_run` wrapper so downstream durable evidence can preserve the full provenance chain rather than reconstructing it from separate files.
+The digest check prevents a valid committed nested change-run from being paired with a different or tampered wrapper patch report. The verified-push-run result retains the accepted `change_apply_run` wrapper so downstream durable evidence can preserve the full provenance chain rather than reconstructing it from separate files.
 
 ## Safety boundary
 

@@ -8,6 +8,7 @@ from typing import Any
 
 from autonomous_forge.post_push_verify import GitRunner, _run_git, build_post_push_verify_data
 from autonomous_forge.verified_push_handoff import build_verified_push_handoff_data
+from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 _MAX_JSON_BYTES = 1_000_000
 
@@ -66,6 +67,8 @@ def _unwrap_change_evidence(change_evidence: dict[str, Any]) -> tuple[dict[str, 
     if not isinstance(patch_apply, dict):
         blockers.append("verified change apply run lacks guarded patch evidence")
     else:
+        if patch_apply.get("title") != "Autonomous Forge guarded patch apply":
+            blockers.append("verified change apply run contains unexpected guarded patch evidence")
         if patch_apply.get("apply_status") != "applied":
             blockers.append("verified change apply run does not prove guarded patch application")
         if patch_apply.get("live_diff_verified") is not True:
@@ -79,6 +82,14 @@ def _unwrap_change_evidence(change_evidence: dict[str, Any]) -> tuple[dict[str, 
         blockers.append("embedded verified change status disagrees with change-apply wrapper")
     if nested.get("commit_confirmed") is not change_evidence.get("commit_confirmed"):
         blockers.append("embedded commit confirmation disagrees with change-apply wrapper")
+
+    readiness = nested.get("commit_readiness")
+    if isinstance(patch_apply, dict) and isinstance(readiness, dict):
+        retained_digest = readiness.get("patch_apply_sha256")
+        if not isinstance(retained_digest, str) or retained_digest != patch_apply_sha256(patch_apply):
+            blockers.append("embedded guarded patch evidence disagrees with verified commit readiness")
+    else:
+        blockers.append("verified change apply run cannot bind guarded patch evidence to commit readiness")
     return nested, "verified_change_apply_run", blockers
 
 
@@ -154,10 +165,11 @@ def build_verified_push_run_data(
         "safety_boundary": (
             "Verified push run accepts a committed verified-change-run artifact or the committed verified-change-apply-run "
             "wrapper that safely embeds it. Wrapper mode additionally requires confirmed guarded patch application, "
-            "live-diff verification, validation, and commit creation before the nested commit evidence is used. Push remains "
-            "a separate explicit confirmation gate and Forge reuses its trust/status/branch-protection readiness, "
-            "fast-forward-only guarded push, and post-push verification contracts. It never force-pushes, pushes tags, "
-            "changes remotes or branch protections, or treats earlier confirmations as push authority."
+            "live-diff verification, validation, commit creation, and an exact canonical patch SHA-256 match against "
+            "verified commit readiness before the nested commit evidence is used. Push remains a separate explicit "
+            "confirmation gate and Forge reuses its trust/status/branch-protection readiness, fast-forward-only guarded "
+            "push, and post-push verification contracts. It never force-pushes, pushes tags, changes remotes or branch "
+            "protections, or treats earlier confirmations as push authority."
         ),
     }
     if blockers or commit_report is None:
