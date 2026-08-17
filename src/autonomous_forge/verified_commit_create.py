@@ -100,8 +100,8 @@ def _proposal_from_verified(data: dict[str, Any], *, summary: str, body_lines: l
     return build_commit_proposal_preview_data(compatibility, summary=summary, body_lines=body_lines)
 
 
-def create_verified_commit(
-    readiness_path: Path,
+def create_verified_commit_from_data(
+    readiness: dict[str, Any],
     *,
     root: Path = Path("."),
     summary: str,
@@ -109,8 +109,7 @@ def create_verified_commit(
     confirm_commit_create: bool = False,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
-    """Create then immediately verify one commit from ready verified evidence."""
-    readiness = _read_readiness(readiness_path, root=root)
+    """Create then immediately verify one commit from in-memory verified readiness evidence."""
     blockers, reviewed_paths = _validate_readiness(readiness)
     proposal = _proposal_from_verified(readiness, summary=summary, body_lines=list(body_lines or []))
     blockers.extend(proposal.get("proposal_blockers", []))
@@ -188,3 +187,24 @@ def create_verified_commit(
         "commit_blockers": verification_blockers,
     })
     return result
+
+
+def create_verified_commit(
+    readiness_path: Path,
+    *,
+    root: Path = Path("."),
+    summary: str,
+    body_lines: list[str] | None = None,
+    confirm_commit_create: bool = False,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> dict[str, Any]:
+    """Create then immediately verify one commit from ready verified evidence."""
+    readiness = _read_readiness(readiness_path, root=root)
+    return create_verified_commit_from_data(
+        readiness,
+        root=root,
+        summary=summary,
+        body_lines=body_lines,
+        confirm_commit_create=confirm_commit_create,
+        runner=runner,
+    )
