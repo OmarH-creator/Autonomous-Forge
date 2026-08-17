@@ -20,7 +20,7 @@ forge verified-maintenance-run \
   --format json
 ```
 
-The verified push-run must retain `change_apply_run`, which in turn must preserve the guarded patch, every successful verified validation observation, ready commit evidence, and a successfully created and immediately verified local commit. Forge rechecks the canonical guarded-patch SHA-256 retained by commit readiness before using the embedded stages.
+The verified push-run must retain `change_apply_run`, which in turn must preserve the guarded patch, every successful verified validation observation, ready commit evidence, and a successfully created and immediately verified local commit. Forge rechecks the canonical guarded-patch SHA-256 retained by commit readiness and by every validation observation before using the embedded stages.
 
 ## Legacy stage-file compatibility
 
@@ -46,9 +46,10 @@ In embedded mode Forge additionally requires:
 
 - a committed `verified-change-apply-run` with explicit apply, validation, and commit confirmations;
 - a guarded patch that is applied, live-diff verified, and has closed patch authority;
-- every required validation step to have a matching successful verified validation observation for the same target;
-- ready commit evidence whose retained patch SHA-256 matches the embedded guarded patch exactly;
-- verified commit-creation evidence with the same successful validation-command set.
+- every required validation step to have a matching completed successful verified validation observation for the same target;
+- every validation observation to bind to the same canonical guarded-patch SHA-256 and retain the same validation context;
+- ready commit evidence whose retained patch SHA-256 and successful validation-command set match those observations;
+- verified commit-creation evidence with the same successful validation-command set and the guarded target among the inspected commit paths.
 
 Bundle persistence and history-link persistence remain deliberately separate authority gates:
 
