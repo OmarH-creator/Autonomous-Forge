@@ -75,6 +75,12 @@ POST_PUSH = {
     "verified_validation_commands": ["python -m pytest"],
     "post_push_blockers": [],
 }
+VALIDATION_CONTEXT = {
+    "expected_file_changes": ["README.md"],
+    "implementation_steps": ["Update README.md safely."],
+    "validation_steps": ["python -m pytest"],
+    "risk_register": ["Validation may expose regressions."],
+}
 
 
 def _change_apply_run():
@@ -82,11 +88,13 @@ def _change_apply_run():
     validation_run = {
         "title": "Autonomous Forge verified validation run",
         "requested_command": "python -m pytest",
+        "execution_status": "completed",
         "validation_result": "passed",
         "return_code": 0,
         "verified_target_path": "README.md",
         "live_diff_verified": True,
         "patch_apply_sha256": digest,
+        **VALIDATION_CONTEXT,
     }
     readiness = {
         "title": "Autonomous Forge verified commit readiness",
@@ -203,6 +211,7 @@ def test_embedded_change_apply_run_supplies_all_canonical_stages(tmp_path):
     assert data["summary"]["embedded_change_apply_run"] is True
     assert data["commit_sha"] == "abc1234"
     assert data["validation_steps"] == ["python -m pytest"]
+    assert data["validation_context"] == VALIDATION_CONTEXT
     assert data["reviewed_paths"] == ["README.md"]
     assert data["verified_provenance"]["status"] == "complete"
     assert {item["path"] for item in data["source_reports"]} == {str(tmp_path / "push-run.json")}
@@ -219,6 +228,19 @@ def test_embedded_change_apply_run_refuses_patch_digest_drift(tmp_path):
         assert "disagrees with verified commit readiness" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("tampered embedded patch evidence was not refused")
+
+
+def test_embedded_change_apply_run_refuses_validation_patch_digest_drift(tmp_path):
+    push_run = json.loads(json.dumps(EMBEDDED_PUSH_RUN))
+    push_run["change_apply_run"]["change_run"]["validation_runs"][0]["patch_apply_sha256"] = "0" * 64
+    (tmp_path / "push-run.json").write_text(json.dumps(push_run), encoding="utf-8")
+
+    try:
+        _build_embedded(tmp_path, push_run=push_run)
+    except VerifiedMaintenanceRunError as exc:
+        assert "references different guarded patch evidence" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("validation evidence for another patch was not refused")
 
 
 def test_verified_maintenance_run_refuses_partial_legacy_stage_inputs(tmp_path):
