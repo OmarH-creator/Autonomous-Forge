@@ -52,6 +52,7 @@ Forge can:
 The maintenance chain now includes:
 
 - `forge verified-change-run`: executes every retained validation step, builds verified commit readiness, and can create and immediately verify the reviewed local commit. Validation and commit creation keep separate confirmations.
+- `forge verified-change-apply-run`: composes the guarded replacement write, mandatory live-diff verification, all retained validation steps, and optional verified local commit without requiring a caller-managed intermediate patch-apply JSON file. Patch apply, validation, and commit creation remain three independent confirmations.
 - `forge verified-push-run`: consumes a completed committed `verified-change-run` artifact, carries the verified commit through commit-trust, status, and branch-protection readiness, and can execute the existing guarded non-force push only with a **separate `--confirm-push` authority gate**. After a completed push it performs post-push remote verification; optional fetching is separately requested with `--fetch-after-push`.
 - `forge verified-maintenance-run`: consumes that completed `post_push_verified` orchestration artifact plus the earlier patch, validation, and commit-verification evidence, builds the canonical provenance-complete maintenance bundle, and can persist the bundle plus its `.ai/run-history/` link under two **separate** write confirmations. It does not require users to extract duplicate standalone push-handoff and post-push JSON files first.
 - the underlying `verified-push-handoff`, `post-push-verify`, maintenance evidence, replay, archive, package, and preservation commands remain independently usable and reviewable.
@@ -119,6 +120,7 @@ The project began as a tiny roadmap-driven CLI and grew into a connected mainten
 | `AUTO-153` | First orchestration surface: verified validation through local commit creation |
 | `AUTO-154` | Second orchestration surface: committed verified change through separately confirmed push and post-push verification |
 | `AUTO-155` | Third orchestration surface: post-push-verified run through separately confirmed canonical durable bundle and run-history persistence |
+| `AUTO-156` | Guarded patch application through verified validation/commit using embedded SHA-bound patch evidence instead of an intermediate patch JSON handoff |
 
 ## Testing and CI
 
@@ -126,7 +128,7 @@ The main workflow tests Python **3.10, 3.11, and 3.12**. It installs the package
 
 A historical audit reached `569 passed, 82 failed, 1 skipped`. AUTO-141/AUTO-142 paused feature work and repaired the actual compatibility, fixture, routing, context-consistency, and archive-path defects instead of suppressing failures. The supported matrix has remained green through the subsequent verified-maintenance integration work.
 
-AUTO-155 product/test head `cc2a26e8629f53254fdf19fe292a2c5e60c39d96` passed Actions run `32023267553`; Python 3.10, 3.11, and 3.12 each passed package installation, compilation, installed CLI smoke, roadmap validation, and pytest.
+AUTO-156 product/test head `566d3fdc26ed17f36b032e716b04f5e23d297fda` passed Actions run `32041729596`; Python 3.10, 3.11, and 3.12 each passed package installation, compilation, installed CLI smoke, roadmap validation, and pytest.
 
 There is still no dedicated lint, type-check, coverage, or release workflow, and there are no tagged releases.
 
@@ -140,6 +142,7 @@ Positive controls include:
 - explicit confirmations for writes, validation execution, commits, pushes, package writes, and durable evidence writes;
 - `shell=False` for the narrow command executor and live Git-diff inspection;
 - target-scoped post-write diff verification with rollback on verification failure;
+- canonical SHA-256 binding between embedded guarded-patch evidence and its validation observations;
 - complete retained-validation coverage before verified commit readiness;
 - exact changed-path verification after commit creation;
 - fast-forward-only, non-force guarded push behavior;
@@ -171,11 +174,11 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-155 — verified push orchestration into durable evidence and run history**.
+Latest stewardship run: **AUTO-156 — guarded patch application into verified change orchestration**.
 
-- **Changed:** Added `forge verified-maintenance-run`. It accepts a completed `post_push_verified` `verified-push-run` artifact plus the earlier patch, post-apply-validation, and commit-verification evidence, builds the canonical provenance-complete maintenance bundle, and can create the durable `.ai/run-history/` link without requiring separate extracted push-handoff and post-push JSON files.
-- **Safety:** The push run must already prove independent push confirmation, post-push verification, and no blockers. `--confirm-bundle-write` authorizes only bundle persistence; `--confirm-history-link` separately authorizes only the history link. The command performs no patch application, validation execution, staging, commit, push, fetch, workflow polling, remote mutation, force-push, tag push, or protection change.
-- **Validation:** Actions run `32023267553` for product/test head `cc2a26e8629f53254fdf19fe292a2c5e60c39d96` passed installation, compilation, installed CLI smoke tests, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12.
-- **Visual updates:** none; the existing maintenance-flow diagram already shows post-push verification feeding durable evidence/history, so a new visual would duplicate existing factual architecture.
-- **Current limitations:** trust/status/branch-protection evidence earlier in the chain is still repository-local caller-supplied JSON rather than freshly acquired GitHub proof; hashes detect byte drift but do not establish signer identity; callers still manage the earlier patch/validation/commit evidence files.
-- **Next autonomous objective:** reduce the remaining caller-managed evidence handoffs before `verified-change-run`, or add fresh bounded read-only GitHub trust/status/protection acquisition if it can be done without weakening explicit confirmation boundaries or introducing uncontrolled remote mutation.
+- **Changed:** Added `forge verified-change-apply-run`. It composes one confirmed reviewed replacement write, mandatory target-scoped live Git diff verification, every retained validation step, verified commit readiness, and optional verified local commit creation. The guarded patch report is embedded directly into the orchestration result instead of requiring a caller-managed intermediate patch-apply JSON file.
+- **Safety:** Patch application, validation execution, and commit creation remain independent confirmation gates. Validation observations are bound to the canonical SHA-256 of the embedded patch report; any hash drift fails closed. Existing file-based evidence remains backward compatible. The command never pushes, changes remotes, polls workflows, force-pushes, or changes branch protection.
+- **Validation:** Actions run `32041729596` for product/test head `566d3fdc26ed17f36b032e716b04f5e23d297fda` passed installation, compilation, installed CLI smoke tests, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12.
+- **Visual updates:** none; the existing maintenance-flow diagram already shows guarded patch apply feeding verified validation and commit, so a new visual would duplicate the same factual architecture.
+- **Current limitations:** downstream `verified-push-run` still expects a standalone `verified-change-run` artifact and `verified-maintenance-run` still accepts earlier patch/validation/commit evidence separately; trust/status/branch-protection evidence remains caller-supplied rather than freshly acquired GitHub proof.
+- **Next autonomous objective:** let the verified push/durable-maintenance orchestration consume the new embedded change artifact directly, preserving patch/validation/commit provenance without forcing callers to split it back into intermediate JSON files. Fresh GitHub trust/status/protection acquisition remains deferred because repository policy requires human approval for adding network access or external service calls.
