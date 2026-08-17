@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from autonomous_forge.verified_commit_create import create_verified_commit_from_data
 from autonomous_forge.verified_commit_readiness import build_verified_commit_readiness_data
-from autonomous_forge.verified_validation_run import run_verified_validation
+from autonomous_forge.verified_validation_run import run_verified_validation, run_verified_validation_from_data
 
 _MAX_JSON_BYTES = 1_000_000
 Runner = Callable[..., subprocess.CompletedProcess[str]]
@@ -61,55 +61,53 @@ def _required_validation_steps(patch_apply: dict[str, Any]) -> list[str]:
     return required
 
 
-def run_verified_change(
-    patch_apply_path: Path,
-    status_review_path: Path,
+def _finish_verified_change(
+    patch_apply: dict[str, Any],
+    status_review: dict[str, Any],
     *,
-    plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
-    policy_path: Path = Path(".forge/policy.md"),
-    state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
-    root: Path = Path("."),
+    patch_file: Path | None,
+    patch_apply_source: str,
+    plan_path: Path,
+    policy_path: Path,
+    state_path: Path,
+    root: Path,
     summary: str,
-    body_lines: list[str] | None = None,
-    confirm_validation: bool = False,
-    confirm_commit_create: bool = False,
-    timeout_seconds: int = 300,
-    runner: Runner = subprocess.run,
+    body_lines: list[str],
+    confirm_validation: bool,
+    confirm_commit_create: bool,
+    timeout_seconds: int,
+    runner: Runner,
 ) -> dict[str, Any]:
-    """Run every retained validation step, build readiness, then optionally commit.
-
-    Validation execution and commit creation remain separately confirmation-gated.
-    The function never pushes, changes remotes, polls workflows, or changes branch
-    protections.
-    """
-    patch_file, patch_apply = _read_json(
-        patch_apply_path,
-        root=root,
-        label="patch-apply evidence",
-        title="Autonomous Forge guarded patch apply",
-    )
-    _, status_review = _read_json(
-        status_review_path,
-        root=root,
-        label="status review evidence",
-        title="Autonomous Forge commit status review",
-    )
     required_steps = _required_validation_steps(patch_apply)
-
     validation_runs: list[dict[str, Any]] = []
     for command in required_steps:
-        output = run_verified_validation(
-            patch_apply_path,
-            plan_path=plan_path,
-            policy_path=policy_path,
-            state_path=state_path,
-            root=root,
-            requested_command=command,
-            confirm_executor_dry_run=confirm_validation,
-            timeout_seconds=timeout_seconds,
-            output_format="json",
-            runner=runner,
-        )
+        if patch_file is None:
+            output = run_verified_validation_from_data(
+                patch_apply,
+                patch_apply_source=patch_apply_source,
+                plan_path=plan_path,
+                policy_path=policy_path,
+                state_path=state_path,
+                root=root,
+                requested_command=command,
+                confirm_executor_dry_run=confirm_validation,
+                timeout_seconds=timeout_seconds,
+                output_format="json",
+                runner=runner,
+            )
+        else:
+            output = run_verified_validation(
+                patch_file,
+                plan_path=plan_path,
+                policy_path=policy_path,
+                state_path=state_path,
+                root=root,
+                requested_command=command,
+                confirm_executor_dry_run=confirm_validation,
+                timeout_seconds=timeout_seconds,
+                output_format="json",
+                runner=runner,
+            )
         run = json.loads(output)
         validation_runs.append(run)
         if run.get("validation_result") != "passed" or run.get("return_code") != 0:
@@ -129,7 +127,7 @@ def run_verified_change(
             readiness,
             root=root,
             summary=summary,
-            body_lines=list(body_lines or []),
+            body_lines=body_lines,
             confirm_commit_create=True,
             runner=runner,
         )
@@ -146,7 +144,7 @@ def run_verified_change(
         "mode": "confirmation-gated validation and local commit orchestration",
         "source": "live-diff-verified guarded patch apply plus verified validation and commit-readiness contracts",
         "workflow_status": workflow_status,
-        "patch_apply_source": str(patch_apply_path),
+        "patch_apply_source": patch_apply_source,
         "required_validation_steps": required_steps,
         "validation_confirmed": confirm_validation,
         "validation_runs": validation_runs,
@@ -158,7 +156,99 @@ def run_verified_change(
         "safety_boundary": (
             "Verified change run composes existing guarded contracts without collapsing their authority gates. "
             "Validation commands execute only when the validation confirmation is supplied; commit creation requires "
-            "a separate commit confirmation and stages only reviewed paths. The run never pushes, changes remotes, "
-            "polls workflows, force-pushes, or changes branch protections."
+            "a separate commit confirmation and stages only reviewed paths. Patch evidence may be a bounded repository-local "
+            "JSON file or embedded hash-bound evidence supplied by the guarded apply orchestrator. The run never pushes, "
+            "changes remotes, polls workflows, force-pushes, or changes branch protections."
         ),
     }
+
+
+def run_verified_change_from_data(
+    patch_apply: dict[str, Any],
+    status_review_path: Path,
+    *,
+    patch_apply_source: str,
+    plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
+    policy_path: Path = Path(".forge/policy.md"),
+    state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
+    root: Path = Path("."),
+    summary: str,
+    body_lines: list[str] | None = None,
+    confirm_validation: bool = False,
+    confirm_commit_create: bool = False,
+    timeout_seconds: int = 300,
+    runner: Runner = subprocess.run,
+) -> dict[str, Any]:
+    """Run validation and commit orchestration from embedded guarded patch evidence."""
+    if not isinstance(patch_apply, dict) or patch_apply.get("title") != "Autonomous Forge guarded patch apply":
+        raise VerifiedChangeRunError("embedded patch-apply evidence has unexpected title")
+    if not isinstance(patch_apply_source, str) or not patch_apply_source.strip():
+        raise VerifiedChangeRunError("embedded patch-apply source identity must be non-empty")
+    _, status_review = _read_json(
+        status_review_path,
+        root=root,
+        label="status review evidence",
+        title="Autonomous Forge commit status review",
+    )
+    return _finish_verified_change(
+        patch_apply,
+        status_review,
+        patch_file=None,
+        patch_apply_source=patch_apply_source,
+        plan_path=plan_path,
+        policy_path=policy_path,
+        state_path=state_path,
+        root=root,
+        summary=summary,
+        body_lines=list(body_lines or []),
+        confirm_validation=confirm_validation,
+        confirm_commit_create=confirm_commit_create,
+        timeout_seconds=timeout_seconds,
+        runner=runner,
+    )
+
+
+def run_verified_change(
+    patch_apply_path: Path,
+    status_review_path: Path,
+    *,
+    plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
+    policy_path: Path = Path(".forge/policy.md"),
+    state_path: Path = Path(".ai/AUTONOMOUS_STATE.md"),
+    root: Path = Path("."),
+    summary: str,
+    body_lines: list[str] | None = None,
+    confirm_validation: bool = False,
+    confirm_commit_create: bool = False,
+    timeout_seconds: int = 300,
+    runner: Runner = subprocess.run,
+) -> dict[str, Any]:
+    """Run every retained validation step, build readiness, then optionally commit."""
+    patch_file, patch_apply = _read_json(
+        patch_apply_path,
+        root=root,
+        label="patch-apply evidence",
+        title="Autonomous Forge guarded patch apply",
+    )
+    _, status_review = _read_json(
+        status_review_path,
+        root=root,
+        label="status review evidence",
+        title="Autonomous Forge commit status review",
+    )
+    return _finish_verified_change(
+        patch_apply,
+        status_review,
+        patch_file=patch_file,
+        patch_apply_source=str(patch_apply_path),
+        plan_path=plan_path,
+        policy_path=policy_path,
+        state_path=state_path,
+        root=root,
+        summary=summary,
+        body_lines=list(body_lines or []),
+        confirm_validation=confirm_validation,
+        confirm_commit_create=confirm_commit_create,
+        timeout_seconds=timeout_seconds,
+        runner=runner,
+    )
