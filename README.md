@@ -1,291 +1,161 @@
 # Autonomous Forge
 
-## The three-day Autonomus AI experiment
+Autonomous Forge is an open-source, local-first Python CLI built through an AI software-stewardship experiment. It is best understood as a **pre-alpha, human-in-the-loop maintenance safety framework**, not an unattended AI engineer.
 
-Autonomous Forge is an open-source Python tool built and maintained by scheduled AI agents. The agents were given a GitHub repository and permission to decide what to build, how to structure it, and how to improve it.
+The repository does not call an AI model itself. External agents supplied the autonomy; Forge supplies repository planning, policy checks, guarded side-effect gates, Git verification, and durable maintenance evidence.
 
-This README documents what happened during the experiment and the subsequent baseline-recovery work.
-
-## Short result
-
-The experiment was successful as a research test, but the project is not production-ready.
-
-The AI grew a small repository into a large safety and maintenance framework. The code installs, compiles, and the supported Python 3.10/3.11/3.12 matrix is green again after a dedicated baseline-recovery milestone. That recovery does not by itself make the project production-ready; the framework remains pre-alpha and deliberately human-in-the-loop.
-
-The best description is:
-
-> A useful pre-alpha, human-in-the-loop safety framework — not a self-running AI engineer.
-
-## What the project does
-
-Autonomous Forge is a local-first command-line tool. It helps a maintainer or AI-assisted workflow move through a controlled maintenance process:
+## What it does
 
 ```mermaid
 flowchart LR
-    A[Repository files] --> B[Plan and select a task]
-    B --> C[Create a reviewable proposal]
-    C --> D[Review paths, diffs, status, and risks]
-    D --> E[Preview validation]
-    E --> F[Optional confirmed change]
-    F --> G[Commit and push checks]
-    G --> H[Evidence bundle and replay]
-    H --> I[Archive and preservation checks]
-    D --> J[Human review]
-    J --> F
+    A[Repository files] --> B[Policy-aware plan]
+    B --> C[Reviewable proposal]
+    C --> D[Path and live diff review]
+    D --> E[Guarded patch apply]
+    E --> F[Verified validation]
+    F --> G[Verified local commit]
+    G --> H[Guarded non-force push]
+    H --> I[Post-push verification]
+    I --> J[Durable evidence and history]
+    J --> K[Archive and preservation]
 ```
 
-The repository does not call an AI model. The external scheduler and AI agents supplied the autonomy. Forge supplies local planning, safety checks, side-effect gates, and evidence records.
+Forge keeps the review stages separate from the stages that can change files, run commands, commit, push, or persist evidence. Side effects require explicit confirmation at the relevant boundary.
 
-## What happened
+## Main capabilities
 
-The repository started with only a README and a license. By the end of the original three-day experiment, it contained:
+### Policy-aware planning
 
-- Total lines added across all Git history: 49,200
-- Total lines deleted across history: 11,616
-- Actual lines then present: 37,584 lines
-- 283 tracked files.
-- 112 Python source files.
-- 90 Python test files.
-- 68 documentation files.
-- 6 `.ai` planning and memory files.
-- 1,486 commits by the same Git author.
-- 123 numbered `AUTO-###` task groups, reaching `AUTO-140`.
-- No runtime dependencies.
+`forge plan` is the policy-aware planning milestone that started the product direction. It:
 
-### Commit activity
+- reads the repository roadmap, policy, state, and documented project files;
+- chooses the highest-priority eligible task;
+- identifies allowed and prohibited file areas;
+- produces a concrete reviewable implementation plan;
+- lists expected files, validation steps, risks, and reasons;
+- remains local-first and read-only.
 
-| Local date | Commits |
-|---|---:|
-| 7 July 2026 | 194 |
-| 8 July 2026 | 658 |
-| 9 July 2026 | 572 |
-| 10 July 2026 | 61 |
+### Review and guarded change
 
-```mermaid
-xychart-beta
-    title "Commits by local date"
-    x-axis ["Jul 7", "Jul 8", "Jul 9", "Jul 10"]
-    y-axis "Commits" 0 --> 700
-    bar [194, 658, 572, 61]
+Forge can:
+
+- build change proposals and validation plans;
+- review planned paths against policy;
+- inspect a supplied patch or the repository's current tracked diff relative to `HEAD`;
+- reject path escapes, unsafe symlinks, malformed evidence, and context drift;
+- apply a confirmed reviewed replacement and verify its actual target-scoped Git diff;
+- restore the original target if post-write diff verification fails;
+- execute exact retained validation commands with `shell=False` and bounded timeouts.
+
+### Verified commit and push chain
+
+The maintenance chain now includes:
+
+- `forge verified-change-run`: executes every retained validation step, builds verified commit readiness, and can create and immediately verify the reviewed local commit. Validation and commit creation keep separate confirmations.
+- `forge verified-push-run`: consumes a completed committed `verified-change-run` artifact, carries the verified commit through commit-trust, status, and branch-protection readiness, and can execute the existing guarded non-force push only with a **separate `--confirm-push` authority gate**. After a completed push it performs post-push remote verification; optional fetching is separately requested with `--fetch-after-push`.
+- the underlying `verified-push-handoff`, `post-push-verify`, maintenance evidence, replay, archive, package, and preservation commands remain independently usable and reviewable.
+
+A typical push-stage invocation is:
+
+```bash
+forge verified-push-run \
+  --change-run .ai/evidence/verified-change-run.json \
+  --commit-trust .ai/evidence/commit-trust.json \
+  --status-review .ai/evidence/commit-status.json \
+  --branch-protection .ai/evidence/branch-protection.json \
+  --branch main \
+  --remote origin \
+  --confirm-push \
+  --fetch-after-push \
+  --require-post-push-verified \
+  --format json
 ```
 
-One task was usually split into several commits: core code, CLI wiring, tests, smoke checks, documentation, roadmap, state, changelog, and decision records. This made the work easy to inspect, but it also created many CI runs.
-
-## Main development stages
-
-| Stage | Main work | Result |
-|---|---|---|
-| `AUTO-001`–`AUTO-014` | CLI, roadmap parsing, task selection, reports, policy, inventory | Small working local tool |
-| `AUTO-015`–`AUTO-023` | Package CI, JSON output, planning, proposals, validation | Better review surface; first contract failures appeared |
-| `AUTO-024`–`AUTO-062` | Review artifacts, run history, executor gates, content and diff audits | Large safety and evidence layer |
-| `AUTO-063`–`AUTO-108` | Patch reviews, patch apply, git review, commit and push gates | Near end-to-end maintenance chain |
-| `AUTO-109`–`AUTO-125` | Enriched context, replay, history links, reviewer handoffs | Stronger evidence, but more connected contracts |
-| `AUTO-126`–`AUTO-140` | Archive manifests, copies, packages, verification, completeness | Detailed preservation workflow |
-| `AUTO-141`–`AUTO-142` | Red-baseline recovery, compatibility defects, fixture/contract repair | Supported Python matrix restored to green |
-| `AUTO-143` | Live tracked git-diff inspection | Actual pending tracked changes can be policy-reviewed without exporting a patch |
-| `AUTO-144` | Verified guarded patch apply | Confirmed replacement writes can verify their actual tracked target diff and roll back if that verification fails |
-| `AUTO-145` | Verified validation execution | One exact validation command can be tied to a live-diff-verified patch |
-| `AUTO-146` | Verified commit readiness | All retained patch validation steps must have successful verified runs before commit readiness can be ready |
-| `AUTO-147` | Verified commit creation | Ready verified evidence can create one confirmed local commit and immediately verify its SHA, summary, and exact changed paths |
-| `AUTO-148` | Verified guarded push handoff | Verified commit-creation provenance now flows through trust/status/branch-policy readiness into the existing explicit non-force push gate |
-| `AUTO-149` | Verified post-push provenance | The existing post-push verifier now accepts verified push handoff evidence, checks wrapper/nested evidence consistency, and retains validation provenance after remote reachability verification |
-| `AUTO-150` | Durable verified maintenance provenance | The existing maintenance evidence bundle can bind verified push/post-push provenance and fail closed if commit, path, remote, branch, or validation evidence drifts |
-| `AUTO-151` | Canonical verified push evidence | Durable bundles can use the verified push wrapper as the sole push-stage file while preserving legacy bundle-verification compatibility |
-| `AUTO-152` | End-to-end guarded maintenance proof | One disposable-repository test proves the connected plan → patch → validation → commit → push → post-push → durable-history path |
-
-## Main features created
-
-### Planning
-
-- Reads a Markdown roadmap.
-- Selects the highest-priority eligible task.
-- Checks roadmap structure and task fields.
-- Reads allowed paths, prohibited paths, and approval rules.
-- Produces human-readable and JSON plans.
-
-### Review and validation
-
-- Builds change proposals and validation plans.
-- Reviews planned files against policy.
-- Reviews supplied diffs or the repository's current tracked staged/unstaged diff relative to `HEAD`.
-- Detects path escapes and symlinks.
-- Creates validation previews without running commands.
-- Stores and compares local run-history records.
-- Can bind successful observed validation results back to the exact verified patch evidence that authorized them.
-
-### Controlled changes
-
-Separate commands can, after explicit confirmation:
-
-- apply a reviewed replacement patch, optionally verify the actual target-scoped tracked diff immediately after the write, and restore the original target if that verification fails;
-- run one exact validation command with `shell=False`;
-- create a local commit, including a verified path that requires ready patch/validation evidence and immediately checks the resulting commit SHA, summary, and exact changed paths;
-- perform a guarded, non-force push, including a verified handoff that preserves commit provenance through trust/status/branch-policy gates;
-- write a local evidence copy or archive package.
-
-The default review commands are read-only. The commands that can change files, run commands, create commits, or push changes are separate and confirmation-gated.
+Without `--confirm-push`, the command can report `ready_for_push` but cannot treat validation or commit confirmation as push authority.
 
 ### Evidence and preservation
 
-The final part of the experiment focused on proving that maintenance evidence had not changed:
+Forge also supports:
 
-- evidence bundles, including canonical verified push/post-push provenance binding;
+- evidence bundles with verified push/post-push provenance binding;
 - hash-linked run-history records;
-- replay summaries;
-- reviewer handoffs;
-- archive manifests;
-- copied archive roots;
-- `.tar`, `.tar.gz`, and `.zip` packages;
-- package verification;
-- final preservation-completeness checks;
+- replay summaries and reviewer handoffs;
+- archive manifests and copied archive roots;
+- `.tar`, `.tar.gz`, and `.zip` packaging;
+- package verification and preservation-completeness checks;
 - optional workflow-status freshness evidence.
 
-## How the agents worked
+## Development history
 
-The experiment used two roles:
+The project began as a tiny roadmap-driven CLI and grew into a connected maintenance framework. Major stages include:
 
-1. a product-and-engineering role that selected and shipped improvements;
-2. a maintenance role focused on failing tests, CI, and maintenance PRs.
+| Stage | Result |
+|---|---|
+| `AUTO-001`–`AUTO-014` | Core CLI, roadmap parsing, task selection, policy and inventory |
+| `AUTO-015`–`AUTO-062` | Planning, proposals, validation, audit and run-history contracts |
+| `AUTO-063`–`AUTO-108` | Patch application, Git review, commit and push gates |
+| `AUTO-109`–`AUTO-140` | Enriched replay, reviewer handoffs, archive and preservation workflow |
+| `AUTO-141`–`AUTO-142` | Dedicated red-baseline recovery; supported Python matrix restored to green |
+| `AUTO-143`–`AUTO-152` | Live Git diff inspection through verified patch, validation, commit, push, post-push, durable evidence, and an end-to-end disposable-repository proof |
+| `AUTO-153` | First orchestration surface: verified validation through local commit creation |
+| `AUTO-154` | Second orchestration surface: committed verified change through separately confirmed push and post-push verification |
 
-Most product work was committed directly to `main`. Historical maintenance work created or updated branches and pull requests; later stewardship cycles use `main` directly and treat old branch/PR work as inspect-before-integrate evidence rather than as the default delivery path.
+## Testing and CI
 
-The `.ai` directory acts as project memory:
+The main workflow tests Python **3.10, 3.11, and 3.12**. It installs the package, compiles source, smoke-tests the installed CLI, validates the roadmap, and runs pytest.
+
+A historical audit reached `569 passed, 82 failed, 1 skipped`. AUTO-141/AUTO-142 paused feature work and repaired the actual compatibility, fixture, routing, context-consistency, and archive-path defects instead of suppressing failures. The supported matrix has remained green through the subsequent verified-maintenance integration work.
+
+AUTO-153 head `148d533c22bdfb85756f01fc8e15d316b86af878` passed Actions run `31990077031`. AUTO-154 implementation head `0dcb8470ed566206e0943d93c1b39b9e7f4260f6` passed Actions run `32007020521`; Python 3.10, 3.11, and 3.12 each passed package installation, compilation, installed CLI smoke, roadmap validation, and pytest.
+
+There is still no dedicated lint, type-check, coverage, or release workflow, and there are no tagged releases.
+
+## Safety boundary
+
+Positive controls include:
+
+- repository path and symlink containment;
+- policy-aware allowed/prohibited path checks;
+- simple secret-marker checks without printing file contents;
+- explicit confirmations for writes, validation execution, commits, pushes, package writes, and durable evidence writes;
+- `shell=False` for the narrow command executor and live Git-diff inspection;
+- target-scoped post-write diff verification with rollback on verification failure;
+- complete retained-validation coverage before verified commit readiness;
+- exact changed-path verification after commit creation;
+- fast-forward-only, non-force guarded push behavior;
+- no tag pushes, remote mutations, or branch-protection changes from the verified push path;
+- post-push remote reachability verification;
+- durable evidence hashing and replay/preservation checks.
+
+Important limitations remain:
+
+- live current-diff review covers tracked changes, not untracked files;
+- validation coverage proves the configured commands passed, not that those commands are sufficient for correctness;
+- commit-trust, commit-status, and branch-protection JSON are still supplied evidence rather than independently acquired fresh GitHub proof;
+- post-push verification relies on local remote-tracking refs unless fetch is explicitly requested;
+- hashes detect byte drift but do not prove signer identity;
+- secret detection is not a full secret scanner;
+- there is no shared lock for external scheduled agents;
+- Forge is not ready for unattended use on important repositories.
+
+## Project memory
+
+The `.ai` directory is the repository's engineering memory:
 
 - `.ai/AUTONOMOUS_PLAN.md`
 - `.ai/AUTONOMOUS_STATE.md`
 - `.ai/AUTONOMOUS_CHANGELOG.md`
 - `.ai/DECISIONS.md`
 
-This is useful, but it is not a complete event log. The repository does not record a model ID, scheduler ID, token use, or a reliable agent ID for every commit. Therefore, the exact work split between AI agents cannot be proved from Git history alone.
-
-## Testing and CI
-
-### What works
-
-- Tests use temporary directories and deterministic fixtures.
-- CI tests Python 3.10, 3.11, and 3.12.
-- CI installs the package, compiles the source, checks installed CLI commands, lints the roadmap, and runs pytest.
-- Many safety cases are covered: path escapes, symlinks, malformed evidence, hash drift, missing files, overwrites, missing confirmations, and rollback when post-write tracked-diff verification cannot be established.
-- The supported-version matrix was restored to green after AUTO-142; AUTO-143 through AUTO-151 also passed their supported-version implementation/test heads. AUTO-152 implementation/test head `593ef27159ffe95d57ad426d4d5e57b6d1e9b3f5` passed Actions run `31978493467` after adding the disposable-repository end-to-end integration proof.
-
-### Historical failure and recovery
-
-A prior audit produced:
-
-```text
-569 passed, 82 failed, 1 skipped
-```
-
-Those failures had three main causes:
-
-- maintenance, archive, and replay fixtures that predated newer context-consistency rules;
-- planning, validation, executor, and review assertions that predated enriched output contracts;
-- router-help behavior where direct Python callers saw successful argparse `SystemExit(0)` rather than the router's numeric return-code contract.
-
-AUTO-141 and AUTO-142 stopped feature delivery and repaired the baseline rather than suppressing failures. The recovery included successful-help normalization without swallowing parser errors, replay-context compatibility fixes, raw history/bundle context consistency, canonical archive destination mapping, semantic validation-step deduplication, deterministic multi-bundle comparison fixtures, replay-policy route identity repair, preservation ranking using actual retained validation context, and assertion updates to the newer structured safety contracts.
-
-GitHub Actions run [31871553378](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31871553378) passed package installation, source compilation, installed CLI smoke checks, roadmap lint, and the full pytest suite on Python 3.10, 3.11, and 3.12. AUTO-143 implementation/test run [31881238816](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31881238816) also passed the supported matrix after adding live tracked-diff inspection. AUTO-144 implementation/test run [31891899123](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31891899123) passed the same supported matrix after adding verified guarded patch apply and rollback coverage. AUTO-145 final run [31903262061](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31903262061) passed the supported matrix after adding validation execution tied to verified patch evidence. AUTO-146 implementation/test run [31914016579](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31914016579) passed after the new complete-validation coverage gate and its focused tests were added. AUTO-147 implementation/test/documentation run [31923545476](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31923545476) passed after adding verified commit creation and immediate post-commit verification. AUTO-148 implementation run [31933115623](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31933115623) passed after adding the verified commit-to-push handoff. AUTO-149 final run [31943499555](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31943499555) passed after carrying verified provenance through post-push verification. AUTO-150 implementation/test run [31954596328](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31954596328) passed after binding that provenance into the durable maintenance-bundle path. AUTO-151 implementation run [31966668746](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31966668746) passed after making the verified push wrapper the canonical durable push-stage file. AUTO-152 implementation/test run [31978493467](https://github.com/OmarH-creator/Autonomous-Forge/actions/runs/31978493467) passed after proving the connected guarded workflow in a disposable repository and local bare remote.
-
-There is still no dedicated lint, type-check, coverage, or release workflow. There are no tags or GitHub releases. The main workflow in the repository is `.github/workflows/test.yml`; it is a test workflow, not an AI scheduler.
-
-## Is it safe?
-
-The design is safety-aware, but the safety is not proven end to end.
-
-Positive controls include:
-
-- local path and symlink containment;
-- simple secret-marker checks without printing file contents;
-- explicit confirmation flags for writes, commits, packages, and pushes;
-- `shell=False` for the narrow executor command and live git-diff inspection;
-- optional post-write target-scoped live-diff verification with rollback to the original target contents on verification failure;
-- verified validation results can be tied back to the exact guarded patch evidence before commit readiness;
-- verified commit creation stages only reviewed paths and immediately checks the created commit's SHA, summary, and exact changed-path set;
-- verified push handoff refuses git activity until commit creation, trust, workflow status, and protected-branch evidence agree on the same reviewed commit;
-- post-push verification accepts that verified handoff directly, refuses wrapper/nested provenance drift, and retains reviewed paths plus verified validation commands after remote reachability checks;
-- maintenance evidence bundles can use that verified push wrapper as the canonical push-stage file, validate its nested guarded handoff, fingerprint the wrapper, and block durable completion if commit, branch, remote, reviewed paths, or validation commands disagree;
-- no force push and no tag push;
-- no telemetry or AI API code;
-- read-only review commands separated from side-effect commands.
-
-Important limits include:
-
-- live `git-diff-review --current` covers tracked changes relative to `HEAD`, not untracked files;
-- verified patch apply covers only the requested tracked target and does not itself run tests or prove correctness;
-- verified commit readiness proves coverage of the validation commands retained by the patch, not that those commands are sufficient to establish correctness;
-- verified commit creation does not roll back or rewrite history if a created commit later fails immediate verification; it reports `created_unverified` and blocks strict continuation instead;
-- verified push handoff trusts repository-local trust/status/branch-protection JSON and does not itself fetch fresh remote workflow or protection evidence;
-- post-push verification trusts supplied status-review evidence and local remote-tracking refs unless `--fetch` is explicitly requested;
-- durable verified provenance still depends on repository-local JSON artifacts; hashes detect later byte drift but do not prove signer identity;
-- canonical push evidence still depends on the verified wrapper's embedded guarded push-handoff being genuine; consistency checks do not provide cryptographic signer identity;
-- workflow freshness trusts supplied JSON evidence;
-- evidence can be supplied by a caller, so provenance is not fully trusted;
-- package signature and signer identity are not fully proved;
-- secret detection is not a complete secret scanner;
-- some commands can cause real local or remote side effects after confirmation;
-- there is no shared lock for external scheduled agents;
-- some high-level overview documentation may lag newer guarded capabilities.
-
-## Why did the AI choose this project?
-
-This is an inference from the files and commits, not a claim about hidden model reasoning.
-
-The starting roadmap described a small local tool that could choose one task, check policy, and produce a dry-run report. The experiment also rewarded safe, reviewable changes and discouraged uncontrolled network access, secrets, unsafe commands, and unsafe merges.
-
-A repository-maintenance tool was therefore a natural choice because:
-
-- it matched the safety limits;
-- it gave the AI a clear list of small tasks;
-- it could be built with standard-library Python;
-- each feature could have tests, JSON output, and documentation;
-- the repository could act as its own memory.
-
-The project is self-referential: an AI-maintained repository created a tool for safer AI-assisted repository maintenance. This made the experiment easy to continue, but it also encouraged the AI to build more tools for building tools instead of solving one concrete user problem.
-
-## Final judgement
-
-### What succeeded
-
-The AI showed that it can grow a repository from a two-file start into a structured project with a clear architecture, many tests, safety boundaries, durable engineering memory, and—after a dedicated recovery milestone—a green supported-version test baseline.
-
-### What remains incomplete
-
-It has not created an in-repository AI runtime, scheduler, polished end-to-end product demo, production release, or fully trusted evidence-provenance/signature system. A green matrix removes the immediate release blocker; it does not prove the entire maintenance workflow safe for unattended use.
-
-### What it is useful for today
-
-Use it as:
-
-- a case study of AI software stewardship;
-- a reference for human-in-the-loop maintenance gates;
-- a starting point for safer repository automation;
-- a testbed for evidence and replay design.
-
-Do not yet use it as an unattended tool for important repositories.
-
-## Lessons for future experiments
-
-1. Stop feature work whenever `main` is red.
-2. Add one shared lock or lease for all scheduled agents.
-3. Add a circuit breaker after repeated CI failures.
-4. Record agent role, run ID, start/end time, commit list, and CI result. Do not record private prompts.
-5. Use one coherent commit per stewardship cycle where practical, or cancel obsolete CI runs.
-6. Treat JSON output schemas as contracts and update fixtures before changing them.
-7. Add one end-to-end test in a temporary repository: plan → review → patch → validate → commit → evidence.
-8. Keep the supported Python matrix green before adding more product surface.
-9. Choose a concrete user problem and measure whether the project solves it.
-
-The central lesson is simple:
-
-> Autonomous coding can create impressive structure very quickly. Validation discipline must decide what is allowed to remain.
+Historical branches and pull requests are inspect-before-integrate evidence only. Current stewardship works directly on `main` and does not create replacement PRs.
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-152 — end-to-end guarded maintenance integration proof**.
+Latest stewardship run: **AUTO-154 — guarded verified push and post-push orchestration**.
 
-- **Changed:** Added a deterministic temporary-repository integration test that exercises policy-aware task selection → confirmed live-diff-verified patch apply → verified validation execution → complete commit readiness → verified local commit creation → guarded non-force push → post-push reachability verification → canonical durable evidence bundle → confirmed run-history link as one coherent workflow. The commit, push, fetch, remote-ref verification, evidence write, and history-link write are real operations against disposable local repositories; external trust/status/branch-protection inputs remain deterministic fixtures.
-- **Safety:** No new production side-effect command or bypass was added. The test preserves the existing explicit confirmation gates, uses a local bare Git remote, never force-pushes, and does not weaken path, diff, validation, commit, push, or evidence checks. The first CI run failed only because the new test asserted the wrong planner JSON key; the correction uses the established top-level `expected_file_changes` contract and does not change production behavior.
-- **Validation:** Actions run `31978493467` on implementation/test head `593ef27159ffe95d57ad426d4d5e57b6d1e9b3f5` passed installation, source compilation, installed CLI smoke checks, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12.
-- **Visual updates:** none; AUTO-152 proves the already documented architecture rather than adding a new runtime stage.
-- **Current limitations:** The integration test uses deterministic fixtures for external commit-trust, workflow-status, and branch-protection evidence, so it proves composition of Forge's local contracts and real local Git transitions—not fresh GitHub status/protection retrieval or cryptographic signer identity. The workflow also remains spread across separate confirmation-gated commands/APIs.
-- **Next autonomous objective:** evaluate a single orchestration surface for this proven workflow only if every current side-effect confirmation remains explicit and independently reviewable; otherwise make fresh external status/protection/trust acquisition the next concrete blocker-oriented milestone.
+- **Changed:** Added `forge verified-push-run`. It accepts a completed committed `verified-change-run` artifact, verifies that commit provenance is still closed to push authority, reuses the existing commit-trust/status/branch-protection readiness contract, and connects it to the guarded non-force push plus post-push verifier.
+- **Safety:** Push remains a separate authority boundary. Earlier validation and commit confirmations never imply permission to push; `--confirm-push` is required independently. Post-push verification runs only after an actual completed push, and `--fetch-after-push` is separately explicit. No force-push, tag push, remote mutation, protection change, or hidden all-in-one confirmation was added.
+- **Validation:** Actions run `32007020521` for implementation head `0dcb8470ed566206e0943d93c1b39b9e7f4260f6` passed installation, compilation, installed CLI smoke tests, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12.
+- **Visual updates:** none; the existing maintenance-flow diagram already contains the push and evidence stages, so changing it would not add factual information.
+- **Current limitations:** trust/status/branch-protection evidence is still repository-local caller-supplied JSON rather than freshly acquired GitHub proof; signer identity is not cryptographically established; durable evidence/history remains a following explicit stage rather than part of this orchestration command.
+- **Next autonomous objective:** carry a successfully post-push-verified run into canonical durable evidence and run history within the same broader orchestration milestone, while retaining independent explicit confirmation for every persistent write and never fabricating external trust evidence.
