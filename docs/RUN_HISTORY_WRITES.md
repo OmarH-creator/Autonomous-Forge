@@ -25,8 +25,11 @@ The writer refuses to persist a record unless all of these are true:
 - The output path stays inside the repository root.
 - The output path is under `.ai/run-history/`.
 - The output path uses a `.json` extension.
+- The output path does not already exist; existing records are immutable through this command.
 
 Relative output paths are resolved under `--root`, so `.ai/run-history/latest.json` is valid when `--root .` points at the repository root.
+
+Run-history records are durable project memory, so an existing record is not silently replaced. If another run needs to be persisted, choose a new record path. This command intentionally provides no overwrite escape hatch because run-history is durable project memory.
 
 ## Record shape
 
@@ -42,4 +45,4 @@ The persisted JSON payload includes:
 
 ## Current limitations
 
-This command writes a local history artifact only. It does not append to a long-lived index, rotate files, inspect Git state, compare existing records, detect secrets, run tests, or validate the repository after writing. Callers should still review the output and run the repository test suite separately.
+This command writes a local history artifact only. It does not append to a long-lived index, rotate files, inspect Git state, compare existing records, detect secrets, run tests, or validate the repository after writing. Callers should still review the output and run the repository test suite separately. Existing records must be preserved or replaced through a separately reviewed/manual recovery process; this command does not merge or reconcile divergent record contents.

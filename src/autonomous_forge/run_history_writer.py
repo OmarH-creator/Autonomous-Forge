@@ -43,6 +43,8 @@ def _validate_output_path(root: Path, output_path: Path | str) -> Path:
         raise RunHistoryWriteError("output path must use a .json extension")
     if resolved_output.exists() and resolved_output.is_dir():
         raise RunHistoryWriteError("output path points to a directory")
+    if resolved_output.exists():
+        raise RunHistoryWriteError("output path already exists; choose a new run-history path")
     return resolved_output
 
 
@@ -82,6 +84,7 @@ def build_run_history_write_payload(
             "writes exactly one local JSON file under .ai/run-history/",
             "requires an explicit confirmation flag",
             "refuses blocked preflight readiness",
+            "refuses existing output to preserve durable history",
             "does not run validation commands",
             "does not inspect diffs or read changed-file contents",
             "does not generate patches or enforce policy decisions",
