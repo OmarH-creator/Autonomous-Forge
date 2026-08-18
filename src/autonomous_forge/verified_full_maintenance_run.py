@@ -10,7 +10,11 @@ from autonomous_forge.maintenance_evidence_bundle import (
     write_maintenance_evidence_bundle,
     write_maintenance_history_link,
 )
-from autonomous_forge.verified_change_apply_run import run_verified_change_apply
+from autonomous_forge.patch_generation_preview import read_patch_generation_preview_data
+from autonomous_forge.verified_change_apply_run import (
+    run_verified_change_apply,
+    run_verified_change_apply_from_preview_data,
+)
 from autonomous_forge.verified_maintenance_run import read_verified_maintenance_run_data
 from autonomous_forge.verified_push_run import build_verified_push_run_data
 
@@ -92,7 +96,7 @@ def _write_push_evidence(
 
 def run_verified_full_maintenance(
     *,
-    preview_path: Path,
+    preview_path: Path | None,
     change_readiness_path: Path,
     status_before_commit_path: Path,
     target_path: str,
@@ -101,6 +105,7 @@ def run_verified_full_maintenance(
     status_after_commit_path: Path,
     branch_protection_path: Path,
     push_evidence_output: Path,
+    patch_readiness_path: Path | None = None,
     bundle_output: Path | None = None,
     history_link: Path | None = None,
     plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
@@ -125,29 +130,63 @@ def run_verified_full_maintenance(
     """Run the connected local maintenance lifecycle while preserving every authority boundary."""
     if history_link is not None and bundle_output is None:
         raise VerifiedFullMaintenanceRunError("history link requires a bundle output")
+    if (preview_path is None) == (patch_readiness_path is None):
+        raise VerifiedFullMaintenanceRunError("provide exactly one of preview_path or patch_readiness_path")
 
-    change_apply = run_verified_change_apply(
-        preview_path,
-        change_readiness_path,
-        status_before_commit_path,
-        target_path=target_path,
-        replacement_path=replacement_path,
-        plan_path=plan_path,
-        policy_path=policy_path,
-        state_path=state_path,
-        root=root,
-        summary=summary,
-        body_lines=list(body_lines or []),
-        confirm_apply=confirm_apply,
-        confirm_validation=confirm_validation,
-        confirm_commit_create=confirm_commit_create,
-        timeout_seconds=timeout_seconds,
-    )
+    if patch_readiness_path is not None:
+        preview = read_patch_generation_preview_data(
+            patch_readiness_path,
+            target_path=target_path,
+            replacement_path=replacement_path,
+            root=root,
+        )
+        preview_source = f"generated-in-run:{patch_readiness_path}"
+        change_apply = run_verified_change_apply_from_preview_data(
+            preview,
+            change_readiness_path,
+            status_before_commit_path,
+            preview_source=preview_source,
+            target_path=target_path,
+            replacement_path=replacement_path,
+            plan_path=plan_path,
+            policy_path=policy_path,
+            state_path=state_path,
+            root=root,
+            summary=summary,
+            body_lines=list(body_lines or []),
+            confirm_apply=confirm_apply,
+            confirm_validation=confirm_validation,
+            confirm_commit_create=confirm_commit_create,
+            timeout_seconds=timeout_seconds,
+        )
+        patch_preview_mode = "generated-in-run"
+    else:
+        change_apply = run_verified_change_apply(
+            preview_path,
+            change_readiness_path,
+            status_before_commit_path,
+            target_path=target_path,
+            replacement_path=replacement_path,
+            plan_path=plan_path,
+            policy_path=policy_path,
+            state_path=state_path,
+            root=root,
+            summary=summary,
+            body_lines=list(body_lines or []),
+            confirm_apply=confirm_apply,
+            confirm_validation=confirm_validation,
+            confirm_commit_create=confirm_commit_create,
+            timeout_seconds=timeout_seconds,
+        )
+        preview_source = str(preview_path)
+        patch_preview_mode = "supplied-file"
 
     result: dict[str, Any] = {
         "title": "Autonomous Forge verified full maintenance run",
         "mode": "confirmation-gated change, push, and durable evidence orchestration",
         "workflow_status": change_apply.get("workflow_status", "blocked"),
+        "patch_preview_mode": patch_preview_mode,
+        "patch_preview_source": preview_source,
         "change_apply_run": change_apply,
         "verified_push_run": None,
         "push_evidence_write": None,
@@ -166,12 +205,14 @@ def run_verified_full_maintenance(
         "remote_changes_allowed": False,
         "safety_boundary": (
             "Verified full maintenance run composes existing guarded stages without sharing authority between them. "
-            "Patch application, validation execution, commit creation, push, push-evidence persistence, durable bundle "
-            "persistence, and run-history linking each retain independent explicit confirmations. Push remains fast-forward "
-            "only through the existing verified-push contract. The post-push-verified push artifact must be persisted before "
-            "durable bundle construction so later maintenance-bundle verification can recompute source-report hashes. The "
-            "orchestrator never force-pushes, pushes tags, mutates remotes, changes branch protection, or treats an earlier "
-            "confirmation as authority for a later side effect."
+            "The patch preview may be supplied as an existing reviewed JSON artifact or generated fresh in memory from "
+            "repository-local patch-readiness evidence plus the current target/replacement pair; fresh generation does not "
+            "grant patch authority and still passes through the same confirmed guarded writer and target-scoped live-diff rollback. "
+            "Patch application, validation execution, commit creation, push, push-evidence persistence, durable bundle persistence, "
+            "and run-history linking each retain independent explicit confirmations. Push remains fast-forward only through the "
+            "existing verified-push contract. The post-push-verified push artifact must be persisted before durable bundle construction "
+            "so later maintenance-bundle verification can recompute source-report hashes. The orchestrator never force-pushes, pushes "
+            "tags, mutates remotes, changes branch protection, or treats an earlier confirmation as authority for a later side effect."
         ),
     }
     if change_apply.get("workflow_status") != "committed":

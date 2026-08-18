@@ -162,38 +162,32 @@ def build_patch_apply_data(
             else "Resolve patch-apply blockers before changing the target file."
         ),
         "safety_boundary": (
-            "Guarded patch apply reads one generated patch preview JSON file, one ready change-readiness JSON file, "
-            "one explicit target file, and one explicit replacement text file under the repository root. It writes only "
-            "the requested target path when --confirm-apply is present and the current target plus replacement exactly "
-            "reproduce the supplied preview. Optional live-diff verification runs one bounded target-scoped git diff "
-            "with shell=False and restores the original target content if that verification fails. It does not run "
-            "validation commands, call networks, mutate saved history, read environment variables, commit, push, or edit "
-            "any other file."
+            "Guarded patch apply reads one generated patch preview, one ready change-readiness JSON file, one explicit "
+            "target file, and one explicit replacement text file under the repository root. The patch preview may come "
+            "from a bounded repository-local JSON file or directly from the fresh in-memory patch-generation contract. "
+            "It writes only the requested target path when --confirm-apply is present and the current target plus replacement "
+            "exactly reproduce the preview. Optional live-diff verification runs one bounded target-scoped git diff with "
+            "shell=False and restores the original target content if that verification fails. It does not run validation "
+            "commands, call networks, mutate saved history, read environment variables, commit, push, or edit any other file."
         ),
     }
 
 
-def read_patch_apply_data(
-    preview_path: Path,
+def _read_patch_apply_inputs(
+    preview: dict[str, Any],
     *,
+    preview_source: str,
     change_readiness_path: Path,
     target_path: str,
     replacement_path: Path,
-    root: Path = Path("."),
-    confirm_apply: bool = False,
+    root: Path,
+    confirm_apply: bool,
 ) -> tuple[dict[str, Any], Path | None, str | None, str | None]:
-    """Read explicit inputs and return guarded patch-apply data plus write intent."""
-    _validate_path_label(target_path)
-    preview_file = _resolve_under_root(root, preview_path, kind="preview")
+    if not isinstance(preview, dict) or preview.get("title") != "Autonomous Forge patch generation preview":
+        raise PatchApplyError("preview input has unexpected title")
     readiness_file = _resolve_under_root(root, change_readiness_path, kind="change-readiness")
     replacement_file = _resolve_under_root(root, replacement_path, kind="replacement")
     target_file = _resolve_under_root(root, Path(target_path), kind="target")
-
-    preview = _read_json(
-        preview_file,
-        expected_title="Autonomous Forge patch generation preview",
-        kind="preview",
-    )
     change_readiness = _read_json(
         readiness_file,
         expected_title="Autonomous Forge change readiness summary",
@@ -208,13 +202,66 @@ def read_patch_apply_data(
         current_text=current_text,
         replacement_text=replacement_text,
         confirm_apply=confirm_apply,
-        preview_source=str(preview_path),
+        preview_source=preview_source,
         change_readiness_source=str(change_readiness_path),
         replacement_source=str(replacement_path),
     )
     if data["patch_application_allowed"]:
         return data, target_file, replacement_text, current_text
     return data, None, None, None
+
+
+def read_patch_apply_data_from_preview(
+    preview: dict[str, Any],
+    *,
+    preview_source: str,
+    change_readiness_path: Path,
+    target_path: str,
+    replacement_path: Path,
+    root: Path = Path("."),
+    confirm_apply: bool = False,
+) -> tuple[dict[str, Any], Path | None, str | None, str | None]:
+    """Build write intent from fresh in-memory preview evidence without persisting another JSON file."""
+    _validate_path_label(target_path)
+    if not isinstance(preview_source, str) or not preview_source.strip():
+        raise PatchApplyError("preview source identity must be non-empty")
+    return _read_patch_apply_inputs(
+        preview,
+        preview_source=preview_source,
+        change_readiness_path=change_readiness_path,
+        target_path=target_path,
+        replacement_path=replacement_path,
+        root=root,
+        confirm_apply=confirm_apply,
+    )
+
+
+def read_patch_apply_data(
+    preview_path: Path,
+    *,
+    change_readiness_path: Path,
+    target_path: str,
+    replacement_path: Path,
+    root: Path = Path("."),
+    confirm_apply: bool = False,
+) -> tuple[dict[str, Any], Path | None, str | None, str | None]:
+    """Read explicit inputs and return guarded patch-apply data plus write intent."""
+    _validate_path_label(target_path)
+    preview_file = _resolve_under_root(root, preview_path, kind="preview")
+    preview = _read_json(
+        preview_file,
+        expected_title="Autonomous Forge patch generation preview",
+        kind="preview",
+    )
+    return _read_patch_apply_inputs(
+        preview,
+        preview_source=str(preview_path),
+        change_readiness_path=change_readiness_path,
+        target_path=target_path,
+        replacement_path=replacement_path,
+        root=root,
+        confirm_apply=confirm_apply,
+    )
 
 
 def _verify_live_target_diff(*, root: Path, policy_path: Path, target_path: str) -> dict[str, Any]:
@@ -233,6 +280,74 @@ def _verify_live_target_diff(*, root: Path, policy_path: Path, target_path: str)
     if blockers:
         raise PatchApplyError("; ".join(blockers))
     return review
+
+
+def _apply_prepared_patch(
+    data: dict[str, Any],
+    target_file: Path | None,
+    replacement_text: str | None,
+    original_text: str | None,
+    *,
+    root: Path,
+    target_path: str,
+    verify_live_diff: bool,
+    policy_path: Path,
+) -> dict[str, Any]:
+    if target_file is None or replacement_text is None or original_text is None:
+        return data
+    target_file.write_text(replacement_text, encoding="utf-8")
+    if verify_live_diff:
+        try:
+            live_review = _verify_live_target_diff(root=root, policy_path=policy_path, target_path=target_path)
+        except (PatchApplyError, GitDiffReviewError, OSError) as exc:
+            target_file.write_text(original_text, encoding="utf-8")
+            raise PatchApplyError(f"post-apply live git diff verification failed; original content restored: {exc}") from exc
+        data = {**data, "live_diff_verified": True, "live_diff_review": live_review}
+    return {
+        **data,
+        "apply_status": "applied",
+        "file_changed": True,
+        "patch_application_allowed": False,
+        "next_step": (
+            "Run the listed validation steps; the applied target already passed policy-aware live git diff verification."
+            if data["live_diff_verified"]
+            else "Run the listed validation steps, review the resulting git diff, and commit only after validation passes."
+        ),
+    }
+
+
+def apply_patch_from_preview_data(
+    preview: dict[str, Any],
+    *,
+    preview_source: str,
+    change_readiness_path: Path,
+    target_path: str,
+    replacement_path: Path,
+    root: Path = Path("."),
+    confirm_apply: bool = False,
+    verify_live_diff: bool = False,
+    policy_path: Path = Path(".forge/policy.md"),
+) -> dict[str, Any]:
+    """Apply one replacement from fresh in-memory preview evidence through the same guarded write path."""
+    data, target_file, replacement_text, original_text = read_patch_apply_data_from_preview(
+        preview,
+        preview_source=preview_source,
+        change_readiness_path=change_readiness_path,
+        target_path=target_path,
+        replacement_path=replacement_path,
+        root=root,
+        confirm_apply=confirm_apply,
+    )
+    return _apply_prepared_patch(
+        data,
+        target_file,
+        replacement_text,
+        original_text,
+        root=root,
+        target_path=target_path,
+        verify_live_diff=verify_live_diff,
+        policy_path=policy_path,
+    )
 
 
 def apply_patch_from_preview(
@@ -255,27 +370,16 @@ def apply_patch_from_preview(
         root=root,
         confirm_apply=confirm_apply,
     )
-    if target_file is not None and replacement_text is not None and original_text is not None:
-        target_file.write_text(replacement_text, encoding="utf-8")
-        if verify_live_diff:
-            try:
-                live_review = _verify_live_target_diff(root=root, policy_path=policy_path, target_path=target_path)
-            except (PatchApplyError, GitDiffReviewError, OSError) as exc:
-                target_file.write_text(original_text, encoding="utf-8")
-                raise PatchApplyError(f"post-apply live git diff verification failed; original content restored: {exc}") from exc
-            data = {**data, "live_diff_verified": True, "live_diff_review": live_review}
-        data = {
-            **data,
-            "apply_status": "applied",
-            "file_changed": True,
-            "patch_application_allowed": False,
-            "next_step": (
-                "Run the listed validation steps; the applied target already passed policy-aware live git diff verification."
-                if data["live_diff_verified"]
-                else "Run the listed validation steps, review the resulting git diff, and commit only after validation passes."
-            ),
-        }
-    return data
+    return _apply_prepared_patch(
+        data,
+        target_file,
+        replacement_text,
+        original_text,
+        root=root,
+        target_path=target_path,
+        verify_live_diff=verify_live_diff,
+        policy_path=policy_path,
+    )
 
 
 def format_patch_apply(data: dict[str, Any]) -> str:

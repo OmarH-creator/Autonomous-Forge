@@ -17,12 +17,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="forge verified-full-maintenance-run",
         description=(
-            "Compose guarded patch application, validation, verified commit creation, guarded push, post-push verification, "
-            "and durable maintenance evidence while keeping every side-effect confirmation independent."
+            "Compose fresh/supplied patch preview, guarded patch application, validation, verified commit creation, "
+            "guarded push, post-push verification, and durable maintenance evidence while keeping every side-effect "
+            "confirmation independent."
         ),
     )
     parser.add_argument("--root", default=".")
-    parser.add_argument("--preview", required=True)
+    preview_source = parser.add_mutually_exclusive_group(required=True)
+    preview_source.add_argument(
+        "--preview",
+        help="Existing repository-local patch-generation preview JSON (legacy compatible mode).",
+    )
+    preview_source.add_argument(
+        "--patch-readiness",
+        help=(
+            "Repository-local patch-application readiness JSON used to generate a fresh in-memory preview from the "
+            "current target and replacement immediately before guarded apply."
+        ),
+    )
     parser.add_argument("--change-readiness", required=True)
     parser.add_argument("--status-before-commit", required=True)
     parser.add_argument("--path", required=True)
@@ -59,6 +71,8 @@ def _format_text(data: dict) -> str:
     lines = [
         str(data["title"]),
         f"Workflow status: {data['workflow_status']}",
+        f"Patch preview mode: {data.get('patch_preview_mode', 'unknown')}",
+        f"Patch preview source: {data.get('patch_preview_source', 'unknown')}",
         "Authority confirmations:",
         *[f"- {key}: {str(value).lower()}" for key, value in data.get("authority", {}).items()],
     ]
@@ -80,7 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         data = run_verified_full_maintenance(
-            preview_path=Path(args.preview),
+            preview_path=Path(args.preview) if args.preview else None,
+            patch_readiness_path=Path(args.patch_readiness) if args.patch_readiness else None,
             change_readiness_path=Path(args.change_readiness),
             status_before_commit_path=Path(args.status_before_commit),
             target_path=args.path,
