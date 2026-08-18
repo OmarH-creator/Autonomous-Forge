@@ -166,6 +166,63 @@ def test_full_run_reaches_history_only_when_each_persistence_gate_is_confirmed(t
     assert all(result["authority"].values())
 
 
+def test_full_run_stops_before_history_when_bundle_write_is_unconfirmed(tmp_path, monkeypatch):
+    inputs = _required_inputs(tmp_path)
+    monkeypatch.setattr(full, "run_verified_change_apply", lambda *args, **kwargs: {"workflow_status": "committed"})
+    monkeypatch.setattr(
+        full,
+        "build_verified_push_run_data",
+        lambda *args, **kwargs: {
+            "title": "Autonomous Forge verified push run",
+            "workflow_status": "post_push_verified",
+            "push_confirmed": True,
+            "blockers": [],
+        },
+    )
+    monkeypatch.setattr(
+        full,
+        "read_verified_maintenance_run_data",
+        lambda **kwargs: {
+            "title": "Autonomous Forge maintenance evidence bundle",
+            "bundle_status": "complete",
+            "bundle_complete": True,
+            "bundle_blockers": [],
+        },
+    )
+    monkeypatch.setattr(
+        full,
+        "write_maintenance_evidence_bundle",
+        lambda data, output_path, *, root, confirm_write: {**data, "write_status": "blocked"},
+    )
+    monkeypatch.setattr(
+        full,
+        "write_maintenance_history_link",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("history linking must wait for bundle persistence")),
+    )
+
+    result = full.run_verified_full_maintenance(
+        **inputs,
+        target_path="README.md",
+        push_evidence_output=Path(".ai/evidence/push.json"),
+        bundle_output=Path(".ai/evidence/bundle.json"),
+        history_link=Path(".ai/run-history/AUTO-159.json"),
+        root=tmp_path,
+        summary="test: guarded change",
+        confirm_apply=True,
+        confirm_validation=True,
+        confirm_commit_create=True,
+        confirm_push=True,
+        confirm_push_evidence_write=True,
+        confirm_bundle_write=False,
+        confirm_history_link=True,
+    )
+
+    assert result["workflow_status"] == "bundle_unwritten"
+    assert result["maintenance_bundle"]["write_status"] == "blocked"
+    assert result["authority"]["bundle_write_confirmed"] is False
+    assert result["authority"]["history_link_confirmed"] is True
+
+
 def test_push_evidence_writer_refuses_overwrite(tmp_path):
     output = tmp_path / "push.json"
     output.write_text("{}\n", encoding="utf-8")
