@@ -49,7 +49,14 @@ def build_parser() -> argparse.ArgumentParser:
             "readiness and the patch preview fresh in memory."
         ),
     )
-    parser.add_argument("--change-readiness", required=True)
+    parser.add_argument(
+        "--change-readiness",
+        default=None,
+        help=(
+            "Optional legacy repository-local change-readiness JSON. When omitted, Forge derives change readiness in "
+            "memory from the patch preview and --status-before-commit evidence."
+        ),
+    )
     parser.add_argument("--status-before-commit", required=True)
     parser.add_argument("--path", required=True)
     parser.add_argument("--replacement", required=True)
@@ -87,6 +94,7 @@ def _format_text(data: dict) -> str:
         f"Workflow status: {data['workflow_status']}",
         f"Patch preview mode: {data.get('patch_preview_mode', 'unknown')}",
         f"Patch preview source: {data.get('patch_preview_source', 'unknown')}",
+        f"Change readiness mode: {data.get('change_readiness_mode', 'unknown')}",
         "Authority confirmations:",
         *[f"- {key}: {str(value).lower()}" for key, value in data.get("authority", {}).items()],
     ]
@@ -106,13 +114,16 @@ def _format_text(data: dict) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.preview and not args.change_readiness:
+        print("Verified full maintenance run refused: legacy --preview mode still requires --change-readiness")
+        return 2
     try:
         data = run_verified_full_maintenance(
             preview_path=Path(args.preview) if args.preview else None,
             patch_readiness_path=Path(args.patch_readiness) if args.patch_readiness else None,
             preflight_path=Path(args.preflight) if args.preflight else None,
             audit_path=Path(args.audit) if args.audit else None,
-            change_readiness_path=Path(args.change_readiness),
+            change_readiness_path=Path(args.change_readiness) if args.change_readiness else None,
             status_before_commit_path=Path(args.status_before_commit),
             target_path=args.path,
             replacement_path=Path(args.replacement),
