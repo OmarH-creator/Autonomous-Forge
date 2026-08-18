@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from autonomous_forge.maintenance_evidence_bundle import (
-    MaintenanceEvidenceBundleError,
     write_maintenance_evidence_bundle,
     write_maintenance_history_link,
 )
@@ -217,9 +216,11 @@ def run_verified_full_maintenance(
             root=root,
             confirm_write=confirm_bundle_write,
         )
+        if bundle.get("write_status") != "written":
+            result["maintenance_bundle"] = bundle
+            result["workflow_status"] = "bundle_unwritten"
+            return result
     if history_link is not None:
-        if bundle_output is None:  # pragma: no cover - guarded above
-            raise MaintenanceEvidenceBundleError("history link requires a persisted bundle")
         bundle = write_maintenance_history_link(
             bundle,
             bundle_path=bundle_output,
