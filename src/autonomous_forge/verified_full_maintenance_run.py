@@ -10,7 +10,13 @@ from autonomous_forge.maintenance_evidence_bundle import (
     write_maintenance_evidence_bundle,
     write_maintenance_history_link,
 )
-from autonomous_forge.patch_generation_preview import read_patch_generation_preview_data
+from autonomous_forge.patch_application_readiness import read_patch_application_readiness_data
+from autonomous_forge.patch_generation_preview import (
+    _read_bounded_text as _read_patch_preview_text,
+    _resolve_under_root as _resolve_patch_preview_input,
+    build_patch_generation_preview_data,
+    read_patch_generation_preview_data,
+)
 from autonomous_forge.verified_change_apply_run import (
     run_verified_change_apply,
     run_verified_change_apply_from_preview_data,
@@ -94,6 +100,28 @@ def _write_push_evidence(
     }
 
 
+def _build_preview_from_preflight_audit(
+    preflight_path: Path,
+    audit_path: Path,
+    *,
+    target_path: str,
+    replacement_path: Path,
+    root: Path,
+) -> dict[str, Any]:
+    readiness = read_patch_application_readiness_data(preflight_path, audit_path, root=root)
+    target_file = _resolve_patch_preview_input(root, Path(target_path), kind="target")
+    replacement_file = _resolve_patch_preview_input(root, replacement_path, kind="replacement")
+    readiness_source = f"generated-in-run:{preflight_path}+{audit_path}"
+    return build_patch_generation_preview_data(
+        readiness,
+        target_path=target_path,
+        original_text=_read_patch_preview_text(target_file, kind="target"),
+        replacement_text=_read_patch_preview_text(replacement_file, kind="replacement"),
+        readiness_source=readiness_source,
+        replacement_source=str(replacement_path),
+    )
+
+
 def run_verified_full_maintenance(
     *,
     preview_path: Path | None,
@@ -106,6 +134,8 @@ def run_verified_full_maintenance(
     branch_protection_path: Path,
     push_evidence_output: Path,
     patch_readiness_path: Path | None = None,
+    preflight_path: Path | None = None,
+    audit_path: Path | None = None,
     bundle_output: Path | None = None,
     history_link: Path | None = None,
     plan_path: Path = Path(".ai/AUTONOMOUS_PLAN.md"),
@@ -130,10 +160,44 @@ def run_verified_full_maintenance(
     """Run the connected local maintenance lifecycle while preserving every authority boundary."""
     if history_link is not None and bundle_output is None:
         raise VerifiedFullMaintenanceRunError("history link requires a bundle output")
-    if (preview_path is None) == (patch_readiness_path is None):
-        raise VerifiedFullMaintenanceRunError("provide exactly one of preview_path or patch_readiness_path")
+    if (preflight_path is None) != (audit_path is None):
+        raise VerifiedFullMaintenanceRunError("preflight and audit inputs must be provided together")
 
-    if patch_readiness_path is not None:
+    source_count = sum((preview_path is not None, patch_readiness_path is not None, preflight_path is not None and audit_path is not None))
+    if source_count != 1:
+        raise VerifiedFullMaintenanceRunError(
+            "provide exactly one preview source: preview_path, patch_readiness_path, or preflight_path plus audit_path"
+        )
+
+    if preflight_path is not None and audit_path is not None:
+        preview = _build_preview_from_preflight_audit(
+            preflight_path,
+            audit_path,
+            target_path=target_path,
+            replacement_path=replacement_path,
+            root=root,
+        )
+        preview_source = f"generated-in-run:{preflight_path}+{audit_path}"
+        change_apply = run_verified_change_apply_from_preview_data(
+            preview,
+            change_readiness_path,
+            status_before_commit_path,
+            preview_source=preview_source,
+            target_path=target_path,
+            replacement_path=replacement_path,
+            plan_path=plan_path,
+            policy_path=policy_path,
+            state_path=state_path,
+            root=root,
+            summary=summary,
+            body_lines=list(body_lines or []),
+            confirm_apply=confirm_apply,
+            confirm_validation=confirm_validation,
+            confirm_commit_create=confirm_commit_create,
+            timeout_seconds=timeout_seconds,
+        )
+        patch_preview_mode = "derived-readiness-in-run"
+    elif patch_readiness_path is not None:
         preview = read_patch_generation_preview_data(
             patch_readiness_path,
             target_path=target_path,
@@ -205,14 +269,15 @@ def run_verified_full_maintenance(
         "remote_changes_allowed": False,
         "safety_boundary": (
             "Verified full maintenance run composes existing guarded stages without sharing authority between them. "
-            "The patch preview may be supplied as an existing reviewed JSON artifact or generated fresh in memory from "
-            "repository-local patch-readiness evidence plus the current target/replacement pair; fresh generation does not "
-            "grant patch authority and still passes through the same confirmed guarded writer and target-scoped live-diff rollback. "
-            "Patch application, validation execution, commit creation, push, push-evidence persistence, durable bundle persistence, "
-            "and run-history linking each retain independent explicit confirmations. Push remains fast-forward only through the "
-            "existing verified-push contract. The post-push-verified push artifact must be persisted before durable bundle construction "
-            "so later maintenance-bundle verification can recompute source-report hashes. The orchestrator never force-pushes, pushes "
-            "tags, mutates remotes, changes branch protection, or treats an earlier confirmation as authority for a later side effect."
+            "The patch preview may be supplied as an existing reviewed JSON artifact, generated fresh from patch-readiness, "
+            "or generated from matching repository-local preflight and provenance-audit evidence; all fresh generation is "
+            "read-only and does not grant patch authority. The same confirmed guarded writer and target-scoped live-diff "
+            "rollback remain mandatory. Patch application, validation execution, commit creation, push, push-evidence "
+            "persistence, durable bundle persistence, and run-history linking each retain independent explicit confirmations. "
+            "Push remains fast-forward only through the existing verified-push contract. The post-push-verified push artifact "
+            "must be persisted before durable bundle construction so later maintenance-bundle verification can recompute source-report hashes. "
+            "The orchestrator never force-pushes, pushes tags, mutates remotes, changes branch protection, or treats an "
+            "earlier confirmation as authority for a later side effect."
         ),
     }
     if change_apply.get("workflow_status") != "committed":
@@ -234,12 +299,7 @@ def run_verified_full_maintenance(
     if push_run.get("workflow_status") != "post_push_verified":
         return result
 
-    push_write = _write_push_evidence(
-        push_run,
-        push_evidence_output,
-        root=root,
-        confirm_write=confirm_push_evidence_write,
-    )
+    push_write = _write_push_evidence(push_run, push_evidence_output, root=root, confirm_write=confirm_push_evidence_write)
     result["push_evidence_write"] = push_write
     if push_write.get("write_status") != "written":
         result["workflow_status"] = "post_push_verified_unpersisted"
@@ -251,12 +311,7 @@ def run_verified_full_maintenance(
         bundle_id=bundle_id,
     )
     if bundle_output is not None:
-        bundle = write_maintenance_evidence_bundle(
-            bundle,
-            bundle_output,
-            root=root,
-            confirm_write=confirm_bundle_write,
-        )
+        bundle = write_maintenance_evidence_bundle(bundle, bundle_output, root=root, confirm_write=confirm_bundle_write)
         if bundle.get("write_status") != "written":
             result["maintenance_bundle"] = bundle
             result["workflow_status"] = "bundle_unwritten"

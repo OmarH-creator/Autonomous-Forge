@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--root", default=".")
-    preview_source = parser.add_mutually_exclusive_group(required=True)
+    preview_source = parser.add_mutually_exclusive_group()
     preview_source.add_argument(
         "--preview",
         help="Existing repository-local patch-generation preview JSON (legacy compatible mode).",
@@ -33,6 +33,20 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Repository-local patch-application readiness JSON used to generate a fresh in-memory preview from the "
             "current target and replacement immediately before guarded apply."
+        ),
+    )
+    parser.add_argument(
+        "--preflight",
+        help=(
+            "Repository-local patch-application preflight JSON. Use together with --audit to derive patch readiness "
+            "and the patch preview fresh in memory."
+        ),
+    )
+    parser.add_argument(
+        "--audit",
+        help=(
+            "Repository-local patch-application provenance-audit JSON. Use together with --preflight to derive patch "
+            "readiness and the patch preview fresh in memory."
         ),
     )
     parser.add_argument("--change-readiness", required=True)
@@ -96,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         data = run_verified_full_maintenance(
             preview_path=Path(args.preview) if args.preview else None,
             patch_readiness_path=Path(args.patch_readiness) if args.patch_readiness else None,
+            preflight_path=Path(args.preflight) if args.preflight else None,
+            audit_path=Path(args.audit) if args.audit else None,
             change_readiness_path=Path(args.change_readiness),
             status_before_commit_path=Path(args.status_before_commit),
             target_path=args.path,

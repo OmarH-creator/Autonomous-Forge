@@ -4,7 +4,7 @@
 
 It can carry one reviewed replacement through:
 
-1. a fresh in-memory patch preview generated immediately before apply, or a supplied legacy preview file;
+1. patch-readiness derivation from matching preflight/audit evidence, fresh preview generation from supplied readiness, or a supplied legacy preview file;
 2. confirmed patch application and mandatory target-scoped live-diff verification;
 3. confirmed execution of every retained validation step;
 4. separately confirmed verified local commit creation;
@@ -16,34 +16,50 @@ It can carry one reviewed replacement through:
 
 The verified push result is persisted before durable-bundle construction because maintenance bundle verification later recomputes the source-report file hashes. This keeps the existing anti-drift contract intact instead of replacing it with unverifiable in-memory provenance.
 
-## Fresh preview mode
+## Preferred preflight + audit mode
 
-The preferred invocation uses `--patch-readiness`. Forge reads the existing patch-application readiness JSON together with the current target and replacement, generates the same bounded unified-diff preview used by `forge patch-generation-preview`, and passes that preview directly into the existing guarded patch writer. The preview is generated immediately before the apply decision, reducing stale caller-managed evidence without adding another write.
+The preferred invocation uses `--preflight` together with `--audit`. Forge reuses the existing patch-application readiness contract to verify that:
 
-Fresh preview generation is **not** apply authority. `--confirm-apply` is still required, and the same target/current/replacement reproduction checks, policy-aware target-scoped live-diff verification, and rollback-on-verification-failure behavior still apply.
+- preflight status is ready and still keeps patch application disallowed;
+- provenance audit status is clear and still keeps patch application disallowed;
+- objectives match;
+- reviewed path sets match and are safe repository-relative labels;
+- validation steps match; and
+- neither evidence artifact retains blockers.
 
-For compatibility, `--preview` still accepts an existing repository-local patch-generation-preview JSON file. `--preview` and `--patch-readiness` are mutually exclusive.
+Only after that read-only derivation succeeds does Forge generate the bounded unified-diff preview from the current target and replacement. The readiness and preview objects stay in memory and are passed into the same guarded writer used by the standalone commands.
+
+A partial preflight/audit pair is refused. Supplying the pair together with `--patch-readiness` or `--preview` is also refused.
+
+## Other preview modes
+
+`--patch-readiness` remains supported. Forge reads the existing readiness JSON, regenerates the bounded patch preview from the current target and replacement, and passes it directly into the guarded patch writer.
+
+For compatibility, `--preview` still accepts an existing repository-local patch-generation-preview JSON file.
+
+Fresh readiness/preview generation is **not** apply authority. `--confirm-apply` is still required, and the same target/current/replacement reproduction checks, policy-aware target-scoped live-diff verification, and rollback-on-verification-failure behavior still apply.
 
 ## Example
 
 ```bash
 forge verified-full-maintenance-run \
   --root . \
-  --patch-readiness .ai/evidence/patch-application-readiness.json \
+  --preflight .ai/evidence/patch-application-preflight.json \
+  --audit .ai/evidence/patch-application-audit.json \
   --change-readiness .ai/evidence/change-readiness.json \
   --status-before-commit .ai/evidence/status-before-commit.json \
   --path README.md \
   --replacement .ai/evidence/README.replacement.md \
-  --summary "auto: [AUTO-161] apply reviewed maintenance change" \
+  --summary "auto: [AUTO-162] apply reviewed maintenance change" \
   --commit-trust .ai/evidence/commit-trust.json \
   --status-after-commit .ai/evidence/status-after-commit.json \
   --branch-protection .ai/evidence/branch-protection.json \
   --branch main \
   --remote origin \
-  --push-evidence-output .ai/evidence/AUTO-161-verified-push-run.json \
-  --bundle-id AUTO-161 \
-  --bundle-output .ai/evidence/AUTO-161-bundle.json \
-  --history-link .ai/run-history/AUTO-161.json \
+  --push-evidence-output .ai/evidence/AUTO-162-verified-push-run.json \
+  --bundle-id AUTO-162 \
+  --bundle-output .ai/evidence/AUTO-162-bundle.json \
+  --history-link .ai/run-history/AUTO-162.json \
   --confirm-apply \
   --confirm-validation \
   --confirm-commit-create \
@@ -58,11 +74,11 @@ forge verified-full-maintenance-run \
 
 Omit a confirmation to stop before that authority boundary. For example, a run may reach a verified local commit without permission to push, or reach `post_push_verified_unpersisted` without permission to write the push evidence artifact.
 
-The result records `patch_preview_mode` as `generated-in-run` or `supplied-file` together with `patch_preview_source`, so durable callers can see which preview path was used.
+The result records `patch_preview_mode` as `derived-readiness-in-run`, `generated-in-run`, or `supplied-file` together with `patch_preview_source`.
 
 ## Safety boundary
 
-The command reuses the existing guarded implementations rather than adding alternate write or Git paths. Fresh preview generation is read-only; it does not grant apply authority. The command never treats one confirmation as permission for a later stage. It does not force-push, push tags, mutate remotes, change branch protection, or rerun/poll workflows.
+The command reuses the existing guarded implementations rather than adding alternate write or Git paths. Preflight/audit readiness derivation and fresh preview generation are read-only; neither grants apply authority. The command never treats one confirmation as permission for a later stage. It does not force-push, push tags, mutate remotes, change branch protection, or rerun/poll workflows.
 
 `--push-evidence-output` refuses an existing destination instead of silently overwriting evidence. The persisted push artifact remains the canonical source for the durable maintenance bundle so later `forge maintenance-bundle-verify` checks can recompute byte counts and SHA-256 hashes.
 
