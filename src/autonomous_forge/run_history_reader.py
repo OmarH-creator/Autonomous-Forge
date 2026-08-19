@@ -94,10 +94,20 @@ def _discover_validation_attachments(
     root: Path,
 ) -> list[dict[str, Any]]:
     """Discover and verify bounded immutable validation attachments for one record."""
-    attachment_root = (root.resolve() / _ATTACHMENT_DIRECTORY).resolve()
-    if not attachment_root.exists():
+    resolved_root = root.resolve()
+    attachment_candidate = resolved_root / _ATTACHMENT_DIRECTORY
+    if not attachment_candidate.exists():
         return []
-    if attachment_root.is_symlink() or not attachment_root.is_dir():
+    if attachment_candidate.is_symlink():
+        raise RunHistoryReadError("validation attachment directory must be a real directory")
+    attachment_root = attachment_candidate.resolve()
+    try:
+        attachment_root.relative_to(resolved_root)
+    except ValueError as exc:
+        raise RunHistoryReadError(
+            "validation attachment directory must stay inside repository root"
+        ) from exc
+    if not attachment_root.is_dir():
         raise RunHistoryReadError("validation attachment directory must be a real directory")
 
     candidates = sorted(attachment_root.glob("*.json"))
