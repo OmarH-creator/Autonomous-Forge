@@ -45,7 +45,7 @@ The underlying planning, diff review, patch, validation, commit, push, replay, a
 
 ## Evidence and preservation
 
-Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packaging, package verification, and preservation-completeness checks. Durable maintenance bundle outputs and run-history links are immutable through their normal writers once created; a later run must choose a new output path rather than silently clobber preserved evidence.
+Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packaging, package verification, and preservation-completeness checks. Durable maintenance bundle outputs and run-history links are immutable through their normal writers once created; a later run must choose a new output path rather than silently clobber preserved evidence. Validation-result attachments are also single-assignment: once a run-history record contains validation evidence, `forge validation-result-write` refuses to replace it with a contradictory later observation.
 
 ## Testing and CI
 
@@ -57,7 +57,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, and refusal to overwrite existing durable bundle/history outputs.
+Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, refusal to overwrite existing durable bundle/history outputs, and refusal to replace previously recorded validation evidence.
 
 Important limitations remain:
 
@@ -83,12 +83,12 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-165 — protect durable maintenance bundles from overwrite**.
+Latest stewardship run: **AUTO-166 — make validation evidence single-assignment**.
 
-- **Changed:** the canonical maintenance evidence writer now refuses to write when the requested bundle output already exists. This closes the remaining silent-clobber gap in the end-to-end durable evidence path; the existing history-link writer already had the same fail-closed behavior. A focused regression test preserves a human-edited existing bundle byte-for-byte after a refused second write.
-- **Safety:** the change is strictly more conservative. Bundle completeness, repository-root containment, JSON-extension enforcement, explicit bundle-write confirmation, source-report hashing, and separate history-link confirmation remain unchanged. No overwrite escape hatch, network/external-service access, command execution, force-push, tag push, remote mutation, branch-protection mutation, or workflow mutation was added.
-- **Branch/PR disposition:** work stayed on `main`. Historical branches remain stale or superseded; PR #8 is already superseded/closed and no open PR contains newer relevant work.
-- **Validation:** the change is syntactically minimal and is covered by a deterministic regression test in the existing maintenance-bundle test module. Full local pytest is unavailable because this runtime cannot resolve `github.com`; the repository's Python 3.10/3.11/3.12 Actions matrix is checked after publication when observable, and no green result is claimed without evidence.
-- **Visual updates:** none; overwrite refusal changes persistence semantics, not the lifecycle architecture already shown above.
-- **Current limitations:** durable bundle paths and run-history link paths are intentionally immutable through their normal writers; intentional recovery/replacement requires a separately reviewed path or mechanism. Commit-trust, workflow/status, and branch-protection evidence remain caller supplied and fresh external acquisition remains policy-gated.
-- **Next autonomous objective:** after confirming AUTO-165 CI, continue the same end-to-end milestone with the next concrete integrity defect or caller-managed evidence handoff reduction; do not add another isolated read-only command.
+- **Changed:** `forge validation-result-write` now refuses to replace an already recorded validation execution, result, or note. First-time explicit attachment remains supported, but a contradictory retry or an attempt to overwrite executor-produced evidence fails closed and preserves the original run-history bytes.
+- **Safety:** the change only narrows mutation authority. Existing `.ai/run-history/` path confinement, JSON/schema checks, allowed result values, context retention, and explicit `--confirm-write` remain unchanged. No overwrite escape hatch, command execution, network/external-service access, force-push, tag push, remote mutation, protection mutation, or workflow mutation was added.
+- **Branch/PR disposition:** work stayed on `main`. Historical branches remain stale or superseded; recent PRs are merged/closed/obsolete, and no open PR contains newer relevant work.
+- **Validation:** the changed writer and new focused regression test syntax-compile in the available scratch environment. The tests cover both a contradictory second attachment and an attempt to replace pre-existing executor validation. Full repository pytest remains dependent on post-push CI visibility; no green matrix result is claimed without evidence.
+- **Visual updates:** none; this is an evidence-integrity guard and does not change the maintenance lifecycle architecture already shown above.
+- **Current limitations:** first-time validation attachment still mutates the selected history record by explicit design; AUTO-166 prevents replacement after validation evidence exists rather than converting the legacy command to a separate sidecar format. Fresh commit-trust/status/protection acquisition remains policy-gated.
+- **Next autonomous objective:** inspect AUTO-166 CI first; if green, continue the same end-to-end milestone with the next concrete persistence/provenance integrity gap or caller-managed evidence handoff reduction.
