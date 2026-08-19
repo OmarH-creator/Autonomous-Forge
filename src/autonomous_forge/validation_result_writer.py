@@ -66,9 +66,21 @@ def _refuse_existing_validation_result(record: dict[str, Any]) -> None:
         )
 
 
+def _fsync_directory(directory: Path) -> None:
+    """Persist a completed rename in the containing directory when the platform supports it."""
+    flags = os.O_RDONLY
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(directory, flags | directory_flag)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _atomic_replace_text(target: Path, text: str) -> None:
-    """Replace one record atomically after fully flushing a same-directory temp file."""
+    """Replace one record atomically and durably after flushing a same-directory temp file."""
     temporary: Path | None = None
+    replaced = False
     try:
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -83,12 +95,19 @@ def _atomic_replace_text(target: Path, text: str) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, target)
+        replaced = True
+        temporary = None
+        _fsync_directory(target.parent)
     except OSError as exc:
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
+        if replaced:
+            raise ValidationResultWriteError(
+                "validation-result record was replaced but directory durability sync failed; inspect the record before retrying"
+            ) from exc
         raise ValidationResultWriteError(
             "atomic validation-result write failed; original record preserved"
         ) from exc
