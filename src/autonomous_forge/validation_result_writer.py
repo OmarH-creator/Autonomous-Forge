@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +64,34 @@ def _refuse_existing_validation_result(record: dict[str, Any]) -> None:
         raise ValidationResultWriteError(
             "record already contains validation evidence; choose a new run-history record instead of replacing it"
         )
+
+
+def _atomic_replace_text(target: Path, text: str) -> None:
+    """Replace one record atomically after fully flushing a same-directory temp file."""
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    except OSError as exc:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise ValidationResultWriteError(
+            "atomic validation-result write failed; original record preserved"
+        ) from exc
 
 
 def build_validation_result_write_payload(
@@ -131,13 +161,20 @@ def write_validation_result_attachment(
     except RunHistoryReadError as exc:
         raise ValidationResultWriteError(str(exc)) from exc
 
+    source_bytes = safe_record.read_bytes()
     payload = build_validation_result_write_payload(
         safe_record,
         result=result,
         root=root,
         note=note,
     )
-    safe_record.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if safe_record.read_bytes() != source_bytes:
+        raise ValidationResultWriteError(
+            "record changed during validation-result write; refusing stale attachment"
+        )
+
+    text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    _atomic_replace_text(safe_record, text)
     return {
         "path": str(safe_record),
         "validation_execution": payload["record"]["validation_execution"],

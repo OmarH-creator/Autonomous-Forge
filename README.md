@@ -45,7 +45,7 @@ The underlying planning, diff review, patch, validation, commit, push, replay, a
 
 ## Evidence and preservation
 
-Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packaging, package verification, and preservation-completeness checks. Durable maintenance bundle outputs and run-history links are immutable through their normal writers once created; a later run must choose a new output path rather than silently clobber preserved evidence. Validation-result attachments are also single-assignment: once a run-history record contains validation evidence, `forge validation-result-write` refuses to replace it with a contradictory later observation.
+Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packaging, package verification, and preservation-completeness checks. Durable maintenance bundle outputs and run-history links are immutable through their normal writers once created; a later run must choose a new output path rather than silently clobber preserved evidence. Validation-result attachments are single-assignment: once a run-history record contains validation evidence, `forge validation-result-write` refuses to replace it with a contradictory later observation. First-time validation attachment now uses a flushed same-directory temporary file plus atomic replacement and refuses stale source bytes, reducing the risk of truncated durable history or overwriting a concurrently changed record.
 
 ## Testing and CI
 
@@ -57,7 +57,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, refusal to overwrite existing durable bundle/history outputs, and refusal to replace previously recorded validation evidence.
+Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, refusal to overwrite existing durable bundle/history outputs, refusal to replace previously recorded validation evidence, stale-source refusal for first-time validation attachments, and atomic final replacement for that validation-record write.
 
 Important limitations remain:
 
@@ -67,7 +67,7 @@ Important limitations remain:
 - post-push verification relies on local remote-tracking refs unless fetch is explicitly requested;
 - hashes detect byte drift but do not prove signer identity;
 - secret detection is not a full secret scanner;
-- there is no shared lock for external scheduled agents;
+- there is no shared lock for external scheduled agents or multi-process validation-result writers;
 - Forge is not ready for unattended use on important repositories.
 
 ## Project memory
@@ -83,12 +83,12 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-166 — make validation evidence single-assignment**.
+Latest stewardship run: **AUTO-167 — make validation-result attachment writes atomic**.
 
-- **Changed:** `forge validation-result-write` now refuses to replace an already recorded validation execution, result, or note. First-time explicit attachment remains supported, but a contradictory retry or an attempt to overwrite executor-produced evidence fails closed and preserves the original run-history bytes.
-- **Safety:** the change only narrows mutation authority. Existing `.ai/run-history/` path confinement, JSON/schema checks, allowed result values, context retention, and explicit `--confirm-write` remain unchanged. No overwrite escape hatch, command execution, network/external-service access, force-push, tag push, remote mutation, protection mutation, or workflow mutation was added.
-- **Branch/PR disposition:** work stayed on `main`. Historical branches remain stale or superseded; recent PRs are merged/closed/obsolete, and no open PR contains newer relevant work.
-- **Validation:** the changed writer and new focused regression test syntax-compile in the available scratch environment. The tests cover both a contradictory second attachment and an attempt to replace pre-existing executor validation. Full repository pytest remains dependent on post-push CI visibility; no green matrix result is claimed without evidence.
-- **Visual updates:** none; this is an evidence-integrity guard and does not change the maintenance lifecycle architecture already shown above.
-- **Current limitations:** first-time validation attachment still mutates the selected history record by explicit design; AUTO-166 prevents replacement after validation evidence exists rather than converting the legacy command to a separate sidecar format. Fresh commit-trust/status/protection acquisition remains policy-gated.
-- **Next autonomous objective:** inspect AUTO-166 CI first; if green, continue the same end-to-end milestone with the next concrete persistence/provenance integrity gap or caller-managed evidence handoff reduction.
+- **Changed:** the first confirmed `forge validation-result-write` attachment now stages the complete JSON in a same-directory temporary file, flushes and `fsync`s it, then uses atomic `os.replace`. The writer also rechecks the source record bytes immediately before replacement and refuses a stale attachment when another writer changed the record during payload construction.
+- **Safety:** AUTO-166 single-assignment behavior remains intact. A simulated final replace failure leaves the original record bytes untouched and cleans the temporary file; detected concurrent source changes are preserved rather than overwritten. Existing `.ai/run-history/` confinement, schema/result checks, retained context, and explicit `--confirm-write` are unchanged. No network/external-service access, force-push, tag push, remote/protection mutation, or workflow mutation was added.
+- **Branch/PR disposition:** work stayed on `main`. Historical branches remain stale or superseded; reviewed PRs are merged/closed/obsolete and none contains newer relevant work.
+- **Validation:** changed source and focused AUTO-167 regression tests were syntax-checked in the available scratch environment. Focused tests cover atomic-replace failure preservation/temp cleanup and stale-source refusal. The push-triggered Python 3.10/3.11/3.12 matrix is inspected when observable; no green result is claimed without evidence.
+- **Visual updates:** none; this is a persistence-integrity hardening of an existing evidence stage, so the lifecycle diagram remains accurate.
+- **Current limitations:** the byte recheck is not a shared multi-process lock, and first-time validation attachment still mutates the selected history record by explicit design. Fresh commit-trust/status/protection acquisition remains policy-gated.
+- **Next autonomous objective:** inspect AUTO-167 CI first; if green, continue the same end-to-end milestone by eliminating the remaining in-place validation-record mutation or closing the next concrete provenance/persistence integrity gap.

@@ -12,13 +12,17 @@ The command and writer:
 - accept only validation results already supported by the preview surface: `passed`, `failed`, `error`, `not_run`, and `skipped`;
 - reuse the run-history reader path guard, so the target must be a real non-symlink `.json` file under `.ai/run-history/`;
 - refuse malformed records and unsupported schemas through the preview/reader path;
-- write only the selected run-history record;
 - update the record validation fields from a supplied external observation only when the record does not already contain validation evidence;
 - refuse to replace an existing validation execution, result, or note, including executor-produced evidence or an earlier external attachment;
+- re-check the source record bytes immediately before replacement and refuse a stale attachment if another writer changed the record while the payload was being prepared;
+- persist the first attachment through a flushed same-directory temporary file followed by `os.replace`, so a failed final replacement leaves the original durable record intact instead of exposing a partially written JSON file;
+- clean up its temporary file when the atomic replacement fails;
 - retain implementation-grade context fields already present on the record in `record.validation_context`, including `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`;
 - do not run validation commands, check workflow status, verify commits, inspect diffs, generate patches, infer success, enforce policy, commit, push, call networks, or scan history recursively.
 
 Validation evidence is single-assignment through this writer. After a result has been recorded, a later observation must use a new run-history record or a separately reviewed recovery mechanism; rerunning this command against the same validated record fails closed and preserves its bytes.
+
+The write is also crash/failure resistant at the final file-replacement boundary: Forge fully writes and flushes a temporary sibling file first, then replaces the target atomically. If that replacement fails, the existing history record is preserved and the temporary file is removed. Forge does not implement a shared cross-process lock, so the pre-replacement byte comparison narrows concurrent-writer races but does not claim full multi-process transactional locking.
 
 ## CLI
 
@@ -61,7 +65,7 @@ forge validation-result-write \
 }
 ```
 
-If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record. If the record already contains validation evidence, the write is also refused and the existing record remains unchanged.
+If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record. If the record already contains validation evidence, the write is also refused and the existing record remains unchanged. If the record changes between the initial read and the final replacement, Forge refuses the stale attachment rather than replacing the newer bytes.
 
 ## Python API
 
