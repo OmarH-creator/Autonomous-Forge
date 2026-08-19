@@ -17,6 +17,9 @@ _VALIDATION_CONTEXT_FIELDS = (
     "validation_steps",
     "risk_register",
 )
+_MAX_DISCOVERED_ATTACHMENTS = 100
+_ATTACHMENT_DIRECTORY = Path(".ai/run-history/validation-attachments")
+_ATTACHMENT_SCHEMA_VERSION = "validation-attachment/v1"
 
 
 def _resolve_inside(root: Path, path: Path | str) -> tuple[Path, Path]:
@@ -81,6 +84,70 @@ def _validation_context_from_record(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _record_relative_path(root: Path, record_path: Path) -> str:
+    return record_path.relative_to(root.resolve()).as_posix()
+
+
+def _discover_validation_attachments(
+    record_path: Path,
+    *,
+    root: Path,
+) -> list[dict[str, Any]]:
+    """Discover and verify bounded immutable validation attachments for one record."""
+    attachment_root = (root.resolve() / _ATTACHMENT_DIRECTORY).resolve()
+    if not attachment_root.exists():
+        return []
+    if attachment_root.is_symlink() or not attachment_root.is_dir():
+        raise RunHistoryReadError("validation attachment directory must be a real directory")
+
+    candidates = sorted(attachment_root.glob("*.json"))
+    if len(candidates) > _MAX_DISCOVERED_ATTACHMENTS:
+        raise RunHistoryReadError(
+            f"validation attachment discovery exceeds {_MAX_DISCOVERED_ATTACHMENTS} files"
+        )
+
+    source_label = _record_relative_path(root, record_path)
+    matches: list[dict[str, Any]] = []
+    for candidate in candidates:
+        if candidate.is_symlink() or not candidate.is_file():
+            continue
+        try:
+            payload = json.loads(candidate.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict) or payload.get("schema_version") != _ATTACHMENT_SCHEMA_VERSION:
+            continue
+        source = payload.get("source_record")
+        if not isinstance(source, dict) or source.get("path") != source_label:
+            continue
+
+        from autonomous_forge.validation_result_attachment import (
+            ValidationResultAttachmentError,
+            verify_validation_result_attachment,
+        )
+
+        try:
+            verified = verify_validation_result_attachment(candidate, root=root)
+        except (ValidationResultAttachmentError, FileNotFoundError) as exc:
+            raise RunHistoryReadError(
+                f"validation attachment verification failed for {candidate.name}: {exc}"
+            ) from exc
+        validation = _require_mapping(verified.get("validation"), "attachment.validation")
+        matches.append(
+            {
+                "path": candidate.relative_to(root.resolve()).as_posix(),
+                "schema_version": verified["schema_version"],
+                "source_sha256": source.get("sha256"),
+                "source_bytes": source.get("bytes"),
+                "validation_execution": validation.get("validation_execution", "unknown"),
+                "validation_result": validation.get("validation_result", "unknown"),
+                "validation_note": validation.get("validation_note"),
+                "validation_context": validation.get("validation_context", {}),
+            }
+        )
+    return matches
+
+
 def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -> dict[str, Any]:
     """Build a stable summary from one persisted run-history payload."""
     if payload.get("schema_version") != "run-history/v1":
@@ -118,6 +185,7 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
         "validation_result": record.get("validation_result", "unknown"),
         "validation_context": validation_context,
         "validation_context_fields": list(validation_context),
+        "validation_attachments": [],
         "changed_files_summary": record.get("changed_files_summary", "unknown"),
         "commit": record.get("commit", "unknown"),
         "preflight_summary": preflight_summary,
@@ -126,9 +194,10 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
         "blockers": blockers or ["none"],
         "safety_notes": safety_notes,
         "safety_boundary": (
-            "Run-history read output only; no files are changed, no directories are scanned, "
-            "no validation commands are run, no diffs are inspected, no patches are generated, "
-            "no approvals are granted, and policy is not enforced."
+            "Run-history read output only; no files are changed and no validation commands are run. "
+            "The reader performs a bounded, non-recursive scan of immutable validation sidecars and "
+            "verifies only attachments that explicitly name this source record. No approvals are granted "
+            "and policy is not enforced."
         ),
     }
 
@@ -159,6 +228,7 @@ def format_run_history_record_summary(data: dict[str, Any]) -> str:
 
     summary = data["preflight_summary"]
     validation_context = data.get("validation_context", {})
+    validation_attachments = data.get("validation_attachments", [])
     lines.extend(
         [
             f"Review status: {data['review_status']}",
@@ -172,6 +242,14 @@ def format_run_history_record_summary(data: dict[str, Any]) -> str:
         lines.extend(
             f"- {field}: {_format_context_value(validation_context[field])}"
             for field in data["validation_context_fields"]
+        )
+    else:
+        lines.append("- none")
+    lines.append("Immutable validation attachments:")
+    if validation_attachments:
+        lines.extend(
+            f"- {item['path']}: {item['validation_result']} ({item['validation_execution']})"
+            for item in validation_attachments
         )
     else:
         lines.append("- none")
@@ -212,6 +290,10 @@ def read_run_history_record(
     data = summarize_run_history_record(
         _require_mapping(payload, "record payload"),
         source_path=str(safe_record_path),
+    )
+    data["validation_attachments"] = _discover_validation_attachments(
+        safe_record_path,
+        root=root,
     )
     if output_format == "json":
         return json.dumps(data, indent=2, sort_keys=True)
