@@ -13,9 +13,12 @@ The command and writer:
 - reuse the run-history reader path guard, so the target must be a real non-symlink `.json` file under `.ai/run-history/`;
 - refuse malformed records and unsupported schemas through the preview/reader path;
 - write only the selected run-history record;
-- update the record validation fields from a supplied external observation;
+- update the record validation fields from a supplied external observation only when the record does not already contain validation evidence;
+- refuse to replace an existing validation execution, result, or note, including executor-produced evidence or an earlier external attachment;
 - retain implementation-grade context fields already present on the record in `record.validation_context`, including `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`;
 - do not run validation commands, check workflow status, verify commits, inspect diffs, generate patches, infer success, enforce policy, commit, push, call networks, or scan history recursively.
+
+Validation evidence is single-assignment through this writer. After a result has been recorded, a later observation must use a new run-history record or a separately reviewed recovery mechanism; rerunning this command against the same validated record fails closed and preserves its bytes.
 
 ## CLI
 
@@ -58,7 +61,7 @@ forge validation-result-write \
 }
 ```
 
-If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record.
+If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record. If the record already contains validation evidence, the write is also refused and the existing record remains unchanged.
 
 ## Python API
 
@@ -79,7 +82,7 @@ When the source record already contains implementation context, the Python resul
 
 ## Persisted fields
 
-The writer updates:
+On the first successful attachment, the writer updates:
 
 - `record.validation_execution`
 - `record.validation_result`
@@ -89,4 +92,4 @@ The writer updates:
 - top-level `persistence`
 - `safety_notes`, with an additional note that the result was supplied externally and, when applicable, that implementation context was retained
 
-This is intentionally smaller than a validation executor. It records an already-observed result; it does not create or verify that result.
+This is intentionally smaller than a validation executor. It records an already-observed result; it does not create or verify that result, and it does not replace previously recorded validation evidence.
