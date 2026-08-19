@@ -360,6 +360,8 @@ def write_maintenance_evidence_bundle(data: dict[str, Any], output_path: Path, *
     resolved = _resolve_under_root(root, output_path, kind="output", must_exist=False)
     if resolved.suffix != ".json":
         raise MaintenanceEvidenceBundleError("output path must use .json extension")
+    if resolved.exists():
+        blockers.append("bundle output already exists")
     if blockers:
         return {**data, "write_status": "blocked", "write_allowed": False, "output_path": str(output_path), "bundle_blockers": blockers}
     resolved.parent.mkdir(parents=True, exist_ok=True)

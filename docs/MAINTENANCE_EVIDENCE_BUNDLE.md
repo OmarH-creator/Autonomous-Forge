@@ -27,6 +27,8 @@ forge maintenance-evidence-bundle \
   --format json
 ```
 
+Durable bundle outputs are immutable through this writer once created. If `--output` already exists, Forge blocks the write and preserves the existing bytes; a later maintenance run must choose a new bundle path.
+
 After the bundle has been written, the same command can write a small run-history pointer with `--history-link .ai/run-history/AUTO-108-link.json --confirm-history-link --require-history-linked`.
 
 The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, retained validation context, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`.
@@ -77,7 +79,7 @@ The hashes are provenance fingerprints for stale-report detection. They do not p
 
 ## Safety boundary
 
-The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, records bounded SHA-256 source-report fingerprints, and preserves supported validation context from upstream evidence. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied and the bundle is complete.
+The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, records bounded SHA-256 source-report fingerprints, and preserves supported validation context from upstream evidence. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied, the bundle is complete, and the output path does not already exist.
 
 The optional history link writes only one small repository-local JSON pointer under `.ai/run-history/` when `--history-link` and `--confirm-history-link` are supplied, the bundle has already been written, and the output does not already exist. It preserves the bundle's validation context but does not rewrite the bundle or run replay verification.
 

@@ -226,6 +226,22 @@ def test_write_maintenance_evidence_bundle_writes_complete_confirmed_bundle(tmp_
     assert json.loads((tmp_path / "bundle.json").read_text(encoding="utf-8"))["bundle_status"] == "complete"
 
 
+def test_write_maintenance_evidence_bundle_refuses_existing_output_and_preserves_bytes(tmp_path):
+    data = complete_bundle("AUTO-165")
+    output = tmp_path / "bundle.json"
+
+    first = write_maintenance_evidence_bundle(data, output, root=tmp_path, confirm_write=True)
+    assert first["write_status"] == "written"
+    output.write_text('{"human_edited": true}\n', encoding="utf-8")
+    before = output.read_bytes()
+
+    second = write_maintenance_evidence_bundle(data, output, root=tmp_path, confirm_write=True)
+
+    assert second["write_status"] == "blocked"
+    assert "bundle output already exists" in second["bundle_blockers"]
+    assert output.read_bytes() == before
+
+
 def test_write_maintenance_history_link_writes_confirmed_link_under_run_history(tmp_path):
     data = write_maintenance_evidence_bundle(complete_bundle("AUTO-108"), tmp_path / "bundle.json", root=tmp_path, confirm_write=True)
 
