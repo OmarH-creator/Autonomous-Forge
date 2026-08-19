@@ -52,6 +52,18 @@ def _retained_validation_context(record: dict[str, Any]) -> dict[str, list[Any]]
     return context
 
 
+def _refuse_existing_validation_result(record: dict[str, Any]) -> None:
+    """Protect previously recorded validation evidence from replacement."""
+    execution = record.get("validation_execution")
+    result = record.get("validation_result")
+    note = record.get("validation_note")
+    empty_values = (None, "", "none", "not_run")
+    if execution not in empty_values or result not in empty_values or note not in empty_values:
+        raise ValidationResultWriteError(
+            "record already contains validation evidence; choose a new run-history record instead of replacing it"
+        )
+
+
 def build_validation_result_write_payload(
     record_path: Path | str,
     *,
@@ -77,6 +89,7 @@ def build_validation_result_write_payload(
 
     payload = _load_record_payload(safe_record)
     record = _require_mapping(payload.get("record"), "record")
+    _refuse_existing_validation_result(record)
     attachment = preview["proposed_attachment"]
     record["validation_execution"] = attachment["validation_execution"]
     record["validation_result"] = attachment["validation_result"]
