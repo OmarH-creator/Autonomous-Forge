@@ -47,7 +47,7 @@ The underlying planning, diff review, patch, validation, commit, push, replay, a
 
 Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packaging, package verification, and preservation-completeness checks. Durable maintenance bundle outputs and run-history links are immutable through their normal writers once created; a later run must choose a new output path rather than silently clobber preserved evidence.
 
-For externally supplied validation observations, new workflows can use `forge validation-result-attachment-write` to create a separate immutable JSON sidecar under `.ai/run-history/validation-attachments/`. The sidecar leaves the original run-history record byte-for-byte unchanged, binds itself to that exact source with SHA-256 and byte count, refuses overwrite/path escape/stale source bytes, and can be re-verified against later source drift. The historical in-place `forge validation-result-write` remains available for backward compatibility.
+For externally supplied validation observations, new workflows can use `forge validation-result-attachment-write` to create a separate immutable JSON sidecar under `.ai/run-history/validation-attachments/`. The sidecar leaves the original run-history record byte-for-byte unchanged, binds itself to that exact source with SHA-256 and byte count, refuses overwrite/path escape/stale source bytes, and can be re-verified against later source drift. `forge run-history-read` now performs a bounded non-recursive discovery pass and surfaces verified sidecars that explicitly bind to the selected source record while preserving legacy `run-history/v1` fields unchanged. The historical in-place `forge validation-result-write` remains available for backward compatibility.
 
 ## Testing and CI
 
@@ -59,7 +59,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, refusal to overwrite existing durable bundle/history outputs, refusal to replace previously recorded validation evidence, immutable hash-bound validation sidecars for new external observations, stale-source refusal, atomic/no-clobber persistence, and parent-directory fsync after durable validation evidence publication.
+Positive controls include repository path/symlink containment, policy-aware path checks, simple secret-marker checks, explicit confirmations for every side effect, bounded `shell=False` command execution, rollback after failed post-write diff verification, SHA-256 evidence binding, complete retained-validation coverage before commit readiness, exact changed-path commit verification, fast-forward-only non-force push behavior, no tag pushes or remote/protection mutation, post-push reachability verification, durable evidence hashing, refusal to overwrite existing durable bundle/history outputs, refusal to replace previously recorded validation evidence, immutable hash-bound validation sidecars for new external observations, stale-source refusal, atomic/no-clobber persistence, parent-directory fsync after durable validation evidence publication, and bounded fail-closed attachment verification in the primary run-history reader.
 
 Important limitations remain:
 
@@ -70,7 +70,7 @@ Important limitations remain:
 - hashes detect byte drift but do not prove signer identity;
 - secret detection is not a full secret scanner;
 - there is no shared lock for external scheduled agents or multi-process validation-result writers;
-- immutable validation sidecars are separate evidence objects and are not automatically discovered by legacy `run-history/v1` consumers;
+- immutable validation sidecars are now visible through `run-history-read`, but replay and maintenance-bundle consumers do not yet treat them as executor-produced validation proof;
 - Forge is not ready for unattended use on important repositories.
 
 ## Project memory
@@ -86,12 +86,12 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-169 — immutable hash-bound validation attachments**.
+Latest stewardship run: **AUTO-170 — consume immutable validation attachments in run-history reads**.
 
-- **Changed:** added `forge validation-result-attachment-write`, which persists an externally supplied validation observation as a new immutable sidecar under `.ai/run-history/validation-attachments/` rather than rewriting the durable source run-history JSON. The sidecar records the source path, exact byte count, SHA-256, validation result/note, and retained validation context.
-- **Safety:** explicit confirmation remains mandatory. Existing outputs are never overwritten; path escapes and symlink outputs are rejected; source bytes are rechecked immediately before publication; the sidecar is created through a flushed same-directory temporary file plus atomic no-clobber hard-link publication and directory fsync; verification fails if the source record later drifts. No validation command, network access, force-push, tag push, remote/protection mutation, workflow mutation, or extra commit/push authority was added.
+- **Changed:** enhanced the existing `forge run-history-read` path so it automatically discovers immutable validation sidecars under `.ai/run-history/validation-attachments/`, verifies matching sidecars against the selected source record's current bytes/SHA-256, and exposes the verified observations in text and JSON output without rewriting legacy validation fields.
+- **Safety:** discovery is read-only, non-recursive, capped at 100 JSON candidates, rejects a symlinked attachment directory, ignores unrelated sidecars, and fails closed when a sidecar that explicitly names the selected source record no longer verifies. No validation command, network access, Git mutation, force-push, tag push, remote/protection mutation, workflow mutation, or authority escalation was added.
 - **Branch/PR disposition:** work stayed on `main`. Historical branches remain stale or superseded; reviewed PRs are merged/closed/obsolete or unrelated, and none warranted integration.
-- **Validation:** the new attachment core, CLI, router copy, and focused AUTO-169 regression tests syntax-compiled in the available scratch environment. The product diff was reviewed as exactly six intended files before the README/state bookkeeping updates. Direct clone/full pytest remains unavailable because this runtime cannot resolve `github.com`; no green Python 3.10/3.11/3.12 result is claimed unless observable GitHub evidence appears.
-- **Visual updates:** none; this strengthens the existing durable-evidence stage, so the lifecycle diagram remains accurate.
-- **Current limitations:** immutable validation sidecars are not yet automatically consumed by legacy run-history readers, and the old in-place `validation-result-write` remains available for compatibility. Fresh commit-trust/status/protection acquisition remains policy-gated.
-- **Next autonomous objective:** inspect AUTO-169 CI first; if green, integrate verified immutable attachments into durable maintenance evidence/history consumption without weakening `run-history/v1` compatibility or existing provenance checks.
+- **Validation:** the changed reader and focused AUTO-170 regression tests syntax-compiled in the available scratch environment. Tests cover verified discovery, text/JSON exposure, unrelated-sidecar exclusion, source-drift refusal, and the existing primary `forge run-history-read` CLI route. Direct clone/full pytest remains unavailable because this runtime cannot resolve `github.com`; no green Python 3.10/3.11/3.12 claim is made without observable GitHub evidence.
+- **Visual updates:** none; this strengthens evidence consumption inside the existing durable-history stage, so the lifecycle diagram remains accurate.
+- **Current limitations:** the reader deliberately surfaces attachments as separate evidence and does not collapse multiple observations into one inferred validation result. Replay/maintenance-bundle consumers still do not treat sidecars as executor-produced validation evidence. Fresh commit-trust/status/protection acquisition remains policy-gated.
+- **Next autonomous objective:** inspect AUTO-170 CI first; if green, carry verified immutable attachment provenance into replay/maintenance evidence consumption under explicit semantics that preserve the distinction between externally supplied observations and executor-produced validation proof.
