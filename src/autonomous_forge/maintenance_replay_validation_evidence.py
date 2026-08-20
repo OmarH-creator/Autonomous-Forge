@@ -21,8 +21,8 @@ def _clean_text(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _validate_context_association(context: Any, replay: dict[str, Any], *, label: str) -> str:
-    """Refuse supplied retained context when it contradicts the maintenance bundle."""
+def _validate_context_association(context: Any, evidence: dict[str, Any], *, label: str) -> str:
+    """Refuse supplied retained context when it contradicts maintenance evidence."""
     if context in (None, {}):
         return "context_not_provided"
     if not isinstance(context, dict):
@@ -33,7 +33,7 @@ def _validate_context_association(context: Any, replay: dict[str, Any], *, label
         if not isinstance(retained_steps, list):
             raise MaintenanceEvidenceBundleError(f"{label} validation_steps context must be a list")
         cleaned_steps = [_clean_text(item) for item in retained_steps if _clean_text(item)]
-        if cleaned_steps != replay.get("validation_steps", []):
+        if cleaned_steps != evidence.get("validation_steps", []):
             raise MaintenanceEvidenceBundleError(
                 f"{label} validation_steps do not match maintenance bundle validation steps"
             )
@@ -43,7 +43,7 @@ def _validate_context_association(context: Any, replay: dict[str, Any], *, label
         if not isinstance(expected_changes, list):
             raise MaintenanceEvidenceBundleError(f"{label} expected_file_changes context must be a list")
         cleaned_changes = [_clean_text(item) for item in expected_changes if _clean_text(item)]
-        for path in replay.get("reviewed_paths", []):
+        for path in evidence.get("reviewed_paths", []):
             if cleaned_changes and not any(path in change for change in cleaned_changes):
                 raise MaintenanceEvidenceBundleError(
                     f"{label} expected_file_changes do not cover reviewed path: {path}"
@@ -72,33 +72,18 @@ def _attachment_fingerprint(root: Path, label: str) -> tuple[str, int]:
     return hashlib.sha256(raw).hexdigest(), len(raw)
 
 
-def build_maintenance_replay_with_validation_evidence_data(
-    bundle_path: Path,
+def collect_external_validation_evidence(
+    maintenance_evidence: dict[str, Any],
     *,
-    validation_record_path: Path | None = None,
+    validation_record_path: Path,
     root: Path = Path("."),
 ) -> dict[str, Any]:
-    """Build replay data plus optional verified external validation provenance.
+    """Return verified advisory validation provenance for replay or durable bundles.
 
-    Immutable validation attachments are deliberately advisory-only. They prove that
-    an external observation was bound to exact run-history bytes; they do not prove
-    that Forge executed a validation command and therefore never satisfy or replace
-    the maintenance bundle's executor-produced validation stage.
+    This collector intentionally never changes bundle/replay readiness. Immutable
+    attachments prove that external observations are bound to exact run-history
+    bytes; they are not evidence that Forge executed a validation command.
     """
-    replay = build_maintenance_replay_summary_data(bundle_path, root=root)
-    replay["external_validation_evidence"] = {
-        "source_record": None,
-        "association_status": "not_requested",
-        "attachment_count": 0,
-        "attachments": [],
-        "provenance_semantics": "none",
-        "executor_validation_equivalent": False,
-        "replay_gate_effect": "none",
-    }
-    replay["summary"]["external_validation_attachments"] = 0
-    if validation_record_path is None:
-        return replay
-
     try:
         record = json.loads(
             read_run_history_record(
@@ -111,7 +96,9 @@ def build_maintenance_replay_with_validation_evidence_data(
         raise MaintenanceEvidenceBundleError(f"validation record could not be verified: {exc}") from exc
 
     association_statuses = [
-        _validate_context_association(record.get("validation_context"), replay, label="validation record")
+        _validate_context_association(
+            record.get("validation_context"), maintenance_evidence, label="validation record"
+        )
     ]
     attachments: list[dict[str, Any]] = []
     for item in record.get("validation_attachments", []):
@@ -124,7 +111,7 @@ def build_maintenance_replay_with_validation_evidence_data(
         association_statuses.append(
             _validate_context_association(
                 item.get("validation_context"),
-                replay,
+                maintenance_evidence,
                 label=f"validation attachment {label}",
             )
         )
@@ -147,7 +134,7 @@ def build_maintenance_replay_with_validation_evidence_data(
     association_status = (
         "consistent" if "consistent" in association_statuses else "context_not_provided"
     )
-    replay["external_validation_evidence"] = {
+    return {
         "source_record": record.get("source_path"),
         "association_status": association_status,
         "attachment_count": len(attachments),
@@ -155,15 +142,46 @@ def build_maintenance_replay_with_validation_evidence_data(
         "provenance_semantics": "externally_supplied_observation",
         "executor_validation_equivalent": False,
         "replay_gate_effect": "advisory_only",
+        "bundle_gate_effect": "advisory_only",
     }
-    replay["summary"]["external_validation_attachments"] = len(attachments)
+
+
+def build_maintenance_replay_with_validation_evidence_data(
+    bundle_path: Path,
+    *,
+    validation_record_path: Path | None = None,
+    root: Path = Path("."),
+) -> dict[str, Any]:
+    """Build replay data plus optional verified external validation provenance."""
+    replay = build_maintenance_replay_summary_data(bundle_path, root=root)
+    replay["external_validation_evidence"] = {
+        "source_record": None,
+        "association_status": "not_requested",
+        "attachment_count": 0,
+        "attachments": [],
+        "provenance_semantics": "none",
+        "executor_validation_equivalent": False,
+        "replay_gate_effect": "none",
+        "bundle_gate_effect": "none",
+    }
+    replay["summary"]["external_validation_attachments"] = 0
+    if validation_record_path is None:
+        return replay
+
+    evidence = collect_external_validation_evidence(
+        replay,
+        validation_record_path=validation_record_path,
+        root=root,
+    )
+    replay["external_validation_evidence"] = evidence
+    replay["summary"]["external_validation_attachments"] = evidence["attachment_count"]
     replay["replay_policy"]["gates"].append(
         {
             "name": "external_validation_observations",
             "status": "advisory",
             "severity": "advisory",
             "reason": (
-                f"{len(attachments)} immutable external validation attachment(s) verified against the supplied "
+                f"{evidence['attachment_count']} immutable external validation attachment(s) verified against the supplied "
                 "run-history record; these observations do not replace executor-produced validation proof"
             ),
         }
