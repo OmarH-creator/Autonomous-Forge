@@ -114,6 +114,7 @@ def build_maintenance_archive_package_preview_data(
         "package_ready": status == "ready",
         "manifest_path": copy_verify.get("manifest_path") or str(manifest_path),
         "copy_verify_status": copy_verify.get("copy_verify_status"),
+        "external_validation_provenance": dict(copy_verify.get("external_validation_provenance") or {}),
         "archive_root": archive_root_resolved.relative_to(root_resolved).as_posix(),
         "package_path": package_resolved.relative_to(root_resolved).as_posix(),
         "package_format": package_format,
@@ -129,14 +130,16 @@ def build_maintenance_archive_package_preview_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive package preview verifies the written manifest and copied archive root, compares root contents with manifest "
-            "entries, and previews package metadata. It does not create compressed archives, copy files, write manifests, "
-            "stage, commit, push, poll workflows, rerun validation, or prove signer identity."
+            "entries, and previews package metadata. External validation provenance remains advisory-only and cannot change package "
+            "readiness. It does not create compressed archives, copy files, write manifests, stage, commit, push, poll workflows, "
+            "rerun validation, or prove signer identity."
         ),
     }
 
 
 def format_maintenance_archive_package_preview(data: dict[str, Any]) -> str:
     """Format archive-package preview data as stable text."""
+    external = data.get("external_validation_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -144,6 +147,19 @@ def format_maintenance_archive_package_preview(data: dict[str, Any]) -> str:
         f"Package ready: {str(bool(data.get('package_ready'))).lower()}",
         f"Manifest path: {data.get('manifest_path', 'none')}",
         f"Copy verify status: {data.get('copy_verify_status') or 'unknown'}",
+        (
+            "External validation provenance: "
+            f"present={str(bool(external.get('present'))).lower()} "
+            f"status={external.get('status') or 'not_present'} "
+            f"verified={str(bool(external.get('verified'))).lower()} "
+            f"attachments={int(external.get('attachment_count') or 0)}"
+        ),
+        (
+            "External validation semantics: "
+            f"executor_validation_equivalent={str(bool(external.get('executor_validation_equivalent'))).lower()} "
+            f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'}"
+        ),
+        f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
         f"Archive root: {data['archive_root']}",
         f"Package path: {data['package_path']}",
         f"Package format: {data['package_format']}",
