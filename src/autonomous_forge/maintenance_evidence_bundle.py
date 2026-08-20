@@ -187,6 +187,61 @@ def _safe_bundle_id(value: str) -> str:
     return bundle_id
 
 
+def _external_validation_history_summary(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a compact hash-bound summary of advisory validation provenance."""
+    evidence = data.get("external_validation_evidence")
+    if evidence in (None, {}):
+        return None
+    if not isinstance(evidence, dict):
+        raise MaintenanceEvidenceBundleError("external validation evidence must be an object")
+    if evidence.get("provenance_semantics") != "externally_supplied_observation":
+        raise MaintenanceEvidenceBundleError("external validation evidence has unexpected provenance semantics")
+    if evidence.get("executor_validation_equivalent") is not False:
+        raise MaintenanceEvidenceBundleError("external validation evidence must not be executor-validation equivalent")
+    if evidence.get("bundle_gate_effect") != "advisory_only":
+        raise MaintenanceEvidenceBundleError("external validation evidence must remain advisory only")
+
+    source_record = _clean_text(evidence.get("source_record"))
+    if not source_record or any(char in source_record for char in "\n\r\t"):
+        raise MaintenanceEvidenceBundleError("external validation evidence lacks a safe source record label")
+    attachment_count = evidence.get("attachment_count")
+    attachments = evidence.get("attachments")
+    if not isinstance(attachment_count, int) or attachment_count < 0:
+        raise MaintenanceEvidenceBundleError("external validation evidence has invalid attachment count")
+    if not isinstance(attachments, list) or len(attachments) != attachment_count:
+        raise MaintenanceEvidenceBundleError("external validation attachment count does not match attachment records")
+    for item in attachments:
+        if not isinstance(item, dict):
+            raise MaintenanceEvidenceBundleError("external validation attachment summary must be an object")
+        digest = _clean_text(item.get("sha256"))
+        size = item.get("bytes")
+        if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            raise MaintenanceEvidenceBundleError("external validation attachment summary has invalid SHA-256")
+        if not isinstance(size, int) or size <= 0 or size > _MAX_JSON_BYTES:
+            raise MaintenanceEvidenceBundleError("external validation attachment summary has invalid byte count")
+        if item.get("executor_validation_equivalent") is not False:
+            raise MaintenanceEvidenceBundleError("external validation attachment must not be executor-validation equivalent")
+
+    try:
+        canonical = json.dumps(
+            evidence,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise MaintenanceEvidenceBundleError("external validation evidence must be deterministic JSON") from exc
+    return {
+        "present": True,
+        "provenance_semantics": "externally_supplied_observation",
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": "advisory_only",
+        "source_record": source_record,
+        "attachment_count": attachment_count,
+        "evidence_sha256": hashlib.sha256(canonical).hexdigest(),
+    }
+
+
 def build_maintenance_evidence_bundle_data(
     patch_apply: dict[str, Any],
     post_apply_validation: dict[str, Any],
@@ -400,6 +455,7 @@ def write_maintenance_history_link(
         blockers.append("history link output already exists")
 
     bundle_id = _safe_bundle_id(_clean_text(data.get("bundle_id")))
+    external_validation_summary = _external_validation_history_summary(data)
     link_payload = {
         "schema_version": "maintenance-bundle-history-link/v1",
         "title": "Autonomous Forge maintenance bundle history link",
@@ -427,6 +483,8 @@ def write_maintenance_history_link(
         ),
         "safety_boundary": _HISTORY_LINK_BOUNDARY,
     }
+    if external_validation_summary is not None:
+        link_payload["external_validation_evidence_summary"] = external_validation_summary
     if blockers:
         return {**data, "history_link": link_payload}
 
@@ -478,6 +536,7 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
     if "history_link" in data:
         link = data["history_link"]
         link_context = link.get("validation_context") or {}
+        external_summary = link.get("external_validation_evidence_summary")
         lines.extend(
             [
                 "History link:",
@@ -485,6 +544,19 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
                 f"- written={str(link['history_link_written']).lower()}",
                 f"- bundle_sha256={link['bundle_sha256']}",
                 f"- validation_context_fields={list(link_context) or ['none']}",
+            ]
+        )
+        if isinstance(external_summary, dict):
+            lines.extend(
+                [
+                    f"- external_validation_attachments={external_summary['attachment_count']}",
+                    f"- external_validation_evidence_sha256={external_summary['evidence_sha256']}",
+                    "- external_validation_executor_equivalent=false",
+                    "- external_validation_gate_effect=advisory_only",
+                ]
+            )
+        lines.extend(
+            [
                 "History link blockers:",
                 *[f"- {blocker}" for blocker in link["history_link_blockers"] or ["none"]],
             ]
