@@ -50,6 +50,29 @@ def _repository_relative_entry_path(entry_path: str, *, root: Path) -> Path:
         raise MaintenanceArchiveCopyVerifyError("archive entry path must stay inside the configured root") from exc
 
 
+def _external_validation_provenance(manifest: Any) -> dict[str, Any]:
+    """Preserve archive-manifest advisory provenance without allowing promotion."""
+    evidence = manifest.get("external_validation_provenance") if isinstance(manifest, dict) else None
+    if not isinstance(evidence, dict):
+        evidence = {}
+    present = evidence.get("present") is True
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "provenance_semantics": "externally_supplied_observation" if present else "none",
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": "advisory_only" if present else "none",
+        "source_record": str(evidence.get("source_record") or ""),
+        "attachment_count": (
+            int(evidence.get("attachment_count", 0))
+            if isinstance(evidence.get("attachment_count", 0), int)
+            else 0
+        ),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+    }
+
+
 def build_maintenance_archive_copy_verify_data(
     manifest_path: Path,
     *,
@@ -58,6 +81,7 @@ def build_maintenance_archive_copy_verify_data(
 ) -> dict[str, Any]:
     """Verify archive-copy destinations against a ready written manifest without writing anything."""
     manifest = verify_written_archive_manifest_data(manifest_path, root=root)
+    external_validation = _external_validation_provenance(manifest)
     archive_root_resolved = _resolved_inside_root(archive_root, root=root, label="archive root")
     root_resolved = root.resolve()
     blockers = list(manifest.get("archive_blockers") or [])
@@ -119,6 +143,7 @@ def build_maintenance_archive_copy_verify_data(
         "copy_verified": status == "verified",
         "manifest_path": manifest.get("manifest_path") or str(manifest_path),
         "manifest_status": manifest.get("manifest_status"),
+        "external_validation_provenance": external_validation,
         "archive_root": archive_root_resolved.relative_to(root_resolved).as_posix(),
         "verified_entries": verified_entries,
         "verified_entry_count": len(verified_entries),
@@ -131,14 +156,15 @@ def build_maintenance_archive_copy_verify_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive copy verification reads one written manifest and one repository-local archive root, then recomputes copied "
-            "file hashes and byte counts. It does not copy files, write archives, stage, commit, push, poll workflows, "
-            "rerun validation, change remotes, or prove signer identity."
+            "file hashes and byte counts. It preserves external validation observations only as advisory provenance and does not "
+            "copy files, write archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
         ),
     }
 
 
 def format_maintenance_archive_copy_verify(data: dict[str, Any]) -> str:
     """Format archive-copy verification as stable text."""
+    external = data.get("external_validation_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -146,6 +172,19 @@ def format_maintenance_archive_copy_verify(data: dict[str, Any]) -> str:
         f"Copy verified: {str(bool(data.get('copy_verified'))).lower()}",
         f"Manifest path: {data.get('manifest_path', 'none')}",
         f"Manifest status: {data.get('manifest_status') or 'unknown'}",
+        (
+            "External validation provenance: "
+            f"present={str(bool(external.get('present'))).lower()} "
+            f"status={external.get('status') or 'not_present'} "
+            f"verified={str(bool(external.get('verified'))).lower()} "
+            f"attachments={int(external.get('attachment_count') or 0)}"
+        ),
+        (
+            "External validation semantics: "
+            f"executor_validation_equivalent={str(bool(external.get('executor_validation_equivalent'))).lower()} "
+            f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'}"
+        ),
+        f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
         f"Archive root: {data['archive_root']}",
         f"Verified entries: {data.get('verified_entry_count', len(data.get('verified_entries') or []))}",
     ]
