@@ -33,6 +33,28 @@ After the bundle has been written, the same command can write a small run-histor
 
 The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, retained validation context, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`.
 
+## Immutable external validation provenance
+
+When a run-history record has immutable validation sidecars created by `forge validation-result-attachment-write`, bundle construction can preserve those verified observations as a separate advisory provenance class:
+
+```bash
+forge maintenance-evidence-bundle \
+  --root . \
+  --patch-apply patch-apply.json \
+  --post-apply-validation post-apply-validation.json \
+  --commit-verify commit-verify.json \
+  --verified-push-handoff verified-push.json \
+  --post-push-verify post-push.json \
+  --validation-record .ai/run-history/AUTO-172.json \
+  --output .ai/run-history/AUTO-172-bundle.json \
+  --confirm-write \
+  --format json
+```
+
+Forge discovers matching sidecars through the bounded run-history reader, verifies each sidecar against the exact source-record SHA-256 and byte count, fingerprints the sidecar itself, and stores the result under `external_validation_evidence` in the bundle. Retained validation steps and expected-file-change context must remain consistent with the maintenance bundle or construction fails closed.
+
+This provenance is deliberately **advisory only**. It is marked `executor_validation_equivalent: false` and `bundle_gate_effect: advisory_only`. External observations cannot satisfy the bundle's executor-produced validation stage, remove blockers, or convert a blocked evidence chain into a complete one. Bundle completeness is computed exactly as before from the guarded patch/validation/commit/push/post-push evidence chain.
+
 ## Validation context preservation
 
 When any upstream evidence report supplies a `validation_context` object, bundle creation preserves the supported fields in the generated bundle and optional history-link pointer. Supported fields are `expected_file_changes`, `implementation_steps`, `validation_steps`, and `risk_register`.
@@ -79,7 +101,7 @@ The hashes are provenance fingerprints for stale-report detection. They do not p
 
 ## Safety boundary
 
-The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, records bounded SHA-256 source-report fingerprints, and preserves supported validation context from upstream evidence. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied, the bundle is complete, and the output path does not already exist.
+The bundle builder reads only repository-local JSON reports under `--root`, validates safe reviewed path labels, checks that the same commit and reviewed paths flow through commit verification, push handoff, and post-push verification, records bounded SHA-256 source-report fingerprints, and preserves supported validation context from upstream evidence. Optional immutable validation observations are verified against their exact source record and retained only as advisory provenance. It writes one bounded JSON file only when `--output` and `--confirm-write` are supplied, the bundle is complete, and the output path does not already exist.
 
 The optional history link writes only one small repository-local JSON pointer under `.ai/run-history/` when `--history-link` and `--confirm-history-link` are supplied, the bundle has already been written, and the output does not already exist. It preserves the bundle's validation context but does not rewrite the bundle or run replay verification.
 
@@ -89,6 +111,6 @@ The replay summary reads only one repository-local persisted bundle and the sour
 
 ## Completion rules
 
-A bundle is `complete` only when patch-apply evidence shows an applied change, post-apply validation passed for the same target path, commit verification is verified, push handoff is non-force and references the verified commit, post-push verification is verified for the same commit and reviewed paths, source-report hash entries are valid, and any supplied validation context is a supported object whose values are non-empty string lists.
+A bundle is `complete` only when patch-apply evidence shows an applied change, post-apply validation passed for the same target path, commit verification is verified, push handoff is non-force and references the verified commit, post-push verification is verified for the same commit and reviewed paths, source-report hash entries are valid, and any supplied validation context is a supported object whose values are non-empty string lists. External immutable validation observations never contribute to this completion decision.
 
 A persisted bundle verifies only when all five source-report entries are present, point to regular repository-local files, and the observed byte count and SHA-256 digest exactly match the preserved bundle metadata. A persisted bundle is replayable only when it verifies, is complete, preserves the expected evidence stages and statuses, has safe reviewed paths, keeps the target inside those reviewed paths, records validation steps, and has absent or well-formed validation context that remains consistent with reviewed paths and bundle validation steps. Use `--require-complete`, `--require-written`, `--require-verified`, or `--require-replayable` when automation should fail closed.
