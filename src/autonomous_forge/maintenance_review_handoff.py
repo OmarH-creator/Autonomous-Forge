@@ -37,6 +37,27 @@ def _link_context_items(value: Any) -> dict[str, list[str]]:
     return {field: _clean_list(context.get(field)) for field in _CONTEXT_FIELDS}
 
 
+def _external_validation_provenance(replay: dict[str, Any]) -> dict[str, Any]:
+    """Expose verified linked-bundle advisory provenance without changing handoff readiness semantics."""
+    verification = replay.get("external_validation_evidence_summary_verification")
+    if not isinstance(verification, dict):
+        verification = {}
+    present = verification.get("present") is True
+    status = str(verification.get("status") or ("not_present" if not present else "not_checked"))
+    return {
+        "present": present,
+        "status": status,
+        "verified": bool(verification.get("verified") is True),
+        "provenance_semantics": str(verification.get("provenance_semantics") or ("externally_supplied_observation" if present else "none")),
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": str(verification.get("bundle_gate_effect") or ("advisory_only" if present else "none")),
+        "source_record": str(verification.get("source_record") or ""),
+        "attachment_count": int(verification.get("attachment_count", 0)) if isinstance(verification.get("attachment_count", 0), int) else 0,
+        "evidence_sha256": str(verification.get("actual_evidence_sha256") or verification.get("expected_evidence_sha256") or ""),
+        "blockers": list(verification.get("blockers") or []),
+    }
+
+
 def _history_bundle_context_consistency(
     link_review: dict[str, Any], replay: dict[str, Any], *, link_validation_context: Any = None
 ) -> dict[str, Any]:
@@ -139,6 +160,7 @@ def build_maintenance_review_handoff_data(link_path: Path, *, root: Path = Path(
         link_validation_context=link_payload.get("validation_context"),
     )
     context_consistency = handoff_gates["history_bundle_context_consistency"]
+    external_validation = _external_validation_provenance(linked_replay)
     blockers = list(link_review.get("review_blockers") or []) + list(linked_replay.get("blockers") or [])
     blockers.extend(context_consistency["mismatches"])
     if handoff_gates["failed"]:
@@ -157,6 +179,7 @@ def build_maintenance_review_handoff_data(link_path: Path, *, root: Path = Path(
         "branch": link_review.get("branch") or "",
         "history_link_quality": link_review.get("history_link_quality") or {},
         "linked_bundle_replay": linked_replay,
+        "external_validation_provenance": external_validation,
         "handoff_gates": handoff_gates,
         "history_bundle_context_consistency": context_consistency,
         "reviewed_paths": list(link_review.get("reviewed_paths") or []),
@@ -186,6 +209,13 @@ def format_maintenance_review_handoff(data: dict[str, Any]) -> str:
     policy = replay.get("replay_policy") or {"passed": 0, "failed": 0, "advisory": 0}
     gates = data["handoff_gates"]
     context = data["history_bundle_context_consistency"]
+    external_validation = data.get("external_validation_provenance") or {
+        "present": False,
+        "status": "not_present",
+        "verified": False,
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": "none",
+    }
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -200,6 +230,9 @@ def format_maintenance_review_handoff(data: dict[str, Any]) -> str:
         f"- status={replay.get('status') or 'blocked'} replay_status={replay.get('replay_status') or 'not_run'} replay_complete={str(bool(replay.get('replay_complete') is True)).lower()}",
         f"- bundle_sha256_verified={str(bool(replay.get('bundle_sha256_verified') is True)).lower()}",
         f"- replay_policy_passed={policy['passed']} replay_policy_failed={policy['failed']} replay_policy_advisory={policy['advisory']}",
+        "External validation provenance:",
+        f"- present={str(bool(external_validation.get('present') is True)).lower()} status={external_validation.get('status') or 'not_present'} verified={str(bool(external_validation.get('verified') is True)).lower()}",
+        f"- executor_validation_equivalent={str(bool(external_validation.get('executor_validation_equivalent') is True)).lower()} bundle_gate_effect={external_validation.get('bundle_gate_effect') or 'none'} attachments={int(external_validation.get('attachment_count', 0))}",
         "History/bundle context consistency:",
         f"- status={context['status']} reviewed_paths_match={str(context['reviewed_paths_match']).lower()} validation_steps_match={str(context['validation_steps_match']).lower()}",
         *[f"- mismatch: {mismatch}" for mismatch in context["mismatches"]],
