@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 
 from autonomous_forge.maintenance_evidence_bundle import MaintenanceEvidenceBundleError
-from autonomous_forge.maintenance_replay_summary import (
-    build_maintenance_replay_summary_data,
-    format_maintenance_replay_summary,
+from autonomous_forge.maintenance_replay_validation_evidence import (
+    build_maintenance_replay_with_validation_evidence_data,
+    format_maintenance_replay_with_validation_evidence,
 )
 
 
@@ -21,6 +21,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--root", default=".", help="repository root used to constrain bundle and source report paths")
     parser.add_argument("--bundle", required=True, help="repository-local persisted maintenance evidence bundle JSON")
+    parser.add_argument(
+        "--validation-record",
+        help=(
+            "optional run-history/v1 record whose immutable validation attachments should be verified and exposed "
+            "as advisory external provenance"
+        ),
+    )
     parser.add_argument(
         "--require-replayable",
         action="store_true",
@@ -40,7 +47,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        data = build_maintenance_replay_summary_data(Path(args.bundle), root=Path(args.root))
+        data = build_maintenance_replay_with_validation_evidence_data(
+            Path(args.bundle),
+            validation_record_path=Path(args.validation_record) if args.validation_record else None,
+            root=Path(args.root),
+        )
     except FileNotFoundError as exc:
         print(f"Maintenance replay summary input not found: {exc.filename}")
         return 2
@@ -53,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.format == "json":
         print(json.dumps(data, indent=2, sort_keys=True))
     else:
-        print(format_maintenance_replay_summary(data))
+        print(format_maintenance_replay_with_validation_evidence(data))
     if args.require_replayable and data["replay_status"] != "replayable":
         return 2
     return 0
