@@ -63,6 +63,23 @@ def _candidate_sort_key(row: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _external_validation_summary(handoff: dict[str, Any]) -> dict[str, Any]:
+    evidence = handoff.get("external_validation_provenance")
+    if not isinstance(evidence, dict):
+        evidence = {}
+    return {
+        "present": bool(evidence.get("present") is True),
+        "status": str(evidence.get("status") or "not_present"),
+        "verified": bool(evidence.get("verified") is True),
+        "provenance_semantics": str(evidence.get("provenance_semantics") or "none"),
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": str(evidence.get("bundle_gate_effect") or "none"),
+        "source_record": str(evidence.get("source_record") or ""),
+        "attachment_count": int(evidence.get("attachment_count", 0)) if isinstance(evidence.get("attachment_count", 0), int) else 0,
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+    }
+
+
 def _handoff_row(handoff: dict[str, Any]) -> dict[str, Any]:
     replay = handoff.get("linked_bundle_replay") or {}
     policy = replay.get("replay_policy") or {"passed": 0, "failed": 0, "advisory": 0}
@@ -90,6 +107,7 @@ def _handoff_row(handoff: dict[str, Any]) -> dict[str, Any]:
             "failed": int(policy.get("failed", 0)),
             "advisory": int(policy.get("advisory", 0)),
         },
+        "external_validation_provenance": _external_validation_summary(handoff),
         "reviewed_path_count": len(handoff.get("reviewed_paths") or []),
         "validation_step_count": len(handoff.get("validation_steps") or []),
         "validation_context_counts": _context_counts(handoff.get("validation_context") or {}),
@@ -113,6 +131,7 @@ def _preservation_candidate(row: dict[str, Any], rank: int) -> dict[str, Any]:
         "reviewed_path_count": row["reviewed_path_count"],
         "validation_step_count": row["validation_step_count"],
         "validation_context_counts": row["validation_context_counts"],
+        "external_validation_provenance": row["external_validation_provenance"],
         "preservation_score": row["preservation_score"],
         "reason": (
             "ready handoff with verified linked bundle replay, zero failed gates, "
@@ -131,6 +150,9 @@ def build_maintenance_review_compare_data(link_paths: list[Path], *, root: Path 
     blocked_count = len(rows) - ready_count
     failed_gate_count = sum(row["handoff_gates"]["failed"] for row in rows)
     replay_failed_count = sum(row["replay_policy"]["failed"] for row in rows)
+    verified_external_validation_count = sum(
+        1 for row in rows if row["external_validation_provenance"]["verified"] is True
+    )
     blockers = [
         f"{row['history_link_path']}: {blocker}"
         for row in rows
@@ -156,6 +178,7 @@ def build_maintenance_review_compare_data(link_paths: list[Path], *, root: Path 
         "blocked_count": blocked_count,
         "failed_handoff_gate_count": failed_gate_count,
         "failed_replay_policy_count": replay_failed_count,
+        "verified_external_validation_count": verified_external_validation_count,
         "reviewed_path_count": sum(row["reviewed_path_count"] for row in rows),
         "validation_step_count": sum(row["validation_step_count"] for row in rows),
         "handoffs": rows,
@@ -187,6 +210,7 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
             f"links={data['link_count']} ready={data['ready_count']} blocked={data['blocked_count']} "
             f"failed_handoff_gates={data['failed_handoff_gate_count']} "
             f"failed_replay_policy={data['failed_replay_policy_count']} "
+            f"verified_external_validation={data['verified_external_validation_count']} "
             f"reviewed_paths={data['reviewed_path_count']} validation_steps={data['validation_step_count']}"
         ),
         (
@@ -199,11 +223,13 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
         "Handoffs:",
     ]
     for row in data["handoffs"]:
+        provenance = row["external_validation_provenance"]
         lines.append(
             "- "
             f"{row['history_link_path']}: status={row['handoff_status']} "
             f"bundle={row['bundle_id'] or 'none'} commit={row['commit_sha'] or 'none'} "
             f"replay={row['replay_status']} hash_verified={str(row['bundle_sha256_verified']).lower()} "
+            f"external_validation={provenance['status']} external_validation_verified={str(provenance['verified']).lower()} "
             f"handoff_failed={row['handoff_gates']['failed']} replay_failed={row['replay_policy']['failed']} "
             f"context_items={_context_total(row['validation_context_counts'])} "
             f"blockers={row['blocker_count']}"
@@ -211,10 +237,12 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
     lines.append("Preservation candidates:")
     if data["preservation_candidates"]:
         for candidate in data["preservation_candidates"]:
+            provenance = candidate["external_validation_provenance"]
             lines.append(
                 "- "
                 f"rank={candidate['rank']} bundle={candidate['bundle_id']} "
                 f"link={candidate['history_link_path']} commit={candidate['commit_sha']} "
+                f"external_validation={provenance['status']} external_validation_verified={str(provenance['verified']).lower()} "
                 f"context_items={_context_total(candidate['validation_context_counts'])}"
             )
     else:
