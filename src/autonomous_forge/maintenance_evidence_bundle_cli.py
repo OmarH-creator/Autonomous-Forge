@@ -17,6 +17,7 @@ from autonomous_forge.maintenance_evidence_bundle import (
     write_maintenance_evidence_bundle,
     write_maintenance_history_link,
 )
+from autonomous_forge.maintenance_replay_validation_evidence import collect_external_validation_evidence
 from autonomous_forge.verified_maintenance_provenance import (
     VerifiedMaintenanceProvenanceError,
     read_and_enrich_maintenance_bundle_with_verified_provenance,
@@ -47,6 +48,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "repository-local verified-push-handoff JSON; can be used as the canonical push-stage input without a "
             "second raw --push-handoff file"
+        ),
+    )
+    parser.add_argument(
+        "--validation-record",
+        default=None,
+        help=(
+            "optional repository-local run-history JSON whose verified immutable validation attachments are persisted "
+            "as advisory external provenance; they never satisfy executor-validation readiness"
         ),
     )
     parser.add_argument("--bundle-id", default="maintenance-evidence-bundle", help="stable single-line bundle identifier")
@@ -122,6 +131,16 @@ def main(argv: list[str] | None = None) -> int:
                 root=Path(args.root),
                 bundle_id=args.bundle_id,
             )
+        if args.validation_record:
+            external = collect_external_validation_evidence(
+                data,
+                validation_record_path=Path(args.validation_record),
+                root=Path(args.root),
+            )
+            data["external_validation_evidence"] = external
+            summary = dict(data.get("summary", {}))
+            summary["external_validation_attachments"] = external["attachment_count"]
+            data["summary"] = summary
         if args.output:
             data = write_maintenance_evidence_bundle(
                 data,
@@ -156,7 +175,18 @@ def main(argv: list[str] | None = None) -> int:
     if args.format == "json":
         print(json.dumps(data, indent=2, sort_keys=True))
     else:
-        print(format_maintenance_evidence_bundle(data))
+        text = format_maintenance_evidence_bundle(data)
+        external = data.get("external_validation_evidence")
+        if isinstance(external, dict):
+            text += (
+                "\nExternal immutable validation observations:\n"
+                f"- Source record: {external.get('source_record')}\n"
+                f"- Attachments: {external.get('attachment_count', 0)}\n"
+                "- Provenance semantics: externally_supplied_observation\n"
+                "- Executor validation equivalent: false\n"
+                "- Bundle gate effect: advisory_only"
+            )
+        print(text)
     if args.require_history_linked and data.get("history_link", {}).get("history_link_written") is not True:
         return 2
     if args.require_written and data.get("write_status") != "written":
