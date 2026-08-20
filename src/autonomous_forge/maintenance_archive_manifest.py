@@ -18,6 +18,25 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _external_validation_provenance(candidate: Any) -> dict[str, Any]:
+    """Return a stable advisory-only provenance summary for archive surfaces."""
+    evidence = candidate.get("external_validation_provenance") if isinstance(candidate, dict) else None
+    if not isinstance(evidence, dict):
+        evidence = {}
+    present = evidence.get("present") is True
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "provenance_semantics": "externally_supplied_observation" if present else "none",
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": "advisory_only" if present else "none",
+        "source_record": str(evidence.get("source_record") or ""),
+        "attachment_count": int(evidence.get("attachment_count", 0)) if isinstance(evidence.get("attachment_count", 0), int) else 0,
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+    }
+
+
 def _safe_repository_path(path_text: str, *, root: Path, label: str) -> dict[str, Any]:
     value = str(path_text or "").strip()
     if not value:
@@ -182,6 +201,7 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
     """Build an archive manifest from maintenance review comparison links without writing it."""
     comparison = build_maintenance_review_compare_data(link_paths, root=root)
     selected = comparison.get("selected_preservation_candidate")
+    external_validation = _external_validation_provenance(selected)
     blockers = list(comparison.get("comparison_blockers") or [])
     if comparison.get("comparison_status") != "ready":
         blockers.append("comparison is not ready for archive manifest preview")
@@ -194,6 +214,7 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
             "manifest_status": "blocked",
             "manifest_ready": False,
             "selected_preservation_candidate": selected,
+            "external_validation_provenance": external_validation,
             "comparison_status": comparison.get("comparison_status"),
             "archive_entries": [],
             "archive_entry_count": 0,
@@ -245,6 +266,7 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         "manifest_ready": status == "ready",
         "comparison_status": comparison["comparison_status"],
         "selected_preservation_candidate": selected,
+        "external_validation_provenance": external_validation,
         "archive_entries": entries,
         "archive_entry_count": len(entries),
         "source_report_count": len(source_reports),
@@ -300,6 +322,12 @@ def verify_written_archive_manifest_data(manifest_path: Path, *, root: Path = Pa
     if integrity["failed"]:
         blockers.append(f"archive integrity failed for {integrity['failed']} entr{'y' if integrity['failed'] == 1 else 'ies'}")
     status = "ready" if not blockers else "blocked"
+    selected = manifest.get("selected_preservation_candidate")
+    external_validation = _external_validation_provenance(
+        {"external_validation_provenance": manifest.get("external_validation_provenance")}
+        if "external_validation_provenance" in manifest
+        else selected
+    )
     return {
         "title": "Autonomous Forge maintenance archive manifest verification",
         "mode": "archive manifest verification",
@@ -308,7 +336,8 @@ def verify_written_archive_manifest_data(manifest_path: Path, *, root: Path = Pa
         "manifest_written": True,
         "manifest_path": manifest_info["path"],
         "source_manifest_status": manifest.get("manifest_status", "unknown"),
-        "selected_preservation_candidate": manifest.get("selected_preservation_candidate"),
+        "selected_preservation_candidate": selected,
+        "external_validation_provenance": external_validation,
         "comparison_status": manifest.get("comparison_status"),
         "archive_entries": entries,
         "archive_entry_count": len(entries),
@@ -335,6 +364,7 @@ def verify_written_archive_manifest_data(manifest_path: Path, *, root: Path = Pa
 def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
     """Format an archive manifest preview, write result, or verification result as stable text."""
     selected = data.get("selected_preservation_candidate") or {}
+    provenance = data.get("external_validation_provenance") or _external_validation_provenance(selected)
     integrity = data.get("archive_integrity") or {"status": "unknown", "passed": 0, "failed": 0, "advisory": 0, "gates": []}
     lines = [
         str(data["title"]),
@@ -351,6 +381,16 @@ def format_maintenance_archive_manifest(data: dict[str, Any]) -> str:
             if selected
             else "Selected preservation candidate: none"
         ),
+        (
+            "External validation provenance: "
+            f"present={str(bool(provenance.get('present') is True)).lower()} "
+            f"status={provenance.get('status') or 'not_present'} "
+            f"verified={str(bool(provenance.get('verified') is True)).lower()} "
+            f"attachments={int(provenance.get('attachment_count', 0))} "
+            f"executor_validation_equivalent=false "
+            f"bundle_gate_effect={provenance.get('bundle_gate_effect') or 'none'}"
+        ),
+        f"External validation evidence SHA-256: {provenance.get('evidence_sha256') or 'none'}",
         f"Archive entries: {len(data.get('archive_entries') or [])}",
         (
             "Archive integrity: "
