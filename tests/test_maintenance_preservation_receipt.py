@@ -9,6 +9,7 @@ from autonomous_forge.cli_entry_patch import main as forge_main
 from autonomous_forge.maintenance_preservation_receipt import (
     MaintenancePreservationReceiptError,
     build_maintenance_preservation_receipt_data,
+    discover_maintenance_preservation_receipts,
     verify_maintenance_preservation_receipt,
     write_maintenance_preservation_receipt,
 )
@@ -47,8 +48,8 @@ def _complete_payload() -> dict:
     }
 
 
-def _write_complete(root: Path) -> Path:
-    path = root / ".ai" / "complete.json"
+def _write_complete(root: Path, name: str = "complete.json") -> Path:
+    path = root / ".ai" / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(_complete_payload(), indent=2) + "\n", encoding="utf-8")
     return path
@@ -100,6 +101,83 @@ def test_receipt_output_is_confined(tmp_path: Path) -> None:
     source = _write_complete(tmp_path)
     with pytest.raises(MaintenancePreservationReceiptError, match="directly under"):
         write_maintenance_preservation_receipt(source, tmp_path / "receipt.json", root=tmp_path, confirm_write=True)
+
+
+def test_receipt_discovery_verifies_matching_receipts_without_gating_completeness(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path)
+    receipt_dir = tmp_path / ".ai" / "preservation-receipts"
+    first = receipt_dir / "01.json"
+    second = receipt_dir / "02.json"
+    write_maintenance_preservation_receipt(source, first, root=tmp_path, confirm_write=True)
+    write_maintenance_preservation_receipt(source, second, root=tmp_path, confirm_write=True)
+
+    review = discover_maintenance_preservation_receipts(source, root=tmp_path)
+
+    assert review["receipt_review_status"] == "verified"
+    assert review["verified_receipt_count"] == 2
+    assert [item["path"] for item in review["receipts"]] == [
+        ".ai/preservation-receipts/01.json",
+        ".ai/preservation-receipts/02.json",
+    ]
+    assert review["preservation_complete"] is True
+    assert review["receipt_required_for_preservation"] is False
+    assert review["receipt_gate_effect"] == "informational_only"
+
+
+def test_receipt_discovery_reports_absence_without_downgrading_preservation(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path)
+    review = discover_maintenance_preservation_receipts(source, root=tmp_path)
+    assert review["receipt_review_status"] == "not_found"
+    assert review["verified_receipt_count"] == 0
+    assert review["preservation_complete"] is True
+    assert review["receipt_gate_effect"] == "informational_only"
+
+
+def test_receipt_discovery_surfaces_matching_tamper_and_ignores_other_sources(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path, "complete-a.json")
+    other = _write_complete(tmp_path, "complete-b.json")
+    receipt_dir = tmp_path / ".ai" / "preservation-receipts"
+    matching = receipt_dir / "matching.json"
+    unrelated = receipt_dir / "unrelated.json"
+    write_maintenance_preservation_receipt(source, matching, root=tmp_path, confirm_write=True)
+    write_maintenance_preservation_receipt(other, unrelated, root=tmp_path, confirm_write=True)
+
+    payload = json.loads(matching.read_text(encoding="utf-8"))
+    payload["package_sha256"] = "d" * 64
+    matching.write_text(json.dumps(payload), encoding="utf-8")
+
+    review = discover_maintenance_preservation_receipts(source, root=tmp_path)
+    assert review["receipt_review_status"] == "attention_required"
+    assert review["verified_receipt_count"] == 0
+    assert review["invalid_receipt_count"] == 1
+    assert review["ignored_receipt_count"] == 1
+    assert "receipt field drifted" in review["invalid_receipts"][0]["error"]
+    assert review["preservation_complete"] is True
+
+
+def test_receipt_discovery_still_requires_complete_source(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path)
+    output = tmp_path / ".ai" / "preservation-receipts" / "receipt.json"
+    write_maintenance_preservation_receipt(source, output, root=tmp_path, confirm_write=True)
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["preservation_complete"] = False
+    payload["preservation_status"] = "blocked"
+    source.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(MaintenancePreservationReceiptError, match="not complete"):
+        discover_maintenance_preservation_receipts(source, root=tmp_path)
+
+
+def test_receipt_discovery_refuses_symlinked_receipt_directory(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path)
+    target = tmp_path / "receipts-target"
+    target.mkdir()
+    receipt_dir = tmp_path / ".ai" / "preservation-receipts"
+    try:
+        receipt_dir.symlink_to(target, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks unavailable on this platform")
+    with pytest.raises(MaintenancePreservationReceiptError, match="must not be a symlink"):
+        discover_maintenance_preservation_receipts(source, root=tmp_path)
 
 
 def test_primary_router_exposes_receipt_help() -> None:
