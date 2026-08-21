@@ -14,6 +14,21 @@ from autonomous_forge.maintenance_review_compare import (
 )
 
 
+def _dedupe_paths(paths: list[str], *, root: Path) -> list[Path]:
+    """Return canonical first-occurrence paths so repeated evidence is not double-counted."""
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for raw in paths:
+        path = Path(raw)
+        candidate = path if path.is_absolute() else root / path
+        canonical = candidate.resolve()
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        unique.append(path)
+    return unique
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the parser for the maintenance review comparison command."""
     parser = argparse.ArgumentParser(
@@ -33,7 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help=(
             "optional complete preservation-completeness JSON used to discover matching immutable receipts; "
-            "repeat as needed. Receipt review is informational and never changes comparison readiness or ranking"
+            "repeat as needed. Repeated references to the same canonical file are counted once. Receipt review "
+            "is informational and never changes comparison readiness or ranking"
         ),
     )
     parser.add_argument(
@@ -49,11 +65,12 @@ def main(argv: list[str] | None = None) -> int:
     """Run the maintenance review comparison CLI."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    root = Path(args.root)
     try:
         data = build_maintenance_review_compare_data(
             [Path(link) for link in args.link],
-            root=Path(args.root),
-            completeness_paths=[Path(path) for path in args.completeness],
+            root=root,
+            completeness_paths=_dedupe_paths(args.completeness, root=root),
         )
     except FileNotFoundError as exc:
         print(f"Maintenance review comparison input not found: {exc.filename}")
