@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from autonomous_forge.maintenance_evidence_bundle import MaintenanceEvidenceBundleError
+from autonomous_forge.maintenance_preservation_receipt import MaintenancePreservationReceiptError
 from autonomous_forge.maintenance_review_compare import (
     build_maintenance_review_compare_data,
     format_maintenance_review_compare,
@@ -27,6 +28,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="repository-local .ai/run-history maintenance bundle link JSON; repeat for multiple links",
     )
     parser.add_argument(
+        "--completeness",
+        action="append",
+        default=[],
+        help=(
+            "optional complete preservation-completeness JSON used to discover matching immutable receipts; "
+            "repeat as needed. Receipt review is informational and never changes comparison readiness or ranking"
+        ),
+    )
+    parser.add_argument(
         "--require-all-ready",
         action="store_true",
         help="return exit code 2 unless every compared handoff passes all required gates",
@@ -40,11 +50,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        data = build_maintenance_review_compare_data([Path(link) for link in args.link], root=Path(args.root))
+        data = build_maintenance_review_compare_data(
+            [Path(link) for link in args.link],
+            root=Path(args.root),
+            completeness_paths=[Path(path) for path in args.completeness],
+        )
     except FileNotFoundError as exc:
         print(f"Maintenance review comparison input not found: {exc.filename}")
         return 2
-    except MaintenanceEvidenceBundleError as exc:
+    except (MaintenanceEvidenceBundleError, MaintenancePreservationReceiptError) as exc:
         print(f"Maintenance review comparison refused: {exc}")
         return 2
     except ValueError as exc:
