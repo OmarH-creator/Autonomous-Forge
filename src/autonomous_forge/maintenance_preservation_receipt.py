@@ -34,9 +34,10 @@ def _repo_relative(path: Path, *, root: Path) -> str:
 
 
 def _load_json_bytes(path: Path, *, root: Path) -> tuple[dict[str, Any], bytes, str]:
-    resolved = _resolve_repo_file(path, root=root, must_exist=True)
-    if resolved.is_symlink():
+    candidate = path if path.is_absolute() else root / path
+    if candidate.is_symlink():
         raise MaintenancePreservationReceiptError("receipt inputs must not be symlinks")
+    resolved = _resolve_repo_file(path, root=root, must_exist=True)
     raw = resolved.read_bytes()
     try:
         payload = json.loads(raw.decode("utf-8"))
@@ -106,8 +107,14 @@ def write_maintenance_preservation_receipt(completeness_path: Path, output_path:
         raise MaintenancePreservationReceiptError("receipt write requires explicit confirmation")
     data = build_maintenance_preservation_receipt_data(completeness_path, root=root)
     resolved_root = root.resolve()
+    output_candidate = output_path if output_path.is_absolute() else root / output_path
+    if output_candidate.is_symlink():
+        raise MaintenancePreservationReceiptError("receipt output must not be a symlink")
+    receipt_dir = resolved_root / _RECEIPT_DIR
+    if receipt_dir.is_symlink():
+        raise MaintenancePreservationReceiptError("receipt directory must not be a symlink")
     output = _resolve_repo_file(output_path, root=root)
-    allowed_dir = (resolved_root / _RECEIPT_DIR).resolve()
+    allowed_dir = receipt_dir.resolve()
     if output.parent.resolve() != allowed_dir:
         raise MaintenancePreservationReceiptError("receipt output must be directly under .ai/preservation-receipts/")
     if output.suffix.lower() != ".json":
