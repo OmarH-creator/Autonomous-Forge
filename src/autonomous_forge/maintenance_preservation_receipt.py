@@ -15,6 +15,7 @@ class MaintenancePreservationReceiptError(ValueError):
 
 
 _RECEIPT_DIR = Path(".ai/preservation-receipts")
+_MAX_DISCOVERY_RECEIPTS = 100
 
 
 def _resolve_repo_file(path: Path, *, root: Path, must_exist: bool = False) -> Path:
@@ -166,6 +167,104 @@ def verify_maintenance_preservation_receipt(receipt_path: Path, *, root: Path = 
         if receipt.get(field) != rebuilt.get(field):
             raise MaintenancePreservationReceiptError(f"receipt field drifted: {field}")
     return {**receipt, "receipt_path": receipt_relative, "receipt_status": "verified", "receipt_verified": True, "source_completeness_verified": True, "write_allowed": False}
+
+
+def discover_maintenance_preservation_receipts(
+    completeness_path: Path,
+    *,
+    root: Path = Path("."),
+    max_receipts: int = _MAX_DISCOVERY_RECEIPTS,
+) -> dict[str, Any]:
+    """Discover receipt files bound to one complete preservation artifact.
+
+    Discovery is informational only: the completeness artifact is independently
+    checked first, and receipt presence never changes preservation completeness.
+    """
+    if max_receipts < 1:
+        raise MaintenancePreservationReceiptError("receipt discovery limit must be positive")
+    completeness, raw, relative = _load_json_bytes(completeness_path, root=root)
+    _require_complete(completeness)
+    source_sha = hashlib.sha256(raw).hexdigest()
+    resolved_root = root.resolve()
+    receipt_dir = resolved_root / _RECEIPT_DIR
+    if receipt_dir.is_symlink():
+        raise MaintenancePreservationReceiptError("receipt directory must not be a symlink")
+    if not receipt_dir.exists():
+        candidates: list[Path] = []
+    else:
+        if not receipt_dir.is_dir():
+            raise MaintenancePreservationReceiptError("receipt directory must be a directory")
+        resolved_dir = receipt_dir.resolve()
+        if resolved_root not in resolved_dir.parents:
+            raise MaintenancePreservationReceiptError("receipt directory must stay inside the repository root")
+        candidates = sorted(receipt_dir.glob("*.json"), key=lambda item: item.name)
+        if len(candidates) > max_receipts:
+            raise MaintenancePreservationReceiptError(
+                f"receipt discovery exceeds bounded limit of {max_receipts} JSON files"
+            )
+
+    verified: list[dict[str, Any]] = []
+    invalid: list[dict[str, Any]] = []
+    ignored = 0
+    for candidate in candidates:
+        candidate_relative = candidate.relative_to(resolved_root).as_posix()
+        try:
+            payload, _, _ = _load_json_bytes(candidate, root=root)
+        except MaintenancePreservationReceiptError as exc:
+            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": str(exc)})
+            continue
+        if payload.get("schema") != "maintenance-preservation-receipt/v1":
+            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": "unsupported preservation receipt schema"})
+            continue
+        source = payload.get("source_completeness")
+        if not isinstance(source, dict):
+            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": "receipt has no source completeness binding"})
+            continue
+        if str(source.get("path") or "") != relative:
+            ignored += 1
+            continue
+        try:
+            receipt = verify_maintenance_preservation_receipt(candidate, root=root)
+        except MaintenancePreservationReceiptError as exc:
+            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": True, "error": str(exc)})
+            continue
+        verified.append(
+            {
+                "path": receipt["receipt_path"],
+                "status": "verified",
+                "commit_sha": receipt.get("commit_sha"),
+                "package_sha256": receipt.get("package_sha256"),
+                "source_completeness_sha256": (receipt.get("source_completeness") or {}).get("sha256"),
+            }
+        )
+
+    review_status = "attention_required" if invalid else ("verified" if verified else "not_found")
+    return {
+        "mode": "preservation receipt review",
+        "title": "Autonomous Forge preservation receipt review",
+        "source_completeness": {
+            "path": relative,
+            "bytes": len(raw),
+            "sha256": source_sha,
+            "preservation_status": "complete",
+            "preservation_complete": True,
+        },
+        "receipt_directory": _RECEIPT_DIR.as_posix(),
+        "scan_limit": max_receipts,
+        "candidate_count": len(candidates),
+        "matching_receipt_count": len(verified) + sum(1 for entry in invalid if entry.get("matches_source") is True),
+        "verified_receipt_count": len(verified),
+        "invalid_receipt_count": len(invalid),
+        "ignored_receipt_count": ignored,
+        "receipts": verified,
+        "invalid_receipts": invalid,
+        "receipt_review_status": review_status,
+        "receipt_gate_effect": "informational_only",
+        "receipt_required_for_preservation": False,
+        "preservation_complete": True,
+        "write_allowed": False,
+        "safety_boundary": "Receipt discovery is bounded and read-only. It verifies matching receipt bindings but never treats receipt presence or absence as a substitute for preservation completeness.",
+    }
 
 
 def dumps_maintenance_preservation_receipt_json(data: dict[str, Any]) -> str:
