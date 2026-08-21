@@ -52,6 +52,60 @@ def _sha_prefix_matches(left: Any, right: Any) -> bool:
     return len(short) >= 7 and long.startswith(short)
 
 
+def _advisory_provenance_summary(value: Any) -> dict[str, Any]:
+    evidence = value if isinstance(value, dict) else {}
+    present = evidence.get("present") is True
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "provenance_semantics": "externally_supplied_observation" if present else "none",
+        "executor_validation_equivalent": False,
+        "bundle_gate_effect": "advisory_only" if present else "none",
+        "source_record": str(evidence.get("source_record") or ""),
+        "attachment_count": (
+            int(evidence.get("attachment_count", 0))
+            if isinstance(evidence.get("attachment_count", 0), int)
+            else 0
+        ),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+    }
+
+
+def _external_validation_provenance_review(
+    manifest: dict[str, Any],
+    copy_verify: dict[str, Any],
+    package_verify: dict[str, Any],
+) -> dict[str, Any]:
+    """Expose final advisory provenance continuity without turning it into a preservation gate."""
+    manifest_provenance = _advisory_provenance_summary(manifest.get("external_validation_provenance"))
+    copy_provenance = _advisory_provenance_summary(copy_verify.get("external_validation_provenance"))
+    package_provenance = _advisory_provenance_summary(package_verify.get("external_validation_provenance"))
+    manifest_matches_copy = manifest_provenance == copy_provenance
+    manifest_matches_package = manifest_provenance == package_provenance
+    continuity_verified = bool(manifest_matches_copy and manifest_matches_package)
+    present = bool(manifest_provenance.get("present"))
+    externally_verified = bool(present and manifest_provenance.get("verified") and continuity_verified)
+    status = (
+        "verified"
+        if externally_verified
+        else "drifted"
+        if not continuity_verified
+        else "not_present"
+        if not present
+        else "advisory_unverified"
+    )
+    return {
+        **manifest_provenance,
+        "status": status,
+        "verified": externally_verified,
+        "continuity_verified": continuity_verified,
+        "manifest_matches_copy": manifest_matches_copy,
+        "manifest_matches_package": manifest_matches_package,
+        "preservation_gate_effect": "none",
+    }
+
+
 def _workflow_status_gate(
     manifest: dict[str, Any],
     *,
@@ -120,6 +174,7 @@ def build_maintenance_preservation_completeness_data(
         package_path=package_path,
         root=root,
     )
+    external_validation = _external_validation_provenance_review(manifest, copy_verify, package_verify)
     workflow_gate, workflow_status_review, workflow_blockers = _workflow_status_gate(
         manifest,
         status_payload=status_payload,
@@ -183,6 +238,7 @@ def build_maintenance_preservation_completeness_data(
         "commit_sha": manifest.get("commit_sha"),
         "remote": manifest.get("remote"),
         "branch": manifest.get("branch"),
+        "external_validation_provenance": external_validation,
         "stage_gates": stage_gates,
         "manifest_entry_count": manifest_entry_count,
         "copied_entry_count": copied_entry_count,
@@ -205,9 +261,10 @@ def build_maintenance_preservation_completeness_data(
         "write_allowed": False,
         "safety_boundary": (
             "Preservation completeness reads one written manifest, one copied archive root, one written archive package, "
-            "and optionally one supplied workflow-status JSON file, then summarizes their existing verification gates. It does "
-            "not write files, copy evidence, create packages, stage, commit, push, poll workflows, rerun validation, change "
-            "remotes, or prove signer identity."
+            "and optionally one supplied workflow-status JSON file, then summarizes their existing verification gates. External "
+            "validation observations remain advisory-only; their cross-layer continuity is reported for reviewer visibility and "
+            "cannot change preservation completeness. It does not write files, copy evidence, create packages, stage, commit, "
+            "push, poll workflows, rerun validation, change remotes, or prove signer identity."
         ),
     }
 
@@ -216,6 +273,7 @@ def format_maintenance_preservation_completeness(data: dict[str, Any]) -> str:
     """Format preservation completeness data as stable text."""
     workflow_review = data.get("workflow_status_review") or {}
     workflow_summary = workflow_review.get("summary") if isinstance(workflow_review, dict) else None
+    external = data.get("external_validation_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -226,6 +284,26 @@ def format_maintenance_preservation_completeness(data: dict[str, Any]) -> str:
         f"Package path: {data.get('package_path') or 'none'}",
         f"Package format: {data.get('package_format') or 'unknown'}",
         f"Commit sha: {data.get('commit_sha') or 'none'}",
+        (
+            "External validation provenance: "
+            f"present={str(bool(external.get('present'))).lower()} "
+            f"status={external.get('status') or 'not_present'} "
+            f"verified={str(bool(external.get('verified'))).lower()} "
+            f"attachments={int(external.get('attachment_count') or 0)}"
+        ),
+        (
+            "External validation continuity: "
+            f"verified={str(bool(external.get('continuity_verified'))).lower()} "
+            f"manifest_matches_copy={str(bool(external.get('manifest_matches_copy'))).lower()} "
+            f"manifest_matches_package={str(bool(external.get('manifest_matches_package'))).lower()}"
+        ),
+        (
+            "External validation semantics: "
+            f"executor_validation_equivalent={str(bool(external.get('executor_validation_equivalent'))).lower()} "
+            f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'} "
+            f"preservation_gate_effect={external.get('preservation_gate_effect') or 'none'}"
+        ),
+        f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
         f"Manifest entries: {data.get('manifest_entry_count', 0)}",
         f"Copied entries: {data.get('copied_entry_count', 0)}",
         f"Package expected entries: {data.get('package_expected_entry_count', 0)}",
