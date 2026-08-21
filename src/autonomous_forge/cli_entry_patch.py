@@ -24,6 +24,7 @@ from autonomous_forge.maintenance_bundle_verify_cli import main as _maintenance_
 from autonomous_forge.maintenance_evidence_bundle_cli import main as _maintenance_evidence_bundle_main
 from autonomous_forge.maintenance_history_link_review_cli import main as _maintenance_history_link_review_main
 from autonomous_forge.maintenance_preservation_completeness_cli import main as _maintenance_preservation_completeness_main
+from autonomous_forge.maintenance_preservation_receipt_cli import main as _maintenance_preservation_receipt_main
 from autonomous_forge.maintenance_replay_policy_summary_cli import main as _maintenance_replay_policy_summary_main
 from autonomous_forge.maintenance_replay_summary_cli import main as _maintenance_replay_summary_main
 from autonomous_forge.maintenance_review_compare_cli import main as _maintenance_review_compare_main
@@ -73,6 +74,7 @@ _EXTENSION_COMMANDS = {
     "maintenance-evidence-bundle": _maintenance_evidence_bundle_main,
     "maintenance-history-link-review": _maintenance_history_link_review_main,
     "maintenance-preservation-completeness": _maintenance_preservation_completeness_main,
+    "maintenance-preservation-receipt": _maintenance_preservation_receipt_main,
     "maintenance-replay-policy-summary": _maintenance_replay_policy_summary_main,
     "maintenance-replay-summary": _maintenance_replay_summary_main,
     "maintenance-review-compare": _maintenance_review_compare_main,

@@ -1,17 +1,17 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-178 — Expose advisory validation provenance at final preservation completeness
+- Current task ID: AUTO-179 — Persist immutable preservation receipts
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-08-21T07:03:34+04:00
-- Latest run summary: Extended `forge maintenance-preservation-completeness` so the final preservation summary exposes external-validation provenance and reports normalized continuity across the written manifest, copied-root verification, and package verification without turning advisory evidence into a readiness gate.
-- Safety: External observations remain advisory, are never executor-validation equivalent, and have no preservation-gate effect. Cross-layer provenance drift is reviewer information only.
-- Repository assessment: Inspected README/docs/examples, relevant source/tests/config/CI, repository policy, autonomous records, recent commits, open issues, TODO/FIXME/XXX results, every visible branch, and recent PR history. All seven non-main branches are diverged and substantially behind current `main`; none warranted integration.
+- Last run timestamp: 2026-08-21T11:08:03+04:00
+- Latest run summary: Added `forge maintenance-preservation-receipt` so one already-complete preservation artifact can be previewed, persisted behind its own explicit confirmation, and later re-verified through exact byte-count/SHA-256 binding without duplicating lower-level archive verification.
+- Safety: Receipt outputs are confined to `.ai/preservation-receipts/*.json`, refuse overwrite and symlink inputs, publish through a flushed temporary file plus atomic no-clobber hard-link and directory fsync, and cannot promote external validation observations into executor proof or preservation gates.
+- Repository assessment: Inspected README/docs, preservation/archive source and tests, policy/config/CI, roadmap/state/changelog/decisions, recent commits, open issues, TODO/FIXME/XXX search surface, every visible branch, recent PR history, and AUTO-178 status/workflow lookups. The seven non-main branches remain historical/diverged and no PR warrants integration.
 - Branch and PR disposition: Work stayed directly on `main`; no branch or PR was created or merged.
-- Validation: The changed preservation-completeness core and focused AUTO-178 regression test syntax-compile successfully in the available execution environment. Direct checkout/full pytest remains unavailable because this runtime cannot resolve `github.com`. Current status/run lookups expose no AUTO-177 check objects, so no unsupported green-matrix claim is made.
-- Current blockers: Direct checkout execution remains unavailable in this runtime. Fresh external status acquisition remains deferred under repository policy.
-- Known risks and assumptions: SHA-256 continuity detects evidence-byte drift but does not prove signer identity. Legacy manifests without external-validation provenance remain compatible and report `status=not_present`; cross-layer advisory drift reports `status=drifted` but is intentionally non-gating.
-- Visuals: None; AUTO-178 carries evidence metadata through the existing final preservation edge and does not alter the lifecycle architecture.
-- Project-memory note: README, this state file, and `.ai/AUTO-178.md` contain the authoritative AUTO-178 record. Large append-only histories were inspected but are not destructively replaced when the connected write surface cannot safely append their complete contents.
-- Recommended next task: Inspect AUTO-178 CI when observable; if green, consider a durable preservation receipt only if it can bind to the existing verified completeness artifact while preserving an independent explicit persistence authority gate and avoiding a duplicate evidence contract.
+- Validation: New receipt core/CLI/focused tests syntax-compile in the available scratch environment; focused design covers complete-artifact gating, independent write confirmation, no-clobber persistence, source-drift verification, path confinement, advisory provenance semantics, and the primary `forge ... --help` route. AUTO-178 status/run lookups still expose no check objects; full checkout pytest remains unavailable because this runtime cannot resolve `github.com`.
+- Current blockers: Final supported-version CI for AUTO-179 must be inspected when observable. Direct checkout execution remains unavailable in this runtime.
+- Known risks and assumptions: The receipt proves continuity to exact completeness bytes but not signer identity or validation sufficiency. It intentionally relies on the existing completeness artifact rather than re-running archive verification.
+- Visuals: None; the receipt is a durable terminal record on the existing preservation edge and does not change the lifecycle architecture.
+- Project-memory note: README, this state file, and `.ai/AUTO-179.md` contain the authoritative AUTO-179 record. Large append-only histories were inspected; they should only be updated when their complete existing contents can be preserved safely.
+- Recommended next task: Inspect AUTO-179 CI when observable. If green, integrate receipt verification into the preservation review/read path so reviewers can discover a durable receipt without weakening its independent persistence authority.
