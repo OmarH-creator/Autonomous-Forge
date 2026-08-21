@@ -42,6 +42,21 @@ def _sha_prefix_matches(left: Any, right: Any) -> bool:
     return len(short) >= 7 and long.startswith(short)
 
 
+def _dedupe_completeness_paths(paths: list[Path], *, root: Path) -> list[Path]:
+    """Keep the first path for each canonical completeness artifact."""
+    root = root.resolve()
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for path in paths:
+        candidate = path if path.is_absolute() else root / path
+        canonical = candidate.resolve()
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        unique.append(path)
+    return unique
+
+
 def _handoff_score(row: dict[str, Any]) -> dict[str, int]:
     """Return stable scoring signals for preservation ranking."""
     context_count = _context_total(row["validation_context_counts"])
@@ -231,7 +246,7 @@ def build_maintenance_review_compare_data(
     rows = [_handoff_row(handoff) for handoff in handoffs]
     receipt_reviews = [
         _receipt_review(path, root=root)
-        for path in (completeness_paths or [])
+        for path in _dedupe_completeness_paths(completeness_paths or [], root=root)
     ]
     for row in rows:
         row["preservation_receipt_review"] = _candidate_receipt_review(row, receipt_reviews)
@@ -290,8 +305,9 @@ def build_maintenance_review_compare_data(
         "safety_boundary": (
             "Maintenance review comparison reads repository-local history links and their linked bundle evidence. Optional "
             "preservation-completeness inputs reuse bounded receipt discovery and remain informational only: receipt presence, "
-            "absence, or damage never changes comparison readiness or preservation ranking. The command does not rerun validation, "
-            "inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity."
+            "absence, or damage never changes comparison readiness or preservation ranking. Canonical-path deduplication is enforced "
+            "inside the comparison builder so CLI and direct Python callers share the same evidence-accounting rule. The command "
+            "does not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity."
         ),
     }
 
