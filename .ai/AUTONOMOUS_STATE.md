@@ -1,17 +1,17 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-181 — Surface preservation receipts in reviewer comparison
+- Current task ID: AUTO-182 — Prevent duplicate preservation receipt evidence counts
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-08-21T19:02:02+04:00
-- Latest run summary: Extended the existing `forge maintenance-review-compare` surface with repeatable `--completeness` inputs so reviewers can see AUTO-180's verified immutable preservation-receipt discovery alongside handoffs and ranked preservation candidates without opening lower-level receipt JSON.
-- Safety: Receipt review reuses the existing preservation-completeness/receipt verifier, matches by commit SHA + remote + branch, and is fixed to `informational_only`, `receipt_required_for_preservation=false`, and `affects_preservation_ranking=false`. Verified, missing, or invalid receipts cannot change comparison readiness or deterministic preservation ranking.
-- Repository assessment: Inspected README/docs/examples, reviewer/preservation source and tests, policy/config/CI, roadmap/state/changelog/decisions, recent commits, open issues/TODO surface, every visible branch, and recent PR history. The seven non-main branches remain historical/diverged; reviewed PRs are merged/closed/obsolete or unrelated and none warrants integration.
+- Last run timestamp: 2026-08-21T23:03:18+04:00
+- Latest run summary: Hardened the existing `forge maintenance-review-compare` CLI so repeatable `--completeness` inputs are canonicalized against `--root` and duplicate references to the same preservation-completeness artifact are removed before bounded receipt discovery. Equivalent relative/absolute path spellings can no longer inflate receipt-review totals.
+- Safety: This narrows evidence counting only. Receipt evidence remains `informational_only`, is still excluded from comparison readiness and preservation ranking, and grants no write, Git, workflow, remote, network, validation, or preservation authority.
+- Repository assessment: Inspected README/docs/examples, reviewer/preservation source and tests, policy/config/CI, roadmap/state/changelog/decisions, recent commits, open issues, every visible branch, and recent PR history. The seven non-main branches remain historical/diverged; open issues are broader product/discussion requests rather than blockers; reviewed PRs are merged/closed/obsolete or unrelated and none warrants integration.
 - Branch and PR disposition: Work stayed directly on `main`; no branch or PR was created or merged.
-- Validation: Proposed comparison core/CLI/focused tests syntax-compile in the scratch environment. A focused executable smoke proved a lower-ranked candidate can carry a verified receipt while the stronger candidate remains selected. Full checkout pytest remains unavailable because this runtime cannot resolve `github.com`; the connected status/workflow surfaces exposed no AUTO-180 check/run objects at inspection time.
-- Current blockers: Final supported-version CI for AUTO-181 must be inspected when observable; no unsupported green-matrix claim should be made before then.
-- Known risks and assumptions: Receipt matching uses commit SHA, remote, and branch from already-complete preservation artifacts. Receipts prove byte continuity, not signer identity or validation sufficiency. Invalid matching receipts are reviewer attention signals only and do not rewrite preservation truth.
-- Visuals: None; the existing lifecycle already ends at archive/preservation and this change enriches an existing reviewer comparison rather than changing architecture.
-- Project-memory note: README, this state file, and `.ai/AUTO-181.md` contain the authoritative AUTO-181 record. Large append-only plan/changelog/decisions histories were inspected; update them only when their complete existing contents can be preserved safely.
-- Recommended next task: Inspect AUTO-181 CI when observable. If green, continue the preservation-review milestone only for a concrete integrity or usability gap and keep receipt evidence informational rather than creating a duplicate gate.
+- Validation: Added deterministic tests for canonical-path collapse and for the CLI passing each canonical completeness artifact to the comparison builder only once. Direct repository checkout/full pytest remains unavailable because this runtime cannot resolve `github.com`. GitHub's connected combined-status surface exposed no AUTO-181 checks at inspection time, so no unsupported green-matrix claim is made for AUTO-182 yet.
+- Current blockers: Final supported-version CI for AUTO-182 must be inspected when observable; any failure takes priority over new product work.
+- Known risks and assumptions: The dedupe boundary is currently the CLI. Direct Python callers of `build_maintenance_review_compare_data()` remain responsible for intentional completeness lists. Receipt matching still uses the already-complete artifact's commit SHA, remote, and branch, and receipts prove byte continuity rather than signer identity or validation sufficiency.
+- Visuals: None; the lifecycle architecture is unchanged and the correction only hardens evidence accounting in the existing reviewer comparison.
+- Project-memory note: README, this state file, `docs/AUTO182_RECEIPT_INPUT_DEDUPE.md`, and `.ai/AUTO-182.md` contain the authoritative AUTO-182 record. Large append-only plan/changelog/decisions histories were inspected; they should only be rewritten when their complete existing contents can be preserved safely.
+- Recommended next task: Inspect AUTO-182 CI when observable. If green, continue the preservation-review milestone only for a concrete integrity or usability gap; avoid a parallel receipt evidence contract.
