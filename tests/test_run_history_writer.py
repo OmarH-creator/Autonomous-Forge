@@ -3,6 +3,7 @@ import json
 import pytest
 
 from autonomous_forge.cli import main
+import autonomous_forge.run_history_writer as run_history_writer
 from autonomous_forge.run_history_writer import (
     RunHistoryWriteError,
     build_run_history_write_payload,
@@ -151,6 +152,48 @@ def test_write_run_history_record_refuses_blocked_preflight(tmp_path):
             output_path=output,
             confirm_write=True,
         )
+
+
+def test_write_run_history_record_fsyncs_file_and_directory(tmp_path, monkeypatch):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "durable.json"
+    fsync_calls = []
+
+    monkeypatch.setattr(run_history_writer.os, "fsync", lambda fd: fsync_calls.append(fd))
+
+    write_run_history_record(
+        VALID_PLAN,
+        VALID_POLICY,
+        root=tmp_path,
+        output_path=output,
+        confirm_write=True,
+    )
+
+    assert output.is_file()
+    assert len(fsync_calls) == 2
+
+
+def test_write_run_history_record_refuses_racing_writer_without_clobber(tmp_path, monkeypatch):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "race.json"
+
+    def racing_link(source, target):
+        target.write_text('{"racing_writer": true}\n', encoding="utf-8")
+        raise FileExistsError("simulated competing writer")
+
+    monkeypatch.setattr(run_history_writer.os, "link", racing_link)
+
+    with pytest.raises(RunHistoryWriteError, match="output path already exists"):
+        write_run_history_record(
+            VALID_PLAN,
+            VALID_POLICY,
+            root=tmp_path,
+            output_path=output,
+            confirm_write=True,
+        )
+
+    assert output.read_text(encoding="utf-8") == '{"racing_writer": true}\n'
+    assert list(output.parent.glob(".run-history-*.tmp")) == []
 
 
 def test_run_history_write_command_writes_record(tmp_path, capsys):

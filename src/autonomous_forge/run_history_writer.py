@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +50,45 @@ def _validate_output_path(root: Path, output_path: Path | str) -> Path:
     return resolved_output
 
 
+def _persist_text_no_clobber(target: Path, text: str) -> None:
+    """Durably publish text without replacing a target created after preflight."""
+    payload = text.encode("utf-8")
+    temp_path: Path | None = None
+    try:
+        fd, temp_name = tempfile.mkstemp(
+            prefix=".run-history-",
+            suffix=".tmp",
+            dir=target.parent,
+        )
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        # Hard-link publication is atomic and refuses to replace a path that a
+        # competing writer created after the earlier existence check.
+        os.link(temp_path, target)
+
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except FileExistsError as exc:
+        raise RunHistoryWriteError(
+            "output path already exists; choose a new run-history path"
+        ) from exc
+    except OSError as exc:
+        raise RunHistoryWriteError(f"run-history persistence failed: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def build_run_history_write_payload(
     plan_text: str,
     policy_text: str,
@@ -85,6 +126,8 @@ def build_run_history_write_payload(
             "requires an explicit confirmation flag",
             "refuses blocked preflight readiness",
             "refuses existing output to preserve durable history",
+            "publishes atomically without replacing a racing writer",
+            "flushes the file and containing directory before reporting success",
             "does not run validation commands",
             "does not inspect diffs or read changed-file contents",
             "does not generate patches or enforce policy decisions",
@@ -114,5 +157,5 @@ def write_run_history_record(
     )
     payload_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     safe_output.parent.mkdir(parents=True, exist_ok=True)
-    safe_output.write_text(payload_text, encoding="utf-8")
+    _persist_text_no_clobber(safe_output, payload_text)
     return {"path": str(safe_output), "payload": payload}
