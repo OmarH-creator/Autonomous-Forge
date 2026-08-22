@@ -59,6 +59,10 @@ A copy run requires:
 
 All blockers are checked before copying begins. Missing parent directories are only created after the full preflight passes.
 
+Each evidence file is then copied into a same-directory temporary file rather than directly into the final archive destination. Forge recomputes the temporary copy's byte count and SHA-256 and requires them to match the verified copy preview before publication. It flushes and file-fsyncs the temporary copy, publishes it with a no-clobber hard link, fsyncs the destination directory, and removes the temporary name. If another writer creates the final destination after preflight, Forge preserves that competing file and refuses publication. If source bytes drift after preview, Forge refuses to publish the drifted copy.
+
+This is per-file durability rather than a cross-file transaction. If a later entry fails after earlier entries were safely published, the earlier copied entries remain for inspection and a retry must use a clean destination set rather than overwrite them.
+
 ## Output
 
 Text output includes copy status, manifest path, archive root, copied entry count, per-entry source-to-destination mappings, blockers, next step, and safety boundary.
@@ -68,4 +72,4 @@ JSON output includes the same data plus machine-readable `copied_entries` with s
 ## Exit codes
 
 - `0`: verified evidence files were copied.
-- `2`: inputs were invalid or unsafe, confirmation was missing, manifest/copy-preview verification failed, destination parents were missing without `--create-parents`, or any destination already existed.
+- `2`: inputs were invalid or unsafe, confirmation was missing, manifest/copy-preview verification failed, destination parents were missing without `--create-parents`, a destination already existed or won a publication race, source evidence drifted after preview, or durable publication failed.
