@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tarfile
+import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from autonomous_forge.maintenance_archive_copy_verify import MaintenanceArchiveCopyVerifyError
 from autonomous_forge.maintenance_archive_manifest import MaintenanceArchiveManifestError
@@ -67,6 +69,64 @@ def _write_zip_package(package_path: Path, *, archive_root: Path, entries: list[
             archive.writestr(info, source.read_bytes())
 
 
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    directory_fd = os.open(path, flags)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], None]) -> None:
+    """Build a package off-path, then durably publish it without replacing a racing writer."""
+    temp_path: Path | None = None
+    published = False
+    try:
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{package_path.name}.",
+            suffix=".tmp",
+            dir=package_path.parent,
+        )
+        os.close(fd)
+        temp_path = Path(temp_name)
+
+        writer(temp_path)
+        with temp_path.open("rb") as handle:
+            os.fsync(handle.fileno())
+
+        try:
+            os.link(temp_path, package_path)
+        except FileExistsError as exc:
+            raise MaintenanceArchivePackageError(
+                f"package destination already exists: {package_path.name}"
+            ) from exc
+        published = True
+
+        try:
+            _fsync_directory(package_path.parent)
+        except OSError as exc:
+            raise MaintenanceArchivePackageError(
+                f"archive package was published but directory durability sync failed: {exc}"
+            ) from exc
+    except MaintenanceArchivePackageError:
+        raise
+    except (OSError, tarfile.TarError, zipfile.BadZipFile, RuntimeError, ValueError) as exc:
+        if published:
+            raise MaintenanceArchivePackageError(
+                f"archive package was published but final durability verification failed: {exc}"
+            ) from exc
+        raise MaintenanceArchivePackageError(f"archive package creation failed: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def write_maintenance_archive_package(
     manifest_path: Path,
     *,
@@ -107,13 +167,21 @@ def write_maintenance_archive_package(
 
     package_format = str(preview.get("package_format") or "")
     if package_format == "tar.gz":
-        _write_tar_package(package_resolved, archive_root=archive_root_resolved, entries=entries, gzipped=True)
+        writer = lambda temp_path: _write_tar_package(
+            temp_path, archive_root=archive_root_resolved, entries=entries, gzipped=True
+        )
     elif package_format == "tar":
-        _write_tar_package(package_resolved, archive_root=archive_root_resolved, entries=entries, gzipped=False)
+        writer = lambda temp_path: _write_tar_package(
+            temp_path, archive_root=archive_root_resolved, entries=entries, gzipped=False
+        )
     elif package_format == "zip":
-        _write_zip_package(package_resolved, archive_root=archive_root_resolved, entries=entries)
+        writer = lambda temp_path: _write_zip_package(
+            temp_path, archive_root=archive_root_resolved, entries=entries
+        )
     else:
         raise MaintenanceArchivePackageError(f"unsupported package format: {package_format}")
+
+    _publish_package_no_clobber(package_resolved, writer)
 
     result = dict(preview)
     result["title"] = "Autonomous Forge maintenance archive package"
@@ -127,8 +195,9 @@ def write_maintenance_archive_package(
     result["write_allowed"] = False
     result["next_step"] = "Review and preserve the written archive package with the copied archive root and manifest."
     result["safety_boundary"] = (
-        "Archive package writing verifies a ready package preview, requires explicit confirmation, refuses overwrites, "
-        "and writes exactly one repository-local tar/zip package from the verified archive root. It does not stage, "
+        "Archive package writing verifies a ready package preview, requires explicit confirmation, builds the package "
+        "in a same-directory temporary file, and atomically publishes it without clobbering an existing destination. "
+        "It writes exactly one repository-local tar/zip package from the verified archive root and does not stage, "
         "commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
     )
     return result
