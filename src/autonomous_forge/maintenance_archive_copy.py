@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +37,82 @@ def _resolved_repo_file(path_text: str, *, root: Path, label: str) -> Path:
     except (OSError, ValueError) as exc:
         raise MaintenanceArchiveCopyError(f"{label} path must stay inside the configured root") from exc
     return resolved
+
+
+def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    directory_fd = os.open(path, flags)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def _copy_file_no_clobber(
+    source: Path,
+    destination: Path,
+    *,
+    expected_bytes: int,
+    expected_sha256: str,
+) -> tuple[int, str]:
+    """Copy one verified source off-path and publish it durably without clobbering a racer."""
+    temp_path: Path | None = None
+    published = False
+    try:
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            dir=destination.parent,
+        )
+        os.close(fd)
+        temp_path = Path(temp_name)
+
+        shutil.copy2(source, temp_path)
+        actual_bytes = temp_path.stat().st_size
+        actual_sha256 = _file_sha256(temp_path)
+        if actual_bytes != expected_bytes or (expected_sha256 and actual_sha256 != expected_sha256):
+            raise MaintenanceArchiveCopyError(
+                f"archive-copy source changed after preview: {source.name}"
+            )
+
+        with temp_path.open("rb") as handle:
+            os.fsync(handle.fileno())
+
+        try:
+            os.link(temp_path, destination)
+        except FileExistsError as exc:
+            raise MaintenanceArchiveCopyError(
+                f"archive-copy destination already exists: {destination.name}"
+            ) from exc
+        published = True
+
+        try:
+            _fsync_directory(destination.parent)
+        except OSError as exc:
+            raise MaintenanceArchiveCopyError(
+                "archive-copy destination was published but directory durability sync failed: "
+                f"{destination.name}: {exc}"
+            ) from exc
+        return actual_bytes, actual_sha256
+    except MaintenanceArchiveCopyError:
+        raise
+    except OSError as exc:
+        if published:
+            raise MaintenanceArchiveCopyError(
+                "archive-copy destination was published but final durability verification failed: "
+                f"{destination.name}: {exc}"
+            ) from exc
+        raise MaintenanceArchiveCopyError(
+            f"archive-copy file creation failed: {destination.name}: {exc}"
+        ) from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def copy_maintenance_archive_entries(
@@ -88,13 +166,18 @@ def copy_maintenance_archive_entries(
         destination = item["destination"]
         if create_parents:
             destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(item["source"], destination)
+        copied_bytes, copied_sha256 = _copy_file_no_clobber(
+            item["source"],
+            destination,
+            expected_bytes=int(item["entry"].get("bytes") or 0),
+            expected_sha256=str(item["entry"].get("sha256") or ""),
+        )
         copied = {
             "kind": str(item["entry"].get("kind") or "unknown"),
             "source_path": str(item["entry"].get("source_path") or ""),
             "destination_path": str(item["entry"].get("destination_path") or ""),
-            "bytes": destination.stat().st_size,
-            "sha256": _file_sha256(destination),
+            "bytes": copied_bytes,
+            "sha256": copied_sha256,
         }
         if item["entry"].get("stage"):
             copied["stage"] = str(item["entry"]["stage"])
@@ -112,10 +195,11 @@ def copy_maintenance_archive_entries(
     result["write_allowed"] = False
     result["next_step"] = "Review the copied archive evidence and preserve the archive root with the written manifest."
     result["safety_boundary"] = (
-        "Archive copy verifies one written manifest, requires explicit confirmation, refuses overwrites, "
-        "copies only repository-local manifest entries into a repository-local archive root, and optionally creates "
-        "missing destination parents when explicitly requested. It does not create compressed archives, stage, commit, "
-        "push, poll workflows, rerun validation, change remotes, or prove signer identity."
+        "Archive copy verifies one written manifest, requires explicit confirmation, copies each repository-local "
+        "manifest entry into a same-directory temporary file, rechecks its expected byte count and SHA-256, and "
+        "atomically publishes it without clobbering an existing destination. It optionally creates missing destination "
+        "parents when explicitly requested and does not create compressed archives, stage, commit, push, poll workflows, "
+        "rerun validation, change remotes, or prove signer identity."
     )
     return result
 
