@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -60,6 +62,38 @@ def _resolve_under_root(root: Path, raw_path: Path, *, kind: str, must_exist: bo
     if must_exist and not resolved.is_file():
         raise MaintenanceEvidenceBundleError(f"{kind} path must be a regular file")
     return resolved
+
+
+def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
+    """Durably publish text and return False if another writer wins the target path."""
+    payload = text.encode("utf-8")
+    temp_path: Path | None = None
+    try:
+        fd, temp_name = tempfile.mkstemp(prefix=f".{label}-", suffix=".tmp", dir=target.parent)
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        os.link(temp_path, target)
+
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+        return True
+    except FileExistsError:
+        return False
+    except OSError as exc:
+        raise MaintenanceEvidenceBundleError(f"{label} persistence failed: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def _source_report_record(stage: str, path: Path, *, root: Path) -> dict[str, Any]:
@@ -421,7 +455,15 @@ def write_maintenance_evidence_bundle(data: dict[str, Any], output_path: Path, *
         return {**data, "write_status": "blocked", "write_allowed": False, "output_path": str(output_path), "bundle_blockers": blockers}
     resolved.parent.mkdir(parents=True, exist_ok=True)
     to_write = {**data, "write_status": "written", "write_allowed": False, "output_path": str(output_path)}
-    resolved.write_text(json.dumps(to_write, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = json.dumps(to_write, indent=2, sort_keys=True) + "\n"
+    if not _persist_text_no_clobber(resolved, payload, label="maintenance-bundle"):
+        return {
+            **data,
+            "write_status": "blocked",
+            "write_allowed": False,
+            "output_path": str(output_path),
+            "bundle_blockers": [*blockers, "bundle output already exists"],
+        }
     return to_write
 
 
@@ -490,7 +532,16 @@ def write_maintenance_history_link(
 
     resolved_link.parent.mkdir(parents=True, exist_ok=True)
     written = {**link_payload, "history_link_written": True}
-    resolved_link.write_text(json.dumps(written, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = json.dumps(written, indent=2, sort_keys=True) + "\n"
+    if not _persist_text_no_clobber(resolved_link, payload, label="maintenance-history-link"):
+        blocked = {
+            **link_payload,
+            "history_link_blockers": [*blockers, "history link output already exists"],
+            "history_link_status": "blocked",
+            "history_link_written": False,
+            "next_step": "Choose a new history-link path; an existing or racing writer already owns this output.",
+        }
+        return {**data, "history_link": blocked}
     return {**data, "history_link": written}
 
 
