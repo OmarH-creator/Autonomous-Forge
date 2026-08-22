@@ -1,7 +1,10 @@
 import json
+import os
 import tarfile
 import zipfile
+from pathlib import Path
 
+import autonomous_forge.maintenance_archive_package as package_module
 from autonomous_forge.maintenance_archive_package import (
     MaintenanceArchivePackageError,
     write_maintenance_archive_package,
@@ -87,6 +90,90 @@ def test_archive_package_refuses_overwrite(tmp_path):
         assert "already exists" in str(exc)
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("archive packaging should refuse overwrites")
+
+
+def test_archive_package_racing_writer_is_preserved(tmp_path, monkeypatch):
+    manifest, archive_root = _write_copied_archive(tmp_path)
+    package_path = tmp_path / ".ai" / "archive-packages" / "AUTO-188.tar.gz"
+    package_path.parent.mkdir(parents=True)
+    competing_bytes = b"competing package bytes"
+    original_link = package_module.os.link
+
+    def racing_link(source, destination):
+        Path(destination).write_bytes(competing_bytes)
+        return original_link(source, destination)
+
+    monkeypatch.setattr(package_module.os, "link", racing_link)
+
+    try:
+        write_maintenance_archive_package(
+            manifest,
+            archive_root=archive_root,
+            package_path=package_path,
+            root=tmp_path,
+            confirm_package=True,
+        )
+    except MaintenanceArchivePackageError as exc:
+        assert "already exists" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("archive packaging should refuse a destination created during publication")
+
+    assert package_path.read_bytes() == competing_bytes
+    assert list(package_path.parent.glob(f".{package_path.name}.*.tmp")) == []
+
+
+def test_archive_package_fsyncs_package_and_parent_directory(tmp_path, monkeypatch):
+    manifest, archive_root = _write_copied_archive(tmp_path)
+    package_path = tmp_path / ".ai" / "archive-packages" / "AUTO-188.zip"
+    package_path.parent.mkdir(parents=True)
+    fsynced_modes = []
+    real_fsync = package_module.os.fsync
+
+    def recording_fsync(fd):
+        mode = os.fstat(fd).st_mode
+        fsynced_modes.append(mode)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(package_module.os, "fsync", recording_fsync)
+
+    write_maintenance_archive_package(
+        manifest,
+        archive_root=archive_root,
+        package_path=package_path,
+        root=tmp_path,
+        confirm_package=True,
+    )
+
+    assert package_path.is_file()
+    assert len(fsynced_modes) >= 2
+
+
+def test_archive_package_creation_failure_does_not_publish_partial_final(tmp_path, monkeypatch):
+    manifest, archive_root = _write_copied_archive(tmp_path)
+    package_path = tmp_path / ".ai" / "archive-packages" / "AUTO-188.tar"
+    package_path.parent.mkdir(parents=True)
+
+    def failing_writer(temp_path, *, archive_root, entries, gzipped):
+        temp_path.write_bytes(b"partial archive")
+        raise OSError("simulated package failure")
+
+    monkeypatch.setattr(package_module, "_write_tar_package", failing_writer)
+
+    try:
+        write_maintenance_archive_package(
+            manifest,
+            archive_root=archive_root,
+            package_path=package_path,
+            root=tmp_path,
+            confirm_package=True,
+        )
+    except MaintenanceArchivePackageError as exc:
+        assert "creation failed" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("archive packaging should fail when the package writer fails")
+
+    assert not package_path.exists()
+    assert list(package_path.parent.glob(f".{package_path.name}.*.tmp")) == []
 
 
 def test_archive_package_cli_json_success(tmp_path, capsys):
