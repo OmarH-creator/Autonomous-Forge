@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +64,38 @@ def _read_json(path: Path, *, root: Path, label: str) -> dict[str, Any]:
     return payload
 
 
+def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
+    """Durably publish text and return False when another writer wins the target path."""
+    payload = text.encode("utf-8")
+    temp_path: Path | None = None
+    try:
+        fd, temp_name = tempfile.mkstemp(prefix=f".{label}-", suffix=".tmp", dir=target.parent)
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        os.link(temp_path, target)
+
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+        return True
+    except FileExistsError:
+        return False
+    except OSError as exc:
+        raise VerifiedFullMaintenanceRunError(f"{label} persistence failed: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def _write_push_evidence(
     data: dict[str, Any],
     output_path: Path,
@@ -92,7 +126,16 @@ def _write_push_evidence(
         }
 
     resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not _persist_text_no_clobber(
+        resolved,
+        json.dumps(data, indent=2, sort_keys=True) + "\n",
+        label="push-evidence",
+    ):
+        return {
+            "write_status": "blocked",
+            "output_path": str(output_path),
+            "write_blockers": ["push evidence output already exists"],
+        }
     return {
         "write_status": "written",
         "output_path": str(output_path),
