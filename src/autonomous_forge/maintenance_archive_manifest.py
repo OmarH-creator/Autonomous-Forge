@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +76,37 @@ def _safe_output_path(output_path: Path, *, root: Path) -> Path:
     if not resolved.parent.is_dir():
         raise MaintenanceArchiveManifestError("output parent path must be a directory")
     return resolved
+
+
+def _persist_text_no_clobber(target: Path, text: str) -> None:
+    """Durably publish text without replacing a target created after preflight."""
+    payload = text.encode("utf-8")
+    temp_path: Path | None = None
+    try:
+        fd, temp_name = tempfile.mkstemp(prefix=".archive-manifest-", suffix=".tmp", dir=target.parent)
+        temp_path = Path(temp_name)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.link(temp_path, target)
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except FileExistsError as exc:
+        raise MaintenanceArchiveManifestError(
+            "output path already exists; refusing to overwrite archive manifest"
+        ) from exc
+    except OSError as exc:
+        raise MaintenanceArchiveManifestError(f"archive manifest persistence failed: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def _load_json_file(path: Path, *, label: str) -> dict[str, Any]:
@@ -308,7 +341,7 @@ def write_maintenance_archive_manifest(
     payload["write_allowed"] = False
     payload["next_step"] = "Preserve every archive entry listed in this manifest together with this manifest file."
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-    target.write_text(text, encoding="utf-8")
+    _persist_text_no_clobber(target, text)
     payload["manifest_bytes"] = len(text.encode("utf-8"))
     return payload
 
