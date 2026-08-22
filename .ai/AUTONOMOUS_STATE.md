@@ -1,17 +1,17 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-183 — Enforce preservation receipt deduplication in the comparison core
+- Current task ID: AUTO-184 — Harden archive-manifest persistence against races
 - Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-08-22T03:05:31+04:00
-- Latest run summary: Moved canonical completeness-path deduplication into `build_maintenance_review_compare_data()` so all callers receive the same preservation receipt evidence-counting guarantee.
-- Safety: Receipt evidence remains informational only and is excluded from readiness and ranking.
-- Repository assessment: README/docs/examples, relevant source/tests, policy/CI, project memory, recent commits, issues, branches, and PR history were inspected. Historical non-main branches are stale/diverged and no PR warrants integration.
+- Last run timestamp: 2026-08-22T07:06:39+04:00
+- Latest run summary: Replaced archive-manifest `write_text` publication with flushed same-directory temporary-file persistence, atomic no-clobber hard-link publication, and parent-directory fsync so a racing writer cannot be silently overwritten after output preflight.
+- Safety: Existing explicit confirmation, repository containment, ready-manifest gating, and overwrite refusal remain intact. The new persistence path fails closed on target races and performs no Git/network/workflow/remote/protection action.
+- Repository assessment: Inspected README/docs/examples, archive/preservation source and tests, policy/config/CI, project memory, recent commits, open issues, all visible branches, and PR history. Historical non-main branches remain stale/diverged and no PR warrants integration.
 - Branch and PR disposition: Work stayed directly on `main`; no branch or PR was created or merged.
-- Validation: Added deterministic direct-library regression coverage for equivalent completeness paths. Direct full checkout remains unavailable in this runtime; no unsupported green-matrix claim is made until CI is observable.
-- Current blockers: Final supported-version CI for AUTO-183 must be inspected when observable.
-- Known risks and assumptions: Receipt evidence proves byte continuity rather than signer identity or validation sufficiency. The first caller-provided path spelling is retained after canonical deduplication.
-- Visuals: None; the lifecycle architecture is unchanged.
-- Project-memory note: README, this state file, `docs/AUTO183_CORE_RECEIPT_DEDUPE.md`, and `.ai/AUTO-183.md` contain the authoritative AUTO-183 record. The large append-only plan/changelog/decisions histories were inspected; no roadmap direction or architectural decision changed in this run.
-- Recommended next task: Inspect AUTO-183 CI when observable, then continue only with a concrete preservation-review or end-to-end integrity defect.
+- Validation: Added deterministic focused coverage for successful file+directory fsync and a simulated racing writer that creates the target immediately before publication; the competing bytes must remain unchanged and temporary files are cleaned. Full checkout/full pytest remains unavailable because this runtime cannot resolve `github.com`; final GitHub status is inspected separately and no unsupported green-matrix claim is made without evidence.
+- Current blockers: Final supported-version CI for AUTO-184 must be inspected when observable; any failure takes priority.
+- Known risks and assumptions: `os.link`-based no-clobber publication assumes the output and temporary file share a filesystem, which is guaranteed by using the same parent directory. Filesystems must support hard links for confirmed manifest persistence.
+- Visuals: None; the archive lifecycle architecture is unchanged and this is a durability correction at an existing write boundary.
+- Project-memory note: README, this state file, `docs/AUTO184_ARCHIVE_MANIFEST_PERSISTENCE.md`, and `.ai/AUTO-184.md` contain the authoritative AUTO-184 record. Large append-only plan/changelog/decisions histories were inspected but not destructively rewritten because the connected write surface has no safe append primitive.
+- Recommended next task: Inspect AUTO-184 CI when observable. If green, continue only with a concrete end-to-end persistence/provenance integrity defect or meaningful handoff reduction.
