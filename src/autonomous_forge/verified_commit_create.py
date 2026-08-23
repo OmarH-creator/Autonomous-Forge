@@ -9,9 +9,14 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
 from autonomous_forge.commit_proposal_preview import build_commit_proposal_preview_data
+from autonomous_forge.verified_commit_readiness import (
+    VerifiedCommitReadinessError,
+    capture_validated_target_sha256,
+)
 
 _MAX_JSON_BYTES = 1_000_000
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class VerifiedCommitCreateError(ValueError):
@@ -70,6 +75,9 @@ def _validate_readiness(data: dict[str, Any]) -> tuple[list[str], list[str]]:
         blockers.append("verified readiness contains blockers")
     if data.get("missing_verified_validation_commands"):
         blockers.append("verified readiness has missing validation commands")
+    target_digest = _clean(data.get("validated_target_sha256"))
+    if not _SHA256_RE.fullmatch(target_digest):
+        blockers.append("verified readiness lacks a valid validated-target SHA-256")
     paths = data.get("reviewed_paths")
     if not isinstance(paths, list) or not paths:
         blockers.append("verified readiness lacks reviewed paths")
@@ -124,6 +132,7 @@ def create_verified_commit_from_data(
         "commit_body_lines": proposal["commit_body_lines"],
         "target_path": _clean(readiness.get("target_path")),
         "reviewed_paths": reviewed_paths,
+        "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
         "verified_validation_commands": list(readiness.get("verified_validation_commands", [])),
         "created_commit": "",
         "commit_created": False,
@@ -134,11 +143,23 @@ def create_verified_commit_from_data(
         "remote_changes_allowed": False,
         "safety_boundary": (
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
-            "stages only reviewed paths, creates one local commit, and immediately verifies its SHA, summary, and "
-            "changed paths. It never pushes, changes remotes, force-pushes, changes protections, or calls networks."
+            "re-hashes the exact validated target bytes immediately before staging, stages only reviewed paths, creates "
+            "one local commit, and immediately verifies its SHA, summary, and changed paths. It never pushes, changes "
+            "remotes, force-pushes, changes protections, or calls networks."
         ),
     }
     if blockers:
+        return result
+
+    target = result["target_path"]
+    try:
+        current_target_sha256 = capture_validated_target_sha256(root, target)
+    except VerifiedCommitReadinessError as exc:
+        raise VerifiedCommitCreateError(f"could not re-hash validated target before staging: {exc}") from exc
+    if current_target_sha256 != result["validated_target_sha256"]:
+        result["commit_blockers"] = [
+            "validated target changed after successful validation; refusing to stage stale or unvalidated bytes"
+        ]
         return result
 
     resolved_root = root.resolve()
