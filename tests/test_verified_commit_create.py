@@ -30,6 +30,10 @@ def _write_readiness(tmp_path, *, ready=True):
     return path
 
 
+def _is_staged_target_show(command):
+    return command[-1:] == [":src/example.py"]
+
+
 def test_missing_confirmation_never_invokes_git(tmp_path):
     readiness = _write_readiness(tmp_path)
     calls = []
@@ -59,7 +63,11 @@ def test_confirmed_commit_is_immediately_verified_against_reviewed_paths(tmp_pat
         calls.append(command)
         if "status" in command:
             return SimpleNamespace(returncode=0, stdout=" M src/example.py\n", stderr="")
-        if "add" in command or "commit" in command:
+        if "add" in command:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if _is_staged_target_show(command):
+            return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if "rev-parse" in command:
             return SimpleNamespace(returncode=0, stdout=sha + "\n", stderr="")
@@ -81,6 +89,7 @@ def test_confirmed_commit_is_immediately_verified_against_reviewed_paths(tmp_pat
     assert data["commit_verified"] is True
     assert data["created_commit"] == sha
     assert data["inspected_paths"] == ["src/example.py"]
+    assert data["staged_target_sha256"] == data["validated_target_sha256"]
     assert calls[0][-2:] == ["--", "src/example.py"]
 
 
@@ -106,6 +115,39 @@ def test_post_validation_target_drift_blocks_before_git_is_invoked(tmp_path):
     ]
 
 
+def test_staged_target_drift_blocks_before_commit_creation(tmp_path):
+    readiness = _write_readiness(tmp_path)
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        if "status" in command:
+            return SimpleNamespace(returncode=0, stdout=" M src/example.py\n", stderr="")
+        if "add" in command:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if _is_staged_target_show(command):
+            return SimpleNamespace(returncode=0, stdout=b"raced staged bytes\n", stderr=b"")
+        if "commit" in command:
+            raise AssertionError("git commit must not run for staged byte drift")
+        raise AssertionError(command)
+
+    data = create_verified_commit(
+        readiness,
+        root=tmp_path,
+        summary="feat: verified commit",
+        confirm_commit_create=True,
+        runner=runner,
+    )
+    assert data["commit_status"] == "blocked"
+    assert data["commit_created"] is False
+    assert data["commit_verified"] is False
+    assert data["staged_target_sha256"] == hashlib.sha256(b"raced staged bytes\n").hexdigest()
+    assert data["commit_blockers"] == [
+        "staged target bytes do not match the successfully validated target; refusing to create commit"
+    ]
+    assert not any("commit" in command for command in calls)
+
+
 def test_created_commit_with_unreviewed_path_fails_closed(tmp_path):
     readiness = _write_readiness(tmp_path)
     sha = "b" * 40
@@ -113,7 +155,11 @@ def test_created_commit_with_unreviewed_path_fails_closed(tmp_path):
     def runner(command, **kwargs):
         if "status" in command:
             return SimpleNamespace(returncode=0, stdout=" M src/example.py\n", stderr="")
-        if "add" in command or "commit" in command:
+        if "add" in command:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if _is_staged_target_show(command):
+            return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if "rev-parse" in command:
             return SimpleNamespace(returncode=0, stdout=sha + "\n", stderr="")
