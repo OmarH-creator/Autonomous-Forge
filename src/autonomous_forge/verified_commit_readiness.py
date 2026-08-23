@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -10,6 +12,8 @@ from autonomous_forge.commit_readiness import build_commit_readiness_data
 from autonomous_forge.verified_validation_run import patch_apply_sha256
 
 _MAX_JSON_BYTES = 1_000_000
+_MAX_TARGET_BYTES = 1_000_000
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 class VerifiedCommitReadinessError(ValueError):
@@ -22,6 +26,25 @@ def _safe_path(label: str) -> None:
     path = PurePosixPath(label)
     if path.is_absolute() or label in {".", ".."} or any(part in {"", ".", ".."} for part in path.parts):
         raise VerifiedCommitReadinessError(f"unsafe target path: {label!r}")
+
+
+def capture_validated_target_sha256(root: Path, target_path: str) -> str:
+    """Hash the exact bounded target bytes that successful validation observed."""
+    _safe_path(target_path)
+    resolved_root = root.resolve()
+    candidate = resolved_root / target_path
+    if candidate.is_symlink():
+        raise VerifiedCommitReadinessError("validated target must not be a symlink")
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(resolved_root)
+    except (OSError, ValueError) as exc:
+        raise VerifiedCommitReadinessError("validated target must stay inside repository root") from exc
+    if not resolved.is_file():
+        raise VerifiedCommitReadinessError("validated target must be a regular file")
+    if resolved.stat().st_size > _MAX_TARGET_BYTES:
+        raise VerifiedCommitReadinessError("validated target is too large for bounded commit binding")
+    return hashlib.sha256(resolved.read_bytes()).hexdigest()
 
 
 def _resolve_json(path: Path, *, root: Path, label: str) -> Path:
@@ -117,10 +140,13 @@ def build_verified_commit_readiness_data(
     *,
     patch_file: Path | None,
     root: Path,
+    validated_target_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Bind successful verified validation runs to one patch before commit readiness."""
     target, required_steps, diff_review = _validated_patch(patch_apply)
     patch_digest = patch_apply_sha256(patch_apply)
+    if validated_target_sha256 is not None and not _SHA256_RE.fullmatch(validated_target_sha256):
+        raise VerifiedCommitReadinessError("validated target SHA-256 is malformed")
     executed: list[str] = []
     for run in validation_runs:
         command = _validation_command(
@@ -152,15 +178,17 @@ def build_verified_commit_readiness_data(
             "title": "Autonomous Forge verified commit readiness",
             "source": "verified guarded patch apply plus successful verified validation runs and status review",
             "patch_apply_sha256": patch_digest,
+            "validated_target_sha256": validated_target_sha256 or "",
             "verified_validation_runs": len(validation_runs),
             "verified_validation_commands": executed,
             "missing_verified_validation_commands": missing,
             "safety_boundary": (
                 "Verified commit readiness is read-only. It binds guarded patch evidence to successful verified-validation "
                 "results using either the existing repository-local file identity or a canonical patch-evidence SHA-256, "
-                "requires every retained validation step to have passed, then reuses the existing commit-readiness diff "
-                "and status gates. It does not stage files, create commits, push, poll workflows, change remotes, "
-                "force-push, or alter branch protections."
+                "requires every retained validation step to have passed, and may bind the exact validated target bytes by "
+                "SHA-256 for a later pre-stage staleness check. It then reuses the existing commit-readiness diff and status "
+                "gates. It does not stage files, create commits, push, poll workflows, change remotes, force-push, or alter "
+                "branch protections."
             ),
         }
     )
@@ -193,10 +221,13 @@ def read_verified_commit_readiness_data(
         label="status review evidence",
         title="Autonomous Forge commit status review",
     )
+    target, _, _ = _validated_patch(patch_apply)
+    validated_target_sha256 = capture_validated_target_sha256(root, target)
     return build_verified_commit_readiness_data(
         patch_apply,
         validations,
         status_review,
         patch_file=patch_file,
         root=root,
+        validated_target_sha256=validated_target_sha256,
     )
