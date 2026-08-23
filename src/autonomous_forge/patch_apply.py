@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
+import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -68,6 +70,47 @@ def _read_bounded_text(path: Path, *, kind: str) -> str:
     if any(marker.lower() in lowered for marker in _SECRET_MARKERS):
         raise PatchApplyError(f"{kind} input contains a blocked secret-marker string")
     return text
+
+
+def _replace_target_atomically(target: Path, text: str) -> None:
+    """Atomically replace one existing target without exposing partial contents."""
+    temp_path: Path | None = None
+    replaced = False
+    try:
+        target_mode = target.stat().st_mode & 0o7777
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{target.name}.forge-",
+            suffix=".tmp",
+            dir=target.parent,
+        )
+        temp_path = Path(temp_name)
+        os.chmod(temp_path, target_mode)
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        os.replace(temp_path, target)
+        replaced = True
+
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError as exc:
+        if replaced:
+            raise PatchApplyError(
+                "target replacement completed but directory durability sync failed; inspect target before retrying: "
+                f"{exc}"
+            ) from exc
+        raise PatchApplyError(f"atomic target replacement failed before publication: {exc}") from exc
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def _unified_diff(target_path: str, original_text: str, replacement_text: str) -> list[str]:
@@ -165,9 +208,10 @@ def build_patch_apply_data(
             "Guarded patch apply reads one generated patch preview, one ready change-readiness JSON file, one explicit "
             "target file, and one explicit replacement text file under the repository root. The patch preview may come "
             "from a bounded repository-local JSON file or directly from the fresh in-memory patch-generation contract. "
-            "It writes only the requested target path when --confirm-apply is present and the current target plus replacement "
-            "exactly reproduce the preview. Optional live-diff verification runs one bounded target-scoped git diff with "
-            "shell=False and restores the original target content if that verification fails. It does not run validation "
+            "It atomically replaces only the requested target path when --confirm-apply is present and the current target "
+            "plus replacement exactly reproduce the preview, preserving the target mode and fsyncing the replacement and "
+            "containing directory. Optional live-diff verification runs one bounded target-scoped git diff with shell=False "
+            "and atomically restores the original target content if that verification fails. It does not run validation "
             "commands, call networks, mutate saved history, read environment variables, commit, push, or edit any other file."
         ),
     }
@@ -295,12 +339,18 @@ def _apply_prepared_patch(
 ) -> dict[str, Any]:
     if target_file is None or replacement_text is None or original_text is None:
         return data
-    target_file.write_text(replacement_text, encoding="utf-8")
+    _replace_target_atomically(target_file, replacement_text)
     if verify_live_diff:
         try:
             live_review = _verify_live_target_diff(root=root, policy_path=policy_path, target_path=target_path)
         except (PatchApplyError, GitDiffReviewError, OSError) as exc:
-            target_file.write_text(original_text, encoding="utf-8")
+            try:
+                _replace_target_atomically(target_file, original_text)
+            except PatchApplyError as rollback_exc:
+                raise PatchApplyError(
+                    "post-apply live git diff verification failed and atomic rollback failed; inspect target before retrying: "
+                    f"verification={exc}; rollback={rollback_exc}"
+                ) from rollback_exc
             raise PatchApplyError(f"post-apply live git diff verification failed; original content restored: {exc}") from exc
         data = {**data, "live_diff_verified": True, "live_diff_review": live_review}
     return {
