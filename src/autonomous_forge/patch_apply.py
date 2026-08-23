@@ -72,8 +72,8 @@ def _read_bounded_text(path: Path, *, kind: str) -> str:
     return text
 
 
-def _replace_target_atomically(target: Path, text: str) -> None:
-    """Atomically replace one existing target without exposing partial contents."""
+def _replace_target_atomically(target: Path, text: str, *, expected_current_text: str | None = None) -> None:
+    """Atomically replace one target, optionally refusing stale target contents."""
     temp_path: Path | None = None
     replaced = False
     try:
@@ -89,6 +89,14 @@ def _replace_target_atomically(target: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
+
+        if expected_current_text is not None:
+            try:
+                current_text = target.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                raise PatchApplyError("target changed to non-UTF-8 content before replacement") from exc
+            if current_text != expected_current_text:
+                raise PatchApplyError("target changed after patch evidence was prepared; refusing to overwrite concurrent edits")
 
         os.replace(temp_path, target)
         replaced = True
@@ -210,8 +218,10 @@ def build_patch_apply_data(
             "from a bounded repository-local JSON file or directly from the fresh in-memory patch-generation contract. "
             "It atomically replaces only the requested target path when --confirm-apply is present and the current target "
             "plus replacement exactly reproduce the preview, preserving the target mode and fsyncing the replacement and "
-            "containing directory. Optional live-diff verification runs one bounded target-scoped git diff with shell=False "
-            "and atomically restores the original target content if that verification fails. It does not run validation "
+            "containing directory. Immediately before each atomic replace it rechecks the target text against the evidence "
+            "used to authorize that write, so stale apply or rollback attempts refuse concurrent edits. Optional live-diff "
+            "verification runs one bounded target-scoped git diff with shell=False and atomically restores the original target "
+            "content if that verification fails and the applied bytes are still unchanged. It does not run validation "
             "commands, call networks, mutate saved history, read environment variables, commit, push, or edit any other file."
         ),
     }
@@ -339,13 +349,13 @@ def _apply_prepared_patch(
 ) -> dict[str, Any]:
     if target_file is None or replacement_text is None or original_text is None:
         return data
-    _replace_target_atomically(target_file, replacement_text)
+    _replace_target_atomically(target_file, replacement_text, expected_current_text=original_text)
     if verify_live_diff:
         try:
             live_review = _verify_live_target_diff(root=root, policy_path=policy_path, target_path=target_path)
         except (PatchApplyError, GitDiffReviewError, OSError) as exc:
             try:
-                _replace_target_atomically(target_file, original_text)
+                _replace_target_atomically(target_file, original_text, expected_current_text=replacement_text)
             except PatchApplyError as rollback_exc:
                 raise PatchApplyError(
                     "post-apply live git diff verification failed and atomic rollback failed; inspect target before retrying: "
