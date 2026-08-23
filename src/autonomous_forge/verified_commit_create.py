@@ -110,6 +110,29 @@ def _proposal_from_verified(data: dict[str, Any], *, summary: str, body_lines: l
     return build_commit_proposal_preview_data(compatibility, summary=summary, body_lines=body_lines)
 
 
+def _capture_git_target_sha256(
+    *,
+    root: Path,
+    object_spec: str,
+    error_label: str,
+    runner: Callable[..., subprocess.CompletedProcess[Any]],
+) -> str:
+    """Return a bounded SHA-256 for one target read from the Git index or a commit tree."""
+    command = ["git", "-C", str(root.resolve()), "show", object_spec]
+    observed = runner(command, capture_output=True, check=False)
+    if observed.returncode != 0:
+        stderr = observed.stderr.decode("utf-8", errors="replace") if isinstance(observed.stderr, bytes) else _clean(observed.stderr)
+        raise VerifiedCommitCreateError(f"could not read {error_label}: {stderr or 'unknown error'}")
+    payload = observed.stdout
+    if isinstance(payload, str):
+        payload = payload.encode("utf-8")
+    if not isinstance(payload, (bytes, bytearray)):
+        raise VerifiedCommitCreateError(f"git show returned an unsupported {error_label} payload")
+    if len(payload) > _MAX_STAGED_TARGET_BYTES:
+        raise VerifiedCommitCreateError(f"{error_label} is too large for bounded SHA-256 verification")
+    return hashlib.sha256(bytes(payload)).hexdigest()
+
+
 def _capture_staged_target_sha256(
     *,
     root: Path,
@@ -117,19 +140,28 @@ def _capture_staged_target_sha256(
     runner: Callable[..., subprocess.CompletedProcess[Any]],
 ) -> str:
     """Return SHA-256 of the exact staged target bytes, bounded to the validation hash limit."""
-    command = ["git", "-C", str(root.resolve()), "show", f":{target}"]
-    staged = runner(command, capture_output=True, check=False)
-    if staged.returncode != 0:
-        stderr = staged.stderr.decode("utf-8", errors="replace") if isinstance(staged.stderr, bytes) else _clean(staged.stderr)
-        raise VerifiedCommitCreateError(f"could not read staged validated target: {stderr or 'unknown error'}")
-    payload = staged.stdout
-    if isinstance(payload, str):
-        payload = payload.encode("utf-8")
-    if not isinstance(payload, (bytes, bytearray)):
-        raise VerifiedCommitCreateError("git show returned an unsupported staged target payload")
-    if len(payload) > _MAX_STAGED_TARGET_BYTES:
-        raise VerifiedCommitCreateError("staged validated target is too large for bounded SHA-256 verification")
-    return hashlib.sha256(bytes(payload)).hexdigest()
+    return _capture_git_target_sha256(
+        root=root,
+        object_spec=f":{target}",
+        error_label="staged validated target",
+        runner=runner,
+    )
+
+
+def _capture_committed_target_sha256(
+    *,
+    root: Path,
+    commit_sha: str,
+    target: str,
+    runner: Callable[..., subprocess.CompletedProcess[Any]],
+) -> str:
+    """Return SHA-256 of the exact target bytes recorded by the created commit."""
+    return _capture_git_target_sha256(
+        root=root,
+        object_spec=f"{commit_sha}:{target}",
+        error_label="committed validated target",
+        runner=runner,
+    )
 
 
 def create_verified_commit_from_data(
@@ -158,6 +190,7 @@ def create_verified_commit_from_data(
         "reviewed_paths": reviewed_paths,
         "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
         "staged_target_sha256": "",
+        "committed_target_sha256": "",
         "verified_validation_commands": list(readiness.get("verified_validation_commands", [])),
         "created_commit": "",
         "commit_created": False,
@@ -170,8 +203,8 @@ def create_verified_commit_from_data(
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
             "re-hashes the exact validated target bytes immediately before staging, verifies the staged target bytes "
             "against the same validation SHA-256 before commit creation, stages only reviewed paths, creates one local "
-            "commit, and immediately verifies its SHA, summary, and changed paths. It never pushes, changes remotes, "
-            "force-pushes, changes protections, or calls networks."
+            "commit, and immediately verifies its SHA, summary, exact changed paths, and committed target bytes. It never "
+            "pushes, changes remotes, force-pushes, changes protections, or calls networks."
         ),
     }
     if blockers:
@@ -227,6 +260,13 @@ def create_verified_commit_from_data(
     if tree.returncode != 0:
         raise VerifiedCommitCreateError(f"git diff-tree failed: {_clean(tree.stderr) or 'unknown error'}")
     inspected = sorted(line.strip() for line in tree.stdout.splitlines() if line.strip())
+    committed_target_sha256 = _capture_committed_target_sha256(
+        root=resolved_root,
+        commit_sha=sha,
+        target=target,
+        runner=runner,
+    )
+    result["committed_target_sha256"] = committed_target_sha256
     verification_blockers: list[str] = []
     if len(parts) != 2 or parts[0] != sha:
         verification_blockers.append("created commit SHA could not be verified")
@@ -234,6 +274,10 @@ def create_verified_commit_from_data(
         verification_blockers.append("created commit summary does not match reviewed metadata")
     if inspected != sorted(reviewed_paths):
         verification_blockers.append("created commit changed paths do not exactly match reviewed paths")
+    if committed_target_sha256 != result["validated_target_sha256"]:
+        verification_blockers.append(
+            "created commit target bytes do not match the successfully validated target"
+        )
     result.update({
         "commit_status": "created" if not verification_blockers else "created_unverified",
         "created_commit": sha,
