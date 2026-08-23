@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -15,6 +16,7 @@ from autonomous_forge.verified_commit_readiness import (
 )
 
 _MAX_JSON_BYTES = 1_000_000
+_MAX_STAGED_TARGET_BYTES = 1_000_000
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -108,6 +110,28 @@ def _proposal_from_verified(data: dict[str, Any], *, summary: str, body_lines: l
     return build_commit_proposal_preview_data(compatibility, summary=summary, body_lines=body_lines)
 
 
+def _capture_staged_target_sha256(
+    *,
+    root: Path,
+    target: str,
+    runner: Callable[..., subprocess.CompletedProcess[Any]],
+) -> str:
+    """Return SHA-256 of the exact staged target bytes, bounded to the validation hash limit."""
+    command = ["git", "-C", str(root.resolve()), "show", f":{target}"]
+    staged = runner(command, capture_output=True, check=False)
+    if staged.returncode != 0:
+        stderr = staged.stderr.decode("utf-8", errors="replace") if isinstance(staged.stderr, bytes) else _clean(staged.stderr)
+        raise VerifiedCommitCreateError(f"could not read staged validated target: {stderr or 'unknown error'}")
+    payload = staged.stdout
+    if isinstance(payload, str):
+        payload = payload.encode("utf-8")
+    if not isinstance(payload, (bytes, bytearray)):
+        raise VerifiedCommitCreateError("git show returned an unsupported staged target payload")
+    if len(payload) > _MAX_STAGED_TARGET_BYTES:
+        raise VerifiedCommitCreateError("staged validated target is too large for bounded SHA-256 verification")
+    return hashlib.sha256(bytes(payload)).hexdigest()
+
+
 def create_verified_commit_from_data(
     readiness: dict[str, Any],
     *,
@@ -133,6 +157,7 @@ def create_verified_commit_from_data(
         "target_path": _clean(readiness.get("target_path")),
         "reviewed_paths": reviewed_paths,
         "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
+        "staged_target_sha256": "",
         "verified_validation_commands": list(readiness.get("verified_validation_commands", [])),
         "created_commit": "",
         "commit_created": False,
@@ -143,9 +168,10 @@ def create_verified_commit_from_data(
         "remote_changes_allowed": False,
         "safety_boundary": (
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
-            "re-hashes the exact validated target bytes immediately before staging, stages only reviewed paths, creates "
-            "one local commit, and immediately verifies its SHA, summary, and changed paths. It never pushes, changes "
-            "remotes, force-pushes, changes protections, or calls networks."
+            "re-hashes the exact validated target bytes immediately before staging, verifies the staged target bytes "
+            "against the same validation SHA-256 before commit creation, stages only reviewed paths, creates one local "
+            "commit, and immediately verifies its SHA, summary, and changed paths. It never pushes, changes remotes, "
+            "force-pushes, changes protections, or calls networks."
         ),
     }
     if blockers:
@@ -172,6 +198,15 @@ def create_verified_commit_from_data(
     add = runner(["git", "-C", str(resolved_root), "add", "--", *reviewed_paths], text=True, capture_output=True, check=False)
     if add.returncode != 0:
         raise VerifiedCommitCreateError(f"git add failed: {_clean(add.stderr) or 'unknown error'}")
+
+    staged_target_sha256 = _capture_staged_target_sha256(root=resolved_root, target=target, runner=runner)
+    result["staged_target_sha256"] = staged_target_sha256
+    if staged_target_sha256 != result["validated_target_sha256"]:
+        result["commit_blockers"] = [
+            "staged target bytes do not match the successfully validated target; refusing to create commit"
+        ]
+        return result
+
     command = ["git", "-C", str(resolved_root), "commit", "-m", proposal["commit_summary"]]
     for line in proposal["commit_body_lines"]:
         command.extend(["-m", line])
