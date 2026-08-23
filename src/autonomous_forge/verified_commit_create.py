@@ -134,10 +134,7 @@ def _capture_git_target_sha256(
 
 
 def _capture_staged_target_sha256(
-    *,
-    root: Path,
-    target: str,
-    runner: Callable[..., subprocess.CompletedProcess[Any]],
+    *, root: Path, target: str, runner: Callable[..., subprocess.CompletedProcess[Any]]
 ) -> str:
     """Return SHA-256 of the exact staged target bytes, bounded to the validation hash limit."""
     return _capture_git_target_sha256(
@@ -149,11 +146,7 @@ def _capture_staged_target_sha256(
 
 
 def _capture_committed_target_sha256(
-    *,
-    root: Path,
-    commit_sha: str,
-    target: str,
-    runner: Callable[..., subprocess.CompletedProcess[Any]],
+    *, root: Path, commit_sha: str, target: str, runner: Callable[..., subprocess.CompletedProcess[Any]]
 ) -> str:
     """Return SHA-256 of the exact target bytes recorded by the created commit."""
     return _capture_git_target_sha256(
@@ -164,15 +157,16 @@ def _capture_committed_target_sha256(
     )
 
 
-def _capture_head_sha(
+def _capture_revision_sha(
     *,
     root: Path,
+    revision: str,
     runner: Callable[..., subprocess.CompletedProcess[Any]],
     error_label: str,
 ) -> str:
-    """Return the current local HEAD SHA after strict bounded-format validation."""
+    """Resolve one local Git revision to a strictly validated SHA."""
     rev = runner(
-        ["git", "-C", str(root.resolve()), "rev-parse", "HEAD"],
+        ["git", "-C", str(root.resolve()), "rev-parse", revision],
         text=True,
         capture_output=True,
         check=False,
@@ -247,19 +241,21 @@ def create_verified_commit_from_data(
         return result
 
     resolved_root = root.resolve()
-    reviewed_parent = _capture_head_sha(
-        root=resolved_root,
-        runner=runner,
-        error_label="could not capture reviewed parent HEAD",
-    )
-    result["reviewed_parent_commit"] = reviewed_parent
-
     status = runner(["git", "-C", str(resolved_root), "status", "--porcelain", "--", *reviewed_paths], text=True, capture_output=True, check=False)
     if status.returncode != 0:
         raise VerifiedCommitCreateError(f"git status failed: {_clean(status.stderr) or 'unknown error'}")
     if not status.stdout.strip():
         result["commit_blockers"] = ["git status showed no reviewed path changes to commit"]
         return result
+
+    reviewed_parent = _capture_revision_sha(
+        root=resolved_root,
+        revision="HEAD",
+        runner=runner,
+        error_label="could not capture reviewed parent HEAD",
+    )
+    result["reviewed_parent_commit"] = reviewed_parent
+
     add = runner(["git", "-C", str(resolved_root), "add", "--", *reviewed_paths], text=True, capture_output=True, check=False)
     if add.returncode != 0:
         raise VerifiedCommitCreateError(f"git add failed: {_clean(add.stderr) or 'unknown error'}")
@@ -272,8 +268,9 @@ def create_verified_commit_from_data(
         ]
         return result
 
-    precommit_parent = _capture_head_sha(
+    precommit_parent = _capture_revision_sha(
         root=resolved_root,
+        revision="HEAD",
         runner=runner,
         error_label="could not re-check parent HEAD before commit creation",
     )
@@ -290,16 +287,22 @@ def create_verified_commit_from_data(
     commit = runner(command, text=True, capture_output=True, check=False)
     if commit.returncode != 0:
         raise VerifiedCommitCreateError(f"git commit failed: {_clean(commit.stderr) or 'unknown error'}")
-    sha = _capture_head_sha(
+    sha = _capture_revision_sha(
         root=resolved_root,
+        revision="HEAD",
         runner=runner,
         error_label="git rev-parse failed after commit creation",
     )
-    show = runner(["git", "-C", str(resolved_root), "show", "--quiet", "--format=%H%x00%s%x00%P", sha], text=True, capture_output=True, check=False)
+    show = runner(["git", "-C", str(resolved_root), "show", "--quiet", "--format=%H%x00%s", sha], text=True, capture_output=True, check=False)
     if show.returncode != 0:
         raise VerifiedCommitCreateError(f"git show failed: {_clean(show.stderr) or 'unknown error'}")
-    parts = show.stdout.strip().split("\x00", 2)
-    created_parent = parts[2].strip() if len(parts) == 3 else ""
+    parts = show.stdout.strip().split("\x00", 1)
+    created_parent = _capture_revision_sha(
+        root=resolved_root,
+        revision=f"{sha}^",
+        runner=runner,
+        error_label="could not verify created commit parent",
+    )
     result["created_commit_parent"] = created_parent
     tree = runner(["git", "-C", str(resolved_root), "diff-tree", "--no-commit-id", "--name-only", "-r", sha], text=True, capture_output=True, check=False)
     if tree.returncode != 0:
@@ -313,11 +316,11 @@ def create_verified_commit_from_data(
     )
     result["committed_target_sha256"] = committed_target_sha256
     verification_blockers: list[str] = []
-    if len(parts) != 3 or parts[0] != sha:
+    if len(parts) != 2 or parts[0] != sha:
         verification_blockers.append("created commit SHA could not be verified")
-    if len(parts) != 3 or parts[1] != proposal["commit_summary"]:
+    if len(parts) != 2 or parts[1] != proposal["commit_summary"]:
         verification_blockers.append("created commit summary does not match reviewed metadata")
-    if len(parts) != 3 or created_parent != reviewed_parent:
+    if created_parent != reviewed_parent:
         verification_blockers.append("created commit parent does not match the reviewed parent HEAD")
     if inspected != sorted(reviewed_paths):
         verification_blockers.append("created commit changed paths do not exactly match reviewed paths")
