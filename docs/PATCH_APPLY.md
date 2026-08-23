@@ -1,6 +1,6 @@
 # Guarded Patch Apply
 
-`forge patch-apply` is the first intentionally write-capable patch command in Autonomous Forge. It overwrites exactly one repository-local target file with one explicit replacement-text file, but only after the generated patch preview and change-readiness evidence both match the current local inputs.
+`forge patch-apply` is the first intentionally write-capable patch command in Autonomous Forge. It replaces exactly one repository-local target file with one explicit replacement-text file, but only after the generated patch preview and change-readiness evidence both match the current local inputs.
 
 The command is deliberately narrow:
 
@@ -12,9 +12,15 @@ The command is deliberately narrow:
 - the replacement file must be UTF-8, repository-local, non-symlinked, under 1 MB, and free of simple blocked secret-marker strings;
 - it writes only the requested target file and never commits, pushes, calls networks, reads environment variables, mutates saved history, or runs validation commands.
 
+## Atomic target replacement
+
+Confirmed writes are prepared in a same-directory temporary file. Forge preserves the target's permission mode, flushes and `fsync`s the complete replacement, then uses `os.replace` to atomically switch the target path to the prepared file and `fsync`s the containing directory.
+
+This prevents an interrupted write from exposing a partially truncated working file. If replacement fails before `os.replace`, the original target remains intact and the temporary file is cleaned up. If the atomic replacement succeeds but the parent-directory durability sync fails, Forge reports that the replacement has already occurred and requires inspection before retrying instead of falsely claiming the original file survived.
+
 ## Optional live-diff verification
 
-Pass `--verify-live-diff` to connect the write step to the live tracked-diff capability added in AUTO-143. After the replacement is written, Forge runs a bounded target-scoped command equivalent to:
+Pass `--verify-live-diff` to connect the write step to the live tracked-diff capability added in AUTO-143. After the atomic replacement is written, Forge runs a bounded target-scoped command equivalent to:
 
 ```text
 git diff --no-ext-diff --no-textconv HEAD -- <target-path>
@@ -22,7 +28,7 @@ git diff --no-ext-diff --no-textconv HEAD -- <target-path>
 
 The pathspec is validated as a repository-relative path and the subprocess uses `shell=False`, a 15-second timeout, and the existing 1 MB diff bound. The resulting unified diff is reviewed against the repository policy supplied through `--policy` (default `.forge/policy.md`). Verification succeeds only when the live diff is clear, contains exactly one changed file, and reviews exactly the requested target path.
 
-If git execution, decoding, bounds, parsing, policy review, file-count, or target-path verification fails, Forge restores the original target contents and exits with a refusal. This rollback prevents a confirmed patch apply from leaving a mutation behind when its post-write tracked-diff evidence cannot be verified.
+If git execution, decoding, bounds, parsing, policy review, file-count, or target-path verification fails, Forge atomically restores the original target contents using the same durable replacement path and exits with a refusal. If that rollback itself fails, Forge reports the rollback failure explicitly and requires the target to be inspected before retrying.
 
 This gate covers tracked diff evidence only. It does not inspect untracked files, run tests, prove correctness, commit, or push.
 
@@ -30,7 +36,7 @@ This gate covers tracked diff evidence only. It does not inspect untracked files
 
 By default, the command returns a report even when the apply step is blocked by missing confirmation or stale evidence. This lets a maintainer inspect why a write would not occur without treating the report itself as a command failure.
 
-Use `--require-applied` when automation should fail closed unless `file_changed` is true. A failed `--verify-live-diff` check always returns a refusal because the write is rolled back.
+Use `--require-applied` when automation should fail closed unless `file_changed` is true. A failed `--verify-live-diff` check always returns a refusal because the write is rolled back when rollback succeeds.
 
 ## Example
 
