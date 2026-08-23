@@ -164,6 +164,27 @@ def _capture_committed_target_sha256(
     )
 
 
+def _capture_head_sha(
+    *,
+    root: Path,
+    runner: Callable[..., subprocess.CompletedProcess[Any]],
+    error_label: str,
+) -> str:
+    """Return the current local HEAD SHA after strict bounded-format validation."""
+    rev = runner(
+        ["git", "-C", str(root.resolve()), "rev-parse", "HEAD"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if rev.returncode != 0:
+        raise VerifiedCommitCreateError(f"{error_label}: {_clean(rev.stderr) or 'unknown error'}")
+    sha = _clean(rev.stdout)
+    if not _SHA_RE.fullmatch(sha):
+        raise VerifiedCommitCreateError(f"{error_label}: git rev-parse returned an unsafe commit SHA")
+    return sha
+
+
 def create_verified_commit_from_data(
     readiness: dict[str, Any],
     *,
@@ -191,6 +212,9 @@ def create_verified_commit_from_data(
         "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
         "staged_target_sha256": "",
         "committed_target_sha256": "",
+        "reviewed_parent_commit": "",
+        "precommit_parent_commit": "",
+        "created_commit_parent": "",
         "verified_validation_commands": list(readiness.get("verified_validation_commands", [])),
         "created_commit": "",
         "commit_created": False,
@@ -202,9 +226,10 @@ def create_verified_commit_from_data(
         "safety_boundary": (
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
             "re-hashes the exact validated target bytes immediately before staging, verifies the staged target bytes "
-            "against the same validation SHA-256 before commit creation, stages only reviewed paths, creates one local "
-            "commit, and immediately verifies its SHA, summary, exact changed paths, and committed target bytes. It never "
-            "pushes, changes remotes, force-pushes, changes protections, or calls networks."
+            "against the same validation SHA-256, binds commit creation to the exact reviewed parent HEAD immediately "
+            "before commit creation, stages only reviewed paths, creates one local commit, and immediately verifies its "
+            "SHA, summary, exact parent, exact changed paths, and committed target bytes. It never pushes, changes remotes, "
+            "force-pushes, changes protections, or calls networks."
         ),
     }
     if blockers:
@@ -222,6 +247,13 @@ def create_verified_commit_from_data(
         return result
 
     resolved_root = root.resolve()
+    reviewed_parent = _capture_head_sha(
+        root=resolved_root,
+        runner=runner,
+        error_label="could not capture reviewed parent HEAD",
+    )
+    result["reviewed_parent_commit"] = reviewed_parent
+
     status = runner(["git", "-C", str(resolved_root), "status", "--porcelain", "--", *reviewed_paths], text=True, capture_output=True, check=False)
     if status.returncode != 0:
         raise VerifiedCommitCreateError(f"git status failed: {_clean(status.stderr) or 'unknown error'}")
@@ -240,22 +272,35 @@ def create_verified_commit_from_data(
         ]
         return result
 
+    precommit_parent = _capture_head_sha(
+        root=resolved_root,
+        runner=runner,
+        error_label="could not re-check parent HEAD before commit creation",
+    )
+    result["precommit_parent_commit"] = precommit_parent
+    if precommit_parent != reviewed_parent:
+        result["commit_blockers"] = [
+            "repository HEAD changed after commit review; refusing to create a commit on an unreviewed parent"
+        ]
+        return result
+
     command = ["git", "-C", str(resolved_root), "commit", "-m", proposal["commit_summary"]]
     for line in proposal["commit_body_lines"]:
         command.extend(["-m", line])
     commit = runner(command, text=True, capture_output=True, check=False)
     if commit.returncode != 0:
         raise VerifiedCommitCreateError(f"git commit failed: {_clean(commit.stderr) or 'unknown error'}")
-    rev = runner(["git", "-C", str(resolved_root), "rev-parse", "HEAD"], text=True, capture_output=True, check=False)
-    if rev.returncode != 0:
-        raise VerifiedCommitCreateError(f"git rev-parse failed: {_clean(rev.stderr) or 'unknown error'}")
-    sha = _clean(rev.stdout)
-    if not _SHA_RE.fullmatch(sha):
-        raise VerifiedCommitCreateError("git rev-parse returned an unsafe commit SHA")
-    show = runner(["git", "-C", str(resolved_root), "show", "--quiet", "--format=%H%x00%s", sha], text=True, capture_output=True, check=False)
+    sha = _capture_head_sha(
+        root=resolved_root,
+        runner=runner,
+        error_label="git rev-parse failed after commit creation",
+    )
+    show = runner(["git", "-C", str(resolved_root), "show", "--quiet", "--format=%H%x00%s%x00%P", sha], text=True, capture_output=True, check=False)
     if show.returncode != 0:
         raise VerifiedCommitCreateError(f"git show failed: {_clean(show.stderr) or 'unknown error'}")
-    parts = show.stdout.strip().split("\x00", 1)
+    parts = show.stdout.strip().split("\x00", 2)
+    created_parent = parts[2].strip() if len(parts) == 3 else ""
+    result["created_commit_parent"] = created_parent
     tree = runner(["git", "-C", str(resolved_root), "diff-tree", "--no-commit-id", "--name-only", "-r", sha], text=True, capture_output=True, check=False)
     if tree.returncode != 0:
         raise VerifiedCommitCreateError(f"git diff-tree failed: {_clean(tree.stderr) or 'unknown error'}")
@@ -268,10 +313,12 @@ def create_verified_commit_from_data(
     )
     result["committed_target_sha256"] = committed_target_sha256
     verification_blockers: list[str] = []
-    if len(parts) != 2 or parts[0] != sha:
+    if len(parts) != 3 or parts[0] != sha:
         verification_blockers.append("created commit SHA could not be verified")
-    if len(parts) != 2 or parts[1] != proposal["commit_summary"]:
+    if len(parts) != 3 or parts[1] != proposal["commit_summary"]:
         verification_blockers.append("created commit summary does not match reviewed metadata")
+    if len(parts) != 3 or created_parent != reviewed_parent:
+        verification_blockers.append("created commit parent does not match the reviewed parent HEAD")
     if inspected != sorted(reviewed_paths):
         verification_blockers.append("created commit changed paths do not exactly match reviewed paths")
     if committed_target_sha256 != result["validated_target_sha256"]:
