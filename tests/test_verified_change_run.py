@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -26,6 +27,8 @@ def _status() -> dict:
 def test_verified_change_run_sequences_all_validations_then_commit(tmp_path, monkeypatch):
     patch_path = tmp_path / "patch.json"
     status_path = tmp_path / "status.json"
+    target = tmp_path / "README.md"
+    target.write_text("validated target\n", encoding="utf-8")
     _write_json(patch_path, _patch())
     _write_json(status_path, _status())
     calls: list[tuple[str, object]] = []
@@ -42,11 +45,13 @@ def test_verified_change_run_sequences_all_validations_then_commit(tmp_path, mon
 
     def fake_readiness(patch, validations, status, **kwargs):
         calls.append(("readiness", len(validations)))
+        assert kwargs["validated_target_sha256"] == hashlib.sha256(target.read_bytes()).hexdigest()
         return {
             "title": "Autonomous Forge verified commit readiness",
             "readiness": "ready",
             "reviewed_paths": ["README.md"],
             "verified_validation_commands": [item["requested_command"] for item in validations],
+            "validated_target_sha256": kwargs["validated_target_sha256"],
         }
 
     def fake_commit(readiness, **kwargs):
@@ -83,6 +88,7 @@ def test_verified_change_run_sequences_all_validations_then_commit(tmp_path, mon
 def test_verified_change_run_keeps_commit_gate_separate(tmp_path, monkeypatch):
     patch_path = tmp_path / "patch.json"
     status_path = tmp_path / "status.json"
+    (tmp_path / "README.md").write_text("validated target\n", encoding="utf-8")
     _write_json(patch_path, _patch())
     _write_json(status_path, _status())
 
@@ -104,6 +110,7 @@ def test_verified_change_run_keeps_commit_gate_separate(tmp_path, monkeypatch):
             "readiness": "ready",
             "reviewed_paths": ["README.md"],
             "verified_validation_commands": _patch()["validation_steps"],
+            "validated_target_sha256": kwargs["validated_target_sha256"],
         },
     )
     monkeypatch.setattr(
@@ -124,6 +131,7 @@ def test_verified_change_run_keeps_commit_gate_separate(tmp_path, monkeypatch):
     assert data["workflow_status"] == "ready_for_commit"
     assert data["commit_report"] is None
     assert data["commit_confirmed"] is False
+    assert data["commit_readiness"]["validated_target_sha256"]
 
 
 def test_verified_change_run_stops_after_failed_validation(tmp_path, monkeypatch):
