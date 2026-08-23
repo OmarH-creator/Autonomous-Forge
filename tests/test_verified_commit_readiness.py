@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 from autonomous_forge.cli_entry_patch import main as forge_main
@@ -5,6 +6,9 @@ from autonomous_forge.verified_commit_readiness import read_verified_commit_read
 
 
 def _write_inputs(tmp_path, *, include_second=True, mismatch_target=False):
+    target = tmp_path / "src" / "example.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("validated target\n", encoding="utf-8")
     patch = tmp_path / "patch.json"
     status = tmp_path / "status.json"
     run1 = tmp_path / "run1.json"
@@ -51,19 +55,20 @@ def _write_inputs(tmp_path, *, include_second=True, mismatch_target=False):
     run1.write_text(json.dumps(payload("python -m compileall src")), encoding="utf-8")
     if include_second:
         run2.write_text(json.dumps(payload("python -m pytest")), encoding="utf-8")
-    return patch, status, [run1] + ([run2] if include_second else [])
+    return patch, status, [run1] + ([run2] if include_second else []), target
 
 
 def test_all_required_verified_validation_steps_make_commit_readiness_ready(tmp_path):
-    patch, status, runs = _write_inputs(tmp_path)
+    patch, status, runs, target = _write_inputs(tmp_path)
     data = read_verified_commit_readiness_data(patch, runs, status, root=tmp_path)
     assert data["readiness"] == "ready"
     assert data["verified_validation_commands"] == ["python -m compileall src", "python -m pytest"]
     assert data["missing_verified_validation_commands"] == []
+    assert data["validated_target_sha256"] == hashlib.sha256(target.read_bytes()).hexdigest()
 
 
 def test_missing_required_verified_validation_blocks_commit_readiness(tmp_path):
-    patch, status, runs = _write_inputs(tmp_path, include_second=False)
+    patch, status, runs, _ = _write_inputs(tmp_path, include_second=False)
     data = read_verified_commit_readiness_data(patch, runs, status, root=tmp_path)
     assert data["readiness"] == "blocked"
     assert data["missing_verified_validation_commands"] == ["python -m pytest"]
@@ -72,7 +77,7 @@ def test_missing_required_verified_validation_blocks_commit_readiness(tmp_path):
 
 
 def test_cli_require_ready_fails_closed_for_incomplete_validation_set(tmp_path, capsys):
-    patch, status, runs = _write_inputs(tmp_path, include_second=False)
+    patch, status, runs, _ = _write_inputs(tmp_path, include_second=False)
     assert forge_main([
         "verified-commit-readiness", "--root", str(tmp_path),
         "--patch-apply", str(patch),
@@ -83,7 +88,7 @@ def test_cli_require_ready_fails_closed_for_incomplete_validation_set(tmp_path, 
 
 
 def test_target_mismatch_is_refused(tmp_path, capsys):
-    patch, status, runs = _write_inputs(tmp_path, mismatch_target=True)
+    patch, status, runs, _ = _write_inputs(tmp_path, mismatch_target=True)
     assert forge_main([
         "verified-commit-readiness", "--root", str(tmp_path),
         "--patch-apply", str(patch),
