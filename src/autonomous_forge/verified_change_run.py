@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 from autonomous_forge.verified_commit_create import create_verified_commit_from_data
-from autonomous_forge.verified_commit_readiness import build_verified_commit_readiness_data
+from autonomous_forge.verified_commit_readiness import (
+    VerifiedCommitReadinessError,
+    build_verified_commit_readiness_data,
+    capture_validated_target_sha256,
+)
 from autonomous_forge.verified_validation_run import run_verified_validation, run_verified_validation_from_data
 
 _MAX_JSON_BYTES = 1_000_000
@@ -113,12 +117,27 @@ def _finish_verified_change(
         if run.get("validation_result") != "passed" or run.get("return_code") != 0:
             break
 
+    validated_target_sha256: str | None = None
+    all_required_validation_passed = (
+        len(validation_runs) == len(required_steps)
+        and all(run.get("validation_result") == "passed" and run.get("return_code") == 0 for run in validation_runs)
+    )
+    if all_required_validation_passed:
+        target = patch_apply.get("target_path")
+        if not isinstance(target, str):
+            raise VerifiedChangeRunError("patch-apply evidence lacks target_path")
+        try:
+            validated_target_sha256 = capture_validated_target_sha256(root, target)
+        except VerifiedCommitReadinessError as exc:
+            raise VerifiedChangeRunError(f"could not bind validated target bytes: {exc}") from exc
+
     readiness = build_verified_commit_readiness_data(
         patch_apply,
         validation_runs,
         status_review,
         patch_file=patch_file,
         root=root,
+        validated_target_sha256=validated_target_sha256,
     )
 
     commit_report: dict[str, Any] | None = None
@@ -155,10 +174,12 @@ def _finish_verified_change(
         "remote_changes_allowed": False,
         "safety_boundary": (
             "Verified change run composes existing guarded contracts without collapsing their authority gates. "
-            "Validation commands execute only when the validation confirmation is supplied; commit creation requires "
-            "a separate commit confirmation and stages only reviewed paths. Patch evidence may be a bounded repository-local "
-            "JSON file or embedded hash-bound evidence supplied by the guarded apply orchestrator. The run never pushes, "
-            "changes remotes, polls workflows, force-pushes, or changes branch protections."
+            "Validation commands execute only when the validation confirmation is supplied; after every retained validation "
+            "passes, Forge hashes the exact target bytes and carries that digest into commit readiness so commit creation can "
+            "refuse post-validation target drift before staging. Commit creation requires a separate confirmation and stages "
+            "only reviewed paths. Patch evidence may be a bounded repository-local JSON file or embedded hash-bound evidence "
+            "supplied by the guarded apply orchestrator. The run never pushes, changes remotes, polls workflows, force-pushes, "
+            "or changes branch protections."
         ),
     }
 
