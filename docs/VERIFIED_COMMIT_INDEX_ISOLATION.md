@@ -10,9 +10,12 @@ AUTO-198 removes that ordinary contention path. Forge initializes a fresh privat
 
 ## Safety properties
 
-- Existing entries in the repository's normal index are not added to the Forge commit.
-- Forge staging does not clear, replace, or otherwise rewrite the repository's normal index.
-- The private index begins from the reviewed `HEAD`, so reviewed working-tree changes are still staged against the expected parent.
+- Existing unrelated entries in the repository's normal index are not added to the Forge commit.
+- If any reviewed path is already staged in the shared index, Forge refuses the commit instead of overwriting caller staging state.
+- Forge snapshots the shared-index entries for reviewed paths before private staging. After a verified commit it requires those entries to remain unchanged before synchronizing only the reviewed paths to the new `HEAD` with `git reset --quiet HEAD -- <reviewed paths>`.
+- Unrelated shared-index staging is therefore preserved while reviewed paths no longer appear as staged reversions after `HEAD` moves.
+- If the reviewed shared-index entries changed concurrently, Forge refuses automatic synchronization and reports the created commit as unverified for human inspection.
+- The private index begins from the reviewed `HEAD`, so reviewed working-tree changes are staged against the expected parent.
 - The existing validated-target SHA-256, staged-byte, staged-path, parent, committed-byte, and exact changed-path checks remain active.
 - Commit creation still requires explicit confirmation and still never pushes, changes remotes, force-pushes, or changes branch protections.
 - Failure to initialize the private index blocks before commit creation.
@@ -31,8 +34,8 @@ forge verified-commit-create \
 The report exposes:
 
 - `git_index_mode: isolated_temporary`
-- `repository_index_mutated: false`
+- `shared_index_sync_status: reviewed_paths_synchronized` after a successful verified commit
 
 ## Limitation
 
-Index isolation removes contention with the repository's shared staging area, but it is not a compare-and-swap update of the branch ref. Forge therefore keeps the existing reviewed-parent and post-commit parent/target/path verification as defense in depth for concurrent `HEAD` changes.
+Index isolation removes ordinary contention with unrelated shared staging but is not a compare-and-swap update of the branch ref. Synchronizing reviewed paths back to the shared index also remains a separate Git transaction, so Forge snapshots those entries before staging and refuses the sync if they changed concurrently. Existing reviewed-parent and post-commit parent/target/path verification remain defense in depth for concurrent `HEAD` changes.
