@@ -37,6 +37,10 @@ def _is_staged_target_show(command):
     return command[-1:] == [":src/example.py"]
 
 
+def _is_staged_path_diff(command):
+    return "diff" in command and "--cached" in command and "--name-only" in command
+
+
 def _is_committed_target_show(command, sha):
     return command[-1:] == [f"{sha}:src/example.py"]
 
@@ -61,6 +65,8 @@ def test_parent_head_drift_blocks_before_git_commit(tmp_path):
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
             return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(returncode=0, stdout="src/example.py\0", stderr="")
         if "commit" in command:
             raise AssertionError("git commit must not run after parent HEAD drift")
         raise AssertionError(command)
@@ -77,6 +83,7 @@ def test_parent_head_drift_blocks_before_git_commit(tmp_path):
     assert data["commit_created"] is False
     assert data["reviewed_parent_commit"] == reviewed_parent
     assert data["precommit_parent_commit"] == drifted_parent
+    assert data["staged_paths"] == ["src/example.py"]
     assert data["commit_blockers"] == [
         "repository HEAD changed after commit review; refusing to create a commit on an unreviewed parent"
     ]
@@ -104,6 +111,8 @@ def test_created_commit_parent_drift_is_created_unverified(tmp_path):
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
             return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(returncode=0, stdout="src/example.py\0", stderr="")
         if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_committed_target_show(command, created_sha):
@@ -128,6 +137,7 @@ def test_created_commit_parent_drift_is_created_unverified(tmp_path):
     assert data["reviewed_parent_commit"] == reviewed_parent
     assert data["precommit_parent_commit"] == reviewed_parent
     assert data["created_commit_parent"] == raced_parent
+    assert data["staged_paths"] == ["src/example.py"]
     assert data["commit_blockers"] == [
         "created commit parent does not match the reviewed parent HEAD"
     ]
