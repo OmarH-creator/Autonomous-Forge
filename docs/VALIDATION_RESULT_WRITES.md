@@ -13,6 +13,7 @@ The command and writer:
 - reuse the run-history reader path guard, so the target must be a real non-symlink `.json` file under `.ai/run-history/`;
 - refuse malformed records and unsupported schemas through the preview/reader path;
 - update the record validation fields from a supplied external observation only when the record does not already contain validation evidence;
+- treat the historical `run-history/v1` placeholder spelling `not run` and the newer `not_run` spelling as equivalent empty validation states, so legacy records can receive their first explicitly confirmed attachment without weakening immutability for real evidence;
 - refuse to replace an existing validation execution, result, or note, including executor-produced evidence or an earlier external attachment;
 - re-check the source record bytes immediately before replacement and refuse a stale attachment if another writer changed the record while the payload was being prepared;
 - persist the first attachment through a flushed same-directory temporary file followed by `os.replace`, so a failed final replacement leaves the original durable record intact instead of exposing a partially written JSON file;
