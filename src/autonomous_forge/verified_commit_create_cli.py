@@ -33,7 +33,7 @@ def _format_text(data: dict) -> str:
         f"Commit created: {str(data['commit_created']).lower()}",
         f"Commit verified: {str(data['commit_verified']).lower()}",
         f"Git index mode: {data.get('git_index_mode', 'legacy_shared')}",
-        f"Repository index mutated: {str(data.get('repository_index_mutated', True)).lower()}",
+        f"Shared index sync: {data.get('shared_index_sync_status', 'not_reported')}",
         f"Target path: {data['target_path'] or 'unspecified'}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
