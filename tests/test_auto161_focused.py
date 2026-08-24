@@ -34,7 +34,13 @@ def test_patch_apply_from_preview_data_uses_same_guarded_writer(tmp_path, monkey
     readiness.write_text(json.dumps(CHANGE_READINESS), encoding="utf-8")
     policy = tmp_path / ".forge" / "policy.md"
     policy.parent.mkdir()
-    policy.write_text("## Allowed paths\n- `README.md`\n\n## Prohibited paths\n- `.env`\n", encoding="utf-8")
+    policy.write_text(
+        "## Allowed paths\n- `README.md`\n\n"
+        "## Prohibited paths\n- `.env`\n\n"
+        "## Human approval required\n- Network access.\n\n"
+        "## Validation expectations\n- Run tests.\n",
+        encoding="utf-8",
+    )
     preview = {
         "title": "Autonomous Forge patch generation preview",
         "mode": "guarded patch preview",
