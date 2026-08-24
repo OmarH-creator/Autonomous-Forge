@@ -6,7 +6,8 @@ import argparse
 import json
 from pathlib import Path
 
-from autonomous_forge.verified_commit_create import VerifiedCommitCreateError, create_verified_commit
+from autonomous_forge.verified_commit_create import VerifiedCommitCreateError
+from autonomous_forge.verified_commit_isolated import create_verified_commit_isolated
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,6 +32,8 @@ def _format_text(data: dict) -> str:
         f"Created commit: {data['created_commit'] or 'none'}",
         f"Commit created: {str(data['commit_created']).lower()}",
         f"Commit verified: {str(data['commit_verified']).lower()}",
+        f"Git index mode: {data.get('git_index_mode', 'legacy_shared')}",
+        f"Repository index mutated: {str(data.get('repository_index_mutated', True)).lower()}",
         f"Target path: {data['target_path'] or 'unspecified'}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
@@ -46,7 +49,7 @@ def _format_text(data: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        data = create_verified_commit(
+        data = create_verified_commit_isolated(
             Path(args.verified_readiness),
             root=Path(args.root),
             summary=args.summary,
