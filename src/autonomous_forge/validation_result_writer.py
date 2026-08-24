@@ -59,7 +59,11 @@ def _refuse_existing_validation_result(record: dict[str, Any]) -> None:
     execution = record.get("validation_execution")
     result = record.get("validation_result")
     note = record.get("validation_note")
-    empty_values = (None, "", "none", "not_run")
+    # Historical run-history/v1 records used the human-readable placeholder
+    # "not run" while newer validation surfaces use "not_run". Both mean that
+    # no validation evidence has been recorded yet; neither should block the
+    # first explicitly confirmed attachment.
+    empty_values = (None, "", "none", "not run", "not_run")
     if execution not in empty_values or result not in empty_values or note not in empty_values:
         raise ValidationResultWriteError(
             "record already contains validation evidence; choose a new run-history record instead of replacing it"
