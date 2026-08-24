@@ -87,6 +87,26 @@ def _ensure_reviewed_paths_not_prestaged(
         )
 
 
+def _capture_shared_head(*, root: Path, runner: Runner) -> str:
+    """Return the current shared repository HEAD, or fail closed after a commit exists."""
+    observed = runner(
+        ["git", "-C", str(root.resolve()), "rev-parse", "HEAD"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if observed.returncode != 0:
+        stderr = "" if observed.stderr is None else str(observed.stderr).strip()
+        raise VerifiedCommitCreateError(
+            f"could not inspect repository HEAD before shared-index synchronization: {stderr or 'unknown error'}"
+        )
+    if not isinstance(observed.stdout, str) or not observed.stdout.strip():
+        raise VerifiedCommitCreateError(
+            "git rev-parse returned unsupported HEAD output before shared-index synchronization"
+        )
+    return observed.stdout.strip()
+
+
 def _synchronize_shared_index_after_verified_commit(
     *,
     root: Path,
@@ -95,6 +115,35 @@ def _synchronize_shared_index_after_verified_commit(
     runner: Runner,
     report: dict[str, Any],
 ) -> None:
+    created_commit = str(report.get("created_commit") or "").strip()
+    if not created_commit:
+        report["commit_status"] = "created_unverified"
+        report["commit_verified"] = False
+        report.setdefault("commit_blockers", []).append(
+            "verified commit report lacks the created commit SHA; refusing shared Git index synchronization"
+        )
+        report["shared_index_sync_status"] = "blocked_missing_created_commit"
+        return
+
+    try:
+        shared_head = _capture_shared_head(root=root, runner=runner)
+    except VerifiedCommitCreateError as exc:
+        report["commit_status"] = "created_unverified"
+        report["commit_verified"] = False
+        report.setdefault("commit_blockers", []).append(str(exc))
+        report["shared_index_sync_status"] = "blocked_head_check_failed"
+        return
+
+    report["shared_index_sync_head"] = shared_head
+    if shared_head != created_commit:
+        report["commit_status"] = "created_unverified"
+        report["commit_verified"] = False
+        report.setdefault("commit_blockers", []).append(
+            "repository HEAD moved after verified isolated commit creation; refusing shared Git index synchronization"
+        )
+        report["shared_index_sync_status"] = "blocked_head_drift"
+        return
+
     after_entries = _capture_shared_index_entries(
         root=root,
         reviewed_paths=reviewed_paths,
