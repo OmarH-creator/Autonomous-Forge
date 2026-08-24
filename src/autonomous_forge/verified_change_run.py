@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
-from autonomous_forge.verified_commit_create import create_verified_commit_from_data
+from autonomous_forge.verified_commit_isolated import create_verified_commit_from_data_isolated
 from autonomous_forge.verified_commit_readiness import (
     VerifiedCommitReadinessError,
     build_verified_commit_readiness_data,
@@ -142,7 +142,7 @@ def _finish_verified_change(
 
     commit_report: dict[str, Any] | None = None
     if readiness.get("readiness") == "ready" and confirm_commit_create:
-        commit_report = create_verified_commit_from_data(
+        commit_report = create_verified_commit_from_data_isolated(
             readiness,
             root=root,
             summary=summary,
@@ -176,10 +176,11 @@ def _finish_verified_change(
             "Verified change run composes existing guarded contracts without collapsing their authority gates. "
             "Validation commands execute only when the validation confirmation is supplied; after every retained validation "
             "passes, Forge hashes the exact target bytes and carries that digest into commit readiness so commit creation can "
-            "refuse post-validation target drift before staging. Commit creation requires a separate confirmation and stages "
-            "only reviewed paths. Patch evidence may be a bounded repository-local JSON file or embedded hash-bound evidence "
-            "supplied by the guarded apply orchestrator. The run never pushes, changes remotes, polls workflows, force-pushes, "
-            "or changes branch protections."
+            "refuse post-validation target drift before staging. Confirmed commit creation uses a private temporary Git index, "
+            "so unrelated staging in the repository's shared index is neither consumed nor rewritten. Commit creation requires "
+            "a separate confirmation and stages only reviewed paths. Patch evidence may be a bounded repository-local JSON file "
+            "or embedded hash-bound evidence supplied by the guarded apply orchestrator. The run never pushes, changes remotes, "
+            "polls workflows, force-pushes, or changes branch protections."
         ),
     }
 
