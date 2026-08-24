@@ -157,6 +157,26 @@ def _capture_committed_target_sha256(
     )
 
 
+def _capture_staged_paths(
+    *, root: Path, runner: Callable[..., subprocess.CompletedProcess[Any]]
+) -> list[str]:
+    """Return every staged path using NUL-safe Git output before commit creation."""
+    staged = runner(
+        ["git", "-C", str(root.resolve()), "diff", "--cached", "--name-only", "-z", "--"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if staged.returncode != 0:
+        raise VerifiedCommitCreateError(f"could not inspect staged paths: {_clean(staged.stderr) or 'unknown error'}")
+    if not isinstance(staged.stdout, str):
+        raise VerifiedCommitCreateError("git diff returned unsupported staged-path output")
+    paths = [value for value in staged.stdout.split("\0") if value]
+    for path in paths:
+        _safe_path(path)
+    return sorted(paths)
+
+
 def _capture_revision_sha(
     *,
     root: Path,
@@ -205,6 +225,7 @@ def create_verified_commit_from_data(
         "reviewed_paths": reviewed_paths,
         "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
         "staged_target_sha256": "",
+        "staged_paths": [],
         "committed_target_sha256": "",
         "reviewed_parent_commit": "",
         "precommit_parent_commit": "",
@@ -220,10 +241,11 @@ def create_verified_commit_from_data(
         "safety_boundary": (
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
             "re-hashes the exact validated target bytes immediately before staging, verifies the staged target bytes "
-            "against the same validation SHA-256, binds commit creation to the exact reviewed parent HEAD immediately "
-            "before commit creation, stages only reviewed paths, creates one local commit, and immediately verifies its "
-            "SHA, summary, exact parent, exact changed paths, and committed target bytes. It never pushes, changes remotes, "
-            "force-pushes, changes protections, or calls networks."
+            "against the same validation SHA-256, requires the complete staged-path set to equal the reviewed paths, "
+            "binds commit creation to the exact reviewed parent HEAD immediately before commit creation, stages only "
+            "reviewed paths, creates one local commit, and immediately verifies its SHA, summary, exact parent, exact "
+            "changed paths, and committed target bytes. It never pushes, changes remotes, force-pushes, changes "
+            "protections, or calls networks."
         ),
     }
     if blockers:
@@ -265,6 +287,14 @@ def create_verified_commit_from_data(
     if staged_target_sha256 != result["validated_target_sha256"]:
         result["commit_blockers"] = [
             "staged target bytes do not match the successfully validated target; refusing to create commit"
+        ]
+        return result
+
+    staged_paths = _capture_staged_paths(root=resolved_root, runner=runner)
+    result["staged_paths"] = staged_paths
+    if staged_paths != sorted(reviewed_paths):
+        result["commit_blockers"] = [
+            "staged paths do not exactly match reviewed paths; refusing to include unreviewed or missing index entries"
         ]
         return result
 
