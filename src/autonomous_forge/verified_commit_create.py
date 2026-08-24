@@ -226,6 +226,8 @@ def create_verified_commit_from_data(
         "validated_target_sha256": _clean(readiness.get("validated_target_sha256")),
         "staged_target_sha256": "",
         "staged_paths": [],
+        "precommit_staged_target_sha256": "",
+        "precommit_staged_paths": [],
         "committed_target_sha256": "",
         "reviewed_parent_commit": "",
         "precommit_parent_commit": "",
@@ -242,10 +244,10 @@ def create_verified_commit_from_data(
             "This command accepts only ready verified-commit-readiness evidence, requires explicit confirmation, "
             "re-hashes the exact validated target bytes immediately before staging, verifies the staged target bytes "
             "against the same validation SHA-256, requires the complete staged-path set to equal the reviewed paths, "
-            "binds commit creation to the exact reviewed parent HEAD immediately before commit creation, stages only "
-            "reviewed paths, creates one local commit, and immediately verifies its SHA, summary, exact parent, exact "
-            "changed paths, and committed target bytes. It never pushes, changes remotes, force-pushes, changes "
-            "protections, or calls networks."
+            "re-verifies both staged bytes and staged paths again immediately before commit creation, binds commit "
+            "creation to the exact reviewed parent HEAD, stages only reviewed paths, creates one local commit, and "
+            "immediately verifies its SHA, summary, exact parent, exact changed paths, and committed target bytes. It "
+            "never pushes, changes remotes, force-pushes, changes protections, or calls networks."
         ),
     }
     if blockers:
@@ -308,6 +310,26 @@ def create_verified_commit_from_data(
     if precommit_parent != reviewed_parent:
         result["commit_blockers"] = [
             "repository HEAD changed after commit review; refusing to create a commit on an unreviewed parent"
+        ]
+        return result
+
+    precommit_staged_target_sha256 = _capture_staged_target_sha256(
+        root=resolved_root,
+        target=target,
+        runner=runner,
+    )
+    result["precommit_staged_target_sha256"] = precommit_staged_target_sha256
+    if precommit_staged_target_sha256 != result["validated_target_sha256"]:
+        result["commit_blockers"] = [
+            "staged target changed after index review; refusing to create a commit from unvalidated bytes"
+        ]
+        return result
+
+    precommit_staged_paths = _capture_staged_paths(root=resolved_root, runner=runner)
+    result["precommit_staged_paths"] = precommit_staged_paths
+    if precommit_staged_paths != sorted(reviewed_paths):
+        result["commit_blockers"] = [
+            "staged paths changed after index review; refusing to create a commit with unreviewed or missing entries"
         ]
         return result
 
