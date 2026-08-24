@@ -39,11 +39,10 @@ def _readiness(target: Path) -> dict:
     }
 
 
-def test_verified_commit_uses_private_index_and_preserves_shared_staging(tmp_path):
+def _init_repo(tmp_path: Path) -> tuple[Path, Path]:
     _run(tmp_path, "init")
     _run(tmp_path, "config", "user.name", "Forge Test")
     _run(tmp_path, "config", "user.email", "forge@example.invalid")
-
     target = tmp_path / "src" / "example.py"
     unrelated = tmp_path / "docs" / "unrelated.md"
     target.parent.mkdir(parents=True)
@@ -52,7 +51,11 @@ def test_verified_commit_uses_private_index_and_preserves_shared_staging(tmp_pat
     unrelated.write_text("base\n", encoding="utf-8")
     _run(tmp_path, "add", "--", "src/example.py", "docs/unrelated.md")
     _run(tmp_path, "commit", "-m", "base")
+    return target, unrelated
 
+
+def test_verified_commit_uses_private_index_and_preserves_unrelated_shared_staging(tmp_path):
+    target, unrelated = _init_repo(tmp_path)
     target.write_text("validated target\n", encoding="utf-8")
     unrelated.write_text("user staged change\n", encoding="utf-8")
     _run(tmp_path, "add", "--", "docs/unrelated.md")
@@ -67,10 +70,49 @@ def test_verified_commit_uses_private_index_and_preserves_shared_staging(tmp_pat
     assert report["commit_status"] == "created"
     assert report["commit_verified"] is True
     assert report["git_index_mode"] == "isolated_temporary"
-    assert report["repository_index_mutated"] is False
+    assert report["shared_index_sync_status"] == "reviewed_paths_synchronized"
     assert _run(tmp_path, "diff", "--cached", "--name-only").stdout.splitlines() == ["docs/unrelated.md"]
     changed = _run(tmp_path, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.splitlines()
     assert changed == ["src/example.py"]
+
+
+def test_reviewed_path_already_staged_in_shared_index_is_refused(tmp_path):
+    target, _ = _init_repo(tmp_path)
+    target.write_text("validated target\n", encoding="utf-8")
+    _run(tmp_path, "add", "--", "src/example.py")
+
+    with pytest.raises(VerifiedCommitCreateError, match="already staged in the shared Git index"):
+        create_verified_commit_from_data_isolated(
+            _readiness(target),
+            root=tmp_path,
+            summary="feat: isolated verified commit",
+            confirm_commit_create=True,
+        )
+
+    assert _run(tmp_path, "diff", "--cached", "--name-only").stdout.splitlines() == ["src/example.py"]
+    assert _run(tmp_path, "log", "-1", "--pretty=%s").stdout.strip() == "base"
+
+
+def test_missing_commit_confirmation_does_not_initialize_git_index(tmp_path):
+    target = tmp_path / "src" / "example.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("validated target\n", encoding="utf-8")
+    calls = []
+
+    def runner(*args, **kwargs):
+        calls.append(args)
+        raise AssertionError("Git runner must not be invoked without commit confirmation")
+
+    report = create_verified_commit_from_data_isolated(
+        _readiness(target),
+        root=tmp_path,
+        summary="feat: isolated verified commit",
+        confirm_commit_create=False,
+        runner=runner,
+    )
+
+    assert report["commit_status"] == "blocked"
+    assert calls == []
 
 
 def test_private_index_environment_is_removed_after_operation(tmp_path):
