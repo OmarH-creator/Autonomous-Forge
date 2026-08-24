@@ -159,7 +159,7 @@ def _synchronize_shared_index_after_verified_commit(
         return
 
     synchronized = runner(
-        ["git", "-C", str(root.resolve()), "reset", "--quiet", "HEAD", "--", *reviewed_paths],
+        ["git", "-C", str(root.resolve()), "reset", "--quiet", created_commit, "--", *reviewed_paths],
         text=True,
         capture_output=True,
         check=False,
@@ -173,6 +173,29 @@ def _synchronize_shared_index_after_verified_commit(
         )
         report["shared_index_sync_status"] = "failed"
         return
+
+    try:
+        shared_head_after = _capture_shared_head(root=root, runner=runner)
+    except VerifiedCommitCreateError as exc:
+        report["commit_status"] = "created_unverified"
+        report["commit_verified"] = False
+        report.setdefault("commit_blockers", []).append(
+            "shared Git index was synchronized to the verified commit, but repository HEAD could not be rechecked afterward; inspect before continuing: "
+            + str(exc)
+        )
+        report["shared_index_sync_status"] = "synchronized_head_recheck_failed"
+        return
+
+    report["shared_index_sync_head_after"] = shared_head_after
+    if shared_head_after != created_commit:
+        report["commit_status"] = "created_unverified"
+        report["commit_verified"] = False
+        report.setdefault("commit_blockers", []).append(
+            "repository HEAD moved during shared Git index synchronization; index entries were synchronized to the verified commit but repository state now requires inspection"
+        )
+        report["shared_index_sync_status"] = "synchronized_head_drift_detected"
+        return
+
     report["shared_index_sync_status"] = "reviewed_paths_synchronized"
 
 
