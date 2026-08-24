@@ -26,7 +26,8 @@ def _isolated_runner(
     """Return a runner that forces every Git subprocess to use one private index."""
 
     def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[Any]:
-        env = dict(kwargs.pop("env", os.environ))
+        inherited_env = kwargs.pop("env", None)
+        env = os.environ.copy() if inherited_env is None else dict(inherited_env)
         env["GIT_INDEX_FILE"] = str(index_path)
         return runner(command, env=env, **kwargs)
 
