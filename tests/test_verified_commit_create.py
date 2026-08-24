@@ -137,6 +137,8 @@ def test_staged_target_drift_blocks_before_commit_creation(tmp_path):
         calls.append(command)
         if "status" in command:
             return SimpleNamespace(returncode=0, stdout=" M src/example.py\n", stderr="")
+        if command[-2:] == ["rev-parse", "HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="a" * 40 + "\n", stderr="")
         if "add" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
