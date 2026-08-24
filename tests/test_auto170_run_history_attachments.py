@@ -75,7 +75,7 @@ def test_run_history_read_discovers_verified_immutable_attachment(tmp_path):
             "validation_execution": "external_result_attached",
             "validation_result": "passed",
             "validation_note": "observed externally",
-            "validation_context": {},
+            "validation_context": VALID_PAYLOAD["record"]["validation_context"],
         }
     ]
 
