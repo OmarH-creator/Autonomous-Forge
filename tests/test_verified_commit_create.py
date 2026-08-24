@@ -34,6 +34,10 @@ def _is_staged_target_show(command):
     return command[-1:] == [":src/example.py"]
 
 
+def _is_staged_path_diff(command):
+    return "diff" in command and "--cached" in command and "--name-only" in command
+
+
 def _is_committed_target_show(command, sha):
     return command[-1:] == [f"{sha}:src/example.py"]
 
@@ -71,6 +75,8 @@ def test_confirmed_commit_is_immediately_verified_against_reviewed_paths(tmp_pat
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
             return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(returncode=0, stdout="src/example.py\0", stderr="")
         if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if "rev-parse" in command:
@@ -95,6 +101,7 @@ def test_confirmed_commit_is_immediately_verified_against_reviewed_paths(tmp_pat
     assert data["commit_verified"] is True
     assert data["created_commit"] == sha
     assert data["inspected_paths"] == ["src/example.py"]
+    assert data["staged_paths"] == ["src/example.py"]
     assert data["staged_target_sha256"] == data["validated_target_sha256"]
     assert data["committed_target_sha256"] == data["validated_target_sha256"]
     assert calls[0][-2:] == ["--", "src/example.py"]
@@ -155,6 +162,47 @@ def test_staged_target_drift_blocks_before_commit_creation(tmp_path):
     assert not any("commit" in command for command in calls)
 
 
+def test_unreviewed_staged_path_blocks_before_commit_creation(tmp_path):
+    readiness = _write_readiness(tmp_path)
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        if "status" in command:
+            return SimpleNamespace(returncode=0, stdout=" M src/example.py\n", stderr="")
+        if command[-2:] == ["rev-parse", "HEAD"]:
+            return SimpleNamespace(returncode=0, stdout="a" * 40 + "\n", stderr="")
+        if "add" in command:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if _is_staged_target_show(command):
+            return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(
+                returncode=0,
+                stdout="docs/unreviewed.md\0src/example.py\0",
+                stderr="",
+            )
+        if "commit" in command:
+            raise AssertionError("git commit must not run with unreviewed staged paths")
+        raise AssertionError(command)
+
+    data = create_verified_commit(
+        readiness,
+        root=tmp_path,
+        summary="feat: verified commit",
+        confirm_commit_create=True,
+        runner=runner,
+    )
+
+    assert data["commit_status"] == "blocked"
+    assert data["commit_created"] is False
+    assert data["staged_paths"] == ["docs/unreviewed.md", "src/example.py"]
+    assert data["commit_blockers"] == [
+        "staged paths do not exactly match reviewed paths; refusing to include unreviewed or missing index entries"
+    ]
+    assert not any("commit" in command for command in calls)
+
+
 def test_created_commit_with_unreviewed_path_fails_closed(tmp_path):
     readiness = _write_readiness(tmp_path)
     sha = "b" * 40
@@ -166,6 +214,8 @@ def test_created_commit_with_unreviewed_path_fails_closed(tmp_path):
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
             return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(returncode=0, stdout="src/example.py\0", stderr="")
         if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if "rev-parse" in command:
@@ -202,6 +252,8 @@ def test_created_commit_target_byte_drift_fails_closed(tmp_path):
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if _is_staged_target_show(command):
             return SimpleNamespace(returncode=0, stdout=b"validated target\n", stderr=b"")
+        if _is_staged_path_diff(command):
+            return SimpleNamespace(returncode=0, stdout="src/example.py\0", stderr="")
         if "commit" in command:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if "rev-parse" in command:
