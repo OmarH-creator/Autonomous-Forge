@@ -65,7 +65,7 @@ def test_verified_change_run_sequences_all_validations_then_commit(tmp_path, mon
 
     monkeypatch.setattr(verified_change_run, "run_verified_validation", fake_validation)
     monkeypatch.setattr(verified_change_run, "build_verified_commit_readiness_data", fake_readiness)
-    monkeypatch.setattr(verified_change_run, "create_verified_commit_from_data", fake_commit)
+    monkeypatch.setattr(verified_change_run, "create_verified_commit_from_data_isolated", fake_commit)
 
     data = verified_change_run.run_verified_change(
         patch_path,
@@ -115,7 +115,7 @@ def test_verified_change_run_keeps_commit_gate_separate(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         verified_change_run,
-        "create_verified_commit_from_data",
+        "create_verified_commit_from_data_isolated",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("commit must remain gated")),
     )
 
@@ -162,7 +162,7 @@ def test_verified_change_run_stops_after_failed_validation(tmp_path, monkeypatch
     )
     monkeypatch.setattr(
         verified_change_run,
-        "create_verified_commit_from_data",
+        "create_verified_commit_from_data_isolated",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("commit must not run")),
     )
 
