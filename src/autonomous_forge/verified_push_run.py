@@ -131,6 +131,23 @@ def _extract_verified_commit(change_run: dict[str, Any]) -> tuple[dict[str, Any]
     return report, blockers
 
 
+def _require_live_workflow_commit_binding(payload: dict[str, Any], *, commit_sha: str) -> None:
+    """Fail closed unless every collected workflow run proves the requested commit SHA."""
+    runs = payload.get("workflow_runs")
+    if not isinstance(runs, list):
+        raise VerifiedPushRunError("live workflow status payload does not contain a workflow-run list")
+    for index, item in enumerate(runs, start=1):
+        if not isinstance(item, dict):
+            raise VerifiedPushRunError(f"live workflow status item {index} is not a JSON object")
+        head_sha = str(item.get("head_sha") or item.get("headSha") or "").strip()
+        if not head_sha:
+            raise VerifiedPushRunError(f"live workflow status item {index} lacks a head SHA")
+        if head_sha != commit_sha:
+            raise VerifiedPushRunError(
+                f"live workflow status item {index} belongs to {head_sha}, not verified commit {commit_sha}"
+            )
+
+
 def _collect_live_status_review(change_evidence: dict[str, Any], *, root: Path) -> dict[str, Any]:
     """Collect fresh workflow status only after the change evidence proves one verified commit."""
     change_run, _, unwrap_blockers = _unwrap_change_evidence(change_evidence)
@@ -145,6 +162,7 @@ def _collect_live_status_review(change_evidence: dict[str, Any], *, root: Path) 
         )
     commit_sha = str(commit_report.get("created_commit") or "").strip()
     payload = collect_github_workflow_status_payload(root=root, commit_sha=commit_sha)
+    _require_live_workflow_commit_binding(payload, commit_sha=commit_sha)
     review = build_commit_status_review_data(payload)
     if review.get("commit_sha") != commit_sha:
         raise VerifiedPushRunError("live status review did not remain bound to the verified created commit")
@@ -192,7 +210,8 @@ def build_verified_push_run_data(
             "live-diff verification, validation, commit creation, and an exact canonical patch SHA-256 match against "
             "verified commit readiness before the nested commit evidence is used. Status evidence can be supplied as a "
             "reviewed JSON artifact or collected on demand through the existing bounded GitHub workflow-status collector, "
-            "which is explicitly selected by the caller and is bound to the verified created commit. Push remains a "
+            "which is explicitly selected by the caller, requires every returned workflow run to identify the verified "
+            "created commit as its head SHA, and remains bound to that commit before push readiness. Push remains a "
             "separate explicit confirmation gate and Forge reuses its trust/status/branch-protection readiness, "
             "fast-forward-only guarded push, and post-push verification contracts. It never force-pushes, pushes tags, "
             "changes remotes or branch protections, reruns workflows, or treats earlier confirmations as push authority."
