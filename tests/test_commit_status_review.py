@@ -137,10 +137,13 @@ def test_collect_github_workflow_status_payload_uses_git_and_gh(monkeypatch, tmp
     assert payload["source"] == "gh run list"
     assert payload["workflow_runs"][0]["name"] == "Test"
     assert payload["workflow_runs"][0]["conclusion"] == "success"
+    assert payload["workflow_runs"][0]["head_sha"] == "abc1234"
     assert payload["workflow_run_limit"] == 20
     assert payload["workflow_run_collection_complete"] is True
+    assert payload["workflow_run_commit_binding_complete"] is True
     assert "15-second timeout" in payload["collection_boundary"]
     assert "sentinel workflow run" in payload["collection_boundary"]
+    assert "exact requested commit" in payload["collection_boundary"]
     assert calls[0] == ["git", "rev-parse", "HEAD"]
     assert calls[1][:4] == ["gh", "run", "list", "--commit"]
     assert calls[1][calls[1].index("--limit") + 1] == "21"
@@ -171,6 +174,55 @@ def test_collect_github_workflow_status_payload_refuses_truncated_results(monkey
         assert str(exc) == "workflow status collection exceeded the configured 2-run review limit; completeness is unknown"
     else:  # pragma: no cover
         raise AssertionError("truncated live status evidence was not refused")
+
+
+def test_collect_github_workflow_status_payload_refuses_mismatched_run_sha(monkeypatch, tmp_path):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
+        assert args[:3] == ["gh", "run", "list"]
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            stdout=json.dumps(
+                [
+                    {
+                        "name": "CI",
+                        "status": "completed",
+                        "conclusion": "success",
+                        "headSha": "def5678",
+                    }
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    try:
+        collect_github_workflow_status_payload(root=tmp_path, commit_sha="abc1234")
+    except CommitStatusReviewError as exc:
+        assert str(exc) == "workflow run 1 belongs to def5678, not requested commit abc1234"
+    else:  # pragma: no cover
+        raise AssertionError("mismatched workflow-run head SHA was not refused")
+
+
+def test_collect_github_workflow_status_payload_refuses_missing_run_sha(monkeypatch, tmp_path):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
+        assert args[:3] == ["gh", "run", "list"]
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            stdout=json.dumps([{"name": "CI", "status": "completed", "conclusion": "success"}]),
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    try:
+        collect_github_workflow_status_payload(root=tmp_path, commit_sha="abc1234")
+    except CommitStatusReviewError as exc:
+        assert str(exc) == "workflow run 1 lacks a head SHA for requested commit abc1234"
+    else:  # pragma: no cover
+        raise AssertionError("workflow run without head SHA was not refused")
 
 
 def test_collect_github_workflow_status_payload_times_out_fail_closed(monkeypatch, tmp_path):
@@ -221,7 +273,15 @@ def test_commit_status_review_command_collects_github_workflow_status(monkeypatc
                 args,
                 0,
                 stdout=json.dumps(
-                    [{"name": "CI", "status": "completed", "conclusion": "success", "url": "https://example.invalid"}]
+                    [
+                        {
+                            "name": "CI",
+                            "status": "completed",
+                            "conclusion": "success",
+                            "headSha": "abc1234",
+                            "url": "https://example.invalid",
+                        }
+                    ]
                 ),
                 stderr="",
             )
