@@ -97,12 +97,13 @@ def test_build_commit_status_review_formats_text_output():
 def test_collect_github_workflow_status_payload_uses_git_and_gh(monkeypatch, tmp_path):
     calls = []
 
-    def fake_run(args, cwd, check, capture_output, text):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
         calls.append(args)
         assert cwd == tmp_path
         assert check is True
         assert capture_output is True
         assert text is True
+        assert timeout == 15
         if args[:3] == ["git", "rev-parse", "HEAD"]:
             return subprocess.CompletedProcess(args, 0, stdout="abc1234\n", stderr="")
         if args[:3] == ["gh", "run", "list"]:
@@ -136,8 +137,24 @@ def test_collect_github_workflow_status_payload_uses_git_and_gh(monkeypatch, tmp
     assert payload["source"] == "gh run list"
     assert payload["workflow_runs"][0]["name"] == "Test"
     assert payload["workflow_runs"][0]["conclusion"] == "success"
+    assert "15-second timeout" in payload["collection_boundary"]
     assert calls[0] == ["git", "rev-parse", "HEAD"]
     assert calls[1][:4] == ["gh", "run", "list", "--commit"]
+
+
+def test_collect_github_workflow_status_payload_times_out_fail_closed(monkeypatch, tmp_path):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
+        assert timeout == 15
+        raise subprocess.TimeoutExpired(args, timeout)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    try:
+        collect_github_workflow_status_payload(root=tmp_path, commit_sha="abc1234")
+    except CommitStatusReviewError as exc:
+        assert str(exc) == "gh command timed out after 15 seconds"
+    else:  # pragma: no cover
+        raise AssertionError("timed-out live status collection was not refused")
 
 
 def test_collect_github_workflow_status_payload_rejects_bad_sha(tmp_path):
@@ -166,7 +183,8 @@ def test_commit_status_review_command_prints_json_and_honors_clear_gate(tmp_path
 
 
 def test_commit_status_review_command_collects_github_workflow_status(monkeypatch, tmp_path, capsys):
-    def fake_run(args, cwd, check, capture_output, text):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
+        assert timeout == 15
         if args[:3] == ["gh", "run", "list"]:
             return subprocess.CompletedProcess(
                 args,

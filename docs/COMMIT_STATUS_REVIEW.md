@@ -28,6 +28,8 @@ forge-commit-status-review \
 
 `--from-github` defaults to `git rev-parse HEAD` when `--commit-sha` is omitted. It then runs `gh run list --commit <sha>` and normalizes the returned workflow runs into the same review model used for supplied JSON status evidence.
 
+Each live `git` or `gh` subprocess is bounded by a **15-second timeout**. A timeout fails closed with a `CommitStatusReviewError`; Forge does not continue to status review or push readiness with missing live evidence. The workflow-run count remains bounded to 20 entries.
+
 ## Accepted evidence shapes
 
 The command accepts a JSON object with one or more of these fields:
@@ -57,4 +59,4 @@ Successful states are treated as clear. Failed or errored states, pending/in-pro
 
 Supplied-status mode reads repository-local JSON status evidence only. It does not call networks, poll GitHub, run workflows, run commands, inspect diffs, read repository file contents, infer correctness beyond supplied status fields, approve implementation, enforce policy decisions, mutate saved history, read environment variables, commit, push, or change repository files.
 
-Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, then applies the same deterministic review logic. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.
+Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, with a 15-second timeout on every external command, then applies the same deterministic review logic. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.

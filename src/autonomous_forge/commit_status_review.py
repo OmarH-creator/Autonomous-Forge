@@ -10,6 +10,7 @@ from typing import Any
 
 _MAX_STATUS_BYTES = 1_000_000
 _MAX_GH_RUNS = 20
+_LIVE_COMMAND_TIMEOUT_SECONDS = 15
 _SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 _SUCCESS_STATES = {"success", "successful"}
 _FAILURE_STATES = {"failure", "failed", "error", "cancelled", "timed_out", "action_required", "startup_failure"}
@@ -24,6 +25,7 @@ _SAFE_BOUNDARY = (
 
 _LIVE_SAFE_BOUNDARY = (
     "GitHub workflow-status collection shells out to local git and GitHub CLI only when explicitly requested. "
+    f"Each external command has a {_LIVE_COMMAND_TIMEOUT_SECONDS}-second timeout. "
     "It reads the current commit SHA and workflow-run metadata, but it does not rerun workflows, inspect logs, "
     "read repository file contents, apply patches, commit, push, or change repository files."
 )
@@ -147,9 +149,14 @@ def _run_json_command(args: list[str], *, cwd: Path, tool_name: str) -> Any:
             check=True,
             capture_output=True,
             text=True,
+            timeout=_LIVE_COMMAND_TIMEOUT_SECONDS,
         )
     except FileNotFoundError as exc:
         raise CommitStatusReviewError(f"{tool_name} executable was not found") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise CommitStatusReviewError(
+            f"{tool_name} command timed out after {_LIVE_COMMAND_TIMEOUT_SECONDS} seconds"
+        ) from exc
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or "").strip().splitlines()
         suffix = f": {detail[-1]}" if detail else ""
@@ -168,9 +175,14 @@ def _run_text_command(args: list[str], *, cwd: Path, tool_name: str) -> str:
             check=True,
             capture_output=True,
             text=True,
+            timeout=_LIVE_COMMAND_TIMEOUT_SECONDS,
         )
     except FileNotFoundError as exc:
         raise CommitStatusReviewError(f"{tool_name} executable was not found") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise CommitStatusReviewError(
+            f"{tool_name} command timed out after {_LIVE_COMMAND_TIMEOUT_SECONDS} seconds"
+        ) from exc
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or "").strip().splitlines()
         suffix = f": {detail[-1]}" if detail else ""
