@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from autonomous_forge.commit_status_review import (
+    build_commit_status_review_data,
+    collect_github_workflow_status_payload,
+)
 from autonomous_forge.post_push_verify import GitRunner, _run_git, build_post_push_verify_data
 from autonomous_forge.verified_push_handoff import build_verified_push_handoff_data
 from autonomous_forge.verified_validation_run import patch_apply_sha256
@@ -127,6 +131,26 @@ def _extract_verified_commit(change_run: dict[str, Any]) -> tuple[dict[str, Any]
     return report, blockers
 
 
+def _collect_live_status_review(change_evidence: dict[str, Any], *, root: Path) -> dict[str, Any]:
+    """Collect fresh workflow status only after the change evidence proves one verified commit."""
+    change_run, _, unwrap_blockers = _unwrap_change_evidence(change_evidence)
+    if unwrap_blockers or change_run is None:
+        raise VerifiedPushRunError(
+            "live status collection requires valid committed verified change evidence before any GitHub query"
+        )
+    commit_report, commit_blockers = _extract_verified_commit(change_run)
+    if commit_blockers or commit_report is None:
+        raise VerifiedPushRunError(
+            "live status collection requires a verified created commit before any GitHub query"
+        )
+    commit_sha = str(commit_report.get("created_commit") or "").strip()
+    payload = collect_github_workflow_status_payload(root=root, commit_sha=commit_sha)
+    review = build_commit_status_review_data(payload)
+    if review.get("commit_sha") != commit_sha:
+        raise VerifiedPushRunError("live status review did not remain bound to the verified created commit")
+    return review
+
+
 def build_verified_push_run_data(
     change_evidence: dict[str, Any],
     commit_trust: dict[str, Any],
@@ -166,10 +190,12 @@ def build_verified_push_run_data(
             "Verified push run accepts a committed verified-change-run artifact or the committed verified-change-apply-run "
             "wrapper that safely embeds it. Wrapper mode additionally requires confirmed guarded patch application, "
             "live-diff verification, validation, commit creation, and an exact canonical patch SHA-256 match against "
-            "verified commit readiness before the nested commit evidence is used. Push remains a separate explicit "
-            "confirmation gate and Forge reuses its trust/status/branch-protection readiness, fast-forward-only guarded "
-            "push, and post-push verification contracts. It never force-pushes, pushes tags, changes remotes or branch "
-            "protections, or treats earlier confirmations as push authority."
+            "verified commit readiness before the nested commit evidence is used. Status evidence can be supplied as a "
+            "reviewed JSON artifact or collected on demand through the existing bounded GitHub workflow-status collector, "
+            "which is explicitly selected by the caller and is bound to the verified created commit. Push remains a "
+            "separate explicit confirmation gate and Forge reuses its trust/status/branch-protection readiness, "
+            "fast-forward-only guarded push, and post-push verification contracts. It never force-pushes, pushes tags, "
+            "changes remotes or branch protections, reruns workflows, or treats earlier confirmations as push authority."
         ),
     }
     if blockers or commit_report is None:
@@ -210,7 +236,7 @@ def build_verified_push_run_data(
 def read_verified_push_run(
     change_evidence_path: Path,
     commit_trust_path: Path,
-    status_review_path: Path,
+    status_review_path: Path | None,
     branch_protection_path: Path,
     *,
     root: Path = Path("."),
@@ -218,13 +244,24 @@ def read_verified_push_run(
     remote: str = "origin",
     confirm_push: bool = False,
     fetch_after_push: bool = False,
+    live_status: bool = False,
     git_runner: GitRunner = _run_git,
 ) -> dict[str, Any]:
-    """Read bounded repository-local evidence and run the guarded push orchestration."""
+    """Read bounded evidence, optionally collect fresh workflow status, then run guarded push orchestration."""
+    change_evidence = _read_json(change_evidence_path, root=root, label="verified change evidence")
+    if live_status:
+        if status_review_path is not None:
+            raise VerifiedPushRunError("live status collection and supplied status-review evidence are mutually exclusive")
+        status_review = _collect_live_status_review(change_evidence, root=root)
+    else:
+        if status_review_path is None:
+            raise VerifiedPushRunError("status-review evidence is required unless live status collection is selected")
+        status_review = _read_json(status_review_path, root=root, label="status review")
+
     return build_verified_push_run_data(
-        _read_json(change_evidence_path, root=root, label="verified change evidence"),
+        change_evidence,
         _read_json(commit_trust_path, root=root, label="commit trust"),
-        _read_json(status_review_path, root=root, label="status review"),
+        status_review,
         _read_json(branch_protection_path, root=root, label="branch protection"),
         root=root,
         branch=branch,
