@@ -137,9 +137,40 @@ def test_collect_github_workflow_status_payload_uses_git_and_gh(monkeypatch, tmp
     assert payload["source"] == "gh run list"
     assert payload["workflow_runs"][0]["name"] == "Test"
     assert payload["workflow_runs"][0]["conclusion"] == "success"
+    assert payload["workflow_run_limit"] == 20
+    assert payload["workflow_run_collection_complete"] is True
     assert "15-second timeout" in payload["collection_boundary"]
+    assert "sentinel workflow run" in payload["collection_boundary"]
     assert calls[0] == ["git", "rev-parse", "HEAD"]
     assert calls[1][:4] == ["gh", "run", "list", "--commit"]
+    assert calls[1][calls[1].index("--limit") + 1] == "21"
+
+
+def test_collect_github_workflow_status_payload_refuses_truncated_results(monkeypatch, tmp_path):
+    def fake_run(args, cwd, check, capture_output, text, timeout):
+        assert args[:3] == ["gh", "run", "list"]
+        assert args[args.index("--limit") + 1] == "3"
+        return subprocess.CompletedProcess(
+            args,
+            0,
+            stdout=json.dumps(
+                [
+                    {"name": "CI-1", "status": "completed", "conclusion": "success"},
+                    {"name": "CI-2", "status": "completed", "conclusion": "success"},
+                    {"name": "CI-3", "status": "completed", "conclusion": "failure"},
+                ]
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    try:
+        collect_github_workflow_status_payload(root=tmp_path, commit_sha="abc1234", limit=2)
+    except CommitStatusReviewError as exc:
+        assert str(exc) == "workflow status collection exceeded the configured 2-run review limit; completeness is unknown"
+    else:  # pragma: no cover
+        raise AssertionError("truncated live status evidence was not refused")
 
 
 def test_collect_github_workflow_status_payload_times_out_fail_closed(monkeypatch, tmp_path):
