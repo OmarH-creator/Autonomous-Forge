@@ -28,7 +28,9 @@ forge-commit-status-review \
 
 `--from-github` defaults to `git rev-parse HEAD` when `--commit-sha` is omitted. It then runs `gh run list --commit <sha>` and normalizes the returned workflow runs into the same review model used for supplied JSON status evidence.
 
-Each live `git` or `gh` subprocess is bounded by a **15-second timeout**. A timeout fails closed with a `CommitStatusReviewError`; Forge does not continue to status review or push readiness with missing live evidence. The workflow-run count remains bounded to 20 entries.
+Each live `git` or `gh` subprocess is bounded by a **15-second timeout**. A timeout fails closed with a `CommitStatusReviewError`; Forge does not continue to status review or push readiness with missing live evidence.
+
+Live collection reviews at most **20 workflow runs**, but the GitHub CLI query requests **one additional sentinel run**. If that 21st result is present, Forge knows the configured review window would be truncated and refuses the evidence with `completeness is unknown` instead of treating the visible subset as complete. Successful payloads record `workflow_run_limit` and `workflow_run_collection_complete=true`. This prevents an omitted failed, pending, or unknown workflow run from disappearing beyond the review limit.
 
 ## Accepted evidence shapes
 
@@ -59,4 +61,4 @@ Successful states are treated as clear. Failed or errored states, pending/in-pro
 
 Supplied-status mode reads repository-local JSON status evidence only. It does not call networks, poll GitHub, run workflows, run commands, inspect diffs, read repository file contents, infer correctness beyond supplied status fields, approve implementation, enforce policy decisions, mutate saved history, read environment variables, commit, push, or change repository files.
 
-Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, with a 15-second timeout on every external command, then applies the same deterministic review logic. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.
+Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, with a 15-second timeout on every external command. It requests one sentinel result beyond the 20-run review bound and fails closed if that sentinel proves the visible evidence would be incomplete. It then applies the same deterministic review logic. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.
