@@ -134,6 +134,38 @@ def _commit_sha(payload: dict[str, Any]) -> str:
     return ""
 
 
+def _live_collection_evidence(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    """Preserve and validate collector guarantees when evidence came from live GitHub status collection."""
+    if _normalize_text(payload.get("source")) != "gh run list":
+        return None, []
+
+    blockers: list[str] = []
+    raw_limit = payload.get("workflow_run_limit")
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        limit = 0
+    if not 1 <= limit <= _MAX_GH_RUNS:
+        blockers.append("live workflow status evidence lacks a valid bounded collection limit")
+
+    collection_complete = payload.get("workflow_run_collection_complete") is True
+    if not collection_complete:
+        blockers.append("live workflow status evidence does not prove bounded collection completeness")
+
+    commit_binding_complete = payload.get("workflow_run_commit_binding_complete") is True
+    if not commit_binding_complete:
+        blockers.append("live workflow status evidence does not prove per-run commit binding")
+
+    evidence = {
+        "source": "gh run list",
+        "requested_commit": _commit_sha(payload),
+        "workflow_run_limit": limit,
+        "collection_complete": collection_complete,
+        "commit_binding_complete": commit_binding_complete,
+    }
+    return evidence, blockers
+
+
 def _resolve_root(root: Path) -> Path:
     try:
         resolved = root.resolve()
@@ -292,6 +324,9 @@ def build_commit_status_review_data(status_payload: dict[str, Any]) -> dict[str,
     if counts["unknown"]:
         blockers.append("one or more supplied status contexts used an unrecognized state")
 
+    live_collection_evidence, live_blockers = _live_collection_evidence(status_payload)
+    blockers.extend(live_blockers)
+
     source = _normalize_text(status_payload.get("source")) or "supplied commit/workflow status JSON"
     review_status = "clear" if not blockers else "blocked"
     return {
@@ -308,12 +343,13 @@ def build_commit_status_review_data(status_payload: dict[str, Any]) -> dict[str,
             "pending": counts["pending"],
             "unknown": counts["unknown"],
         },
+        "live_collection_evidence": live_collection_evidence,
         "review_blockers": blockers,
         "requires_attention": review_status != "clear",
         "reason": (
             "All supplied commit or workflow status evidence is successful."
             if review_status == "clear"
-            else "Review failed, pending, unknown, or missing status evidence before implementation continues."
+            else "Review failed, pending, unknown, incomplete, unbound, or missing status evidence before implementation continues."
         ),
         "next_step": (
             "Use this clear status review as advisory validation evidence alongside reviewed diffs."
@@ -332,27 +368,42 @@ def format_commit_status_review(data: dict[str, Any]) -> str:
         f"Source: {data['source']}",
         f"Commit: {data['commit_sha'] or 'unspecified'}",
         f"Review status: {data['review_status']}",
-        "Status contexts:",
-        *[
-            (
-                f"- {review['name']}: kind={review['kind']}; state={review['state']}; "
-                f"category={review['review_category']}; url_present={str(review['url_present']).lower()}"
-            )
-            for review in data["status_reviews"]
-        ],
-        "Summary:",
-        f"- total: {data['summary']['total']}",
-        f"- success: {data['summary']['success']}",
-        f"- failure: {data['summary']['failure']}",
-        f"- pending: {data['summary']['pending']}",
-        f"- unknown: {data['summary']['unknown']}",
-        "Review blockers:",
-        *[f"- {blocker}" for blocker in data["review_blockers"]],
-        f"Requires attention: {str(data['requires_attention']).lower()}",
-        f"Reason: {data['reason']}",
-        f"Next step: {data['next_step']}",
-        f"Safety boundary: {data['safety_boundary']}",
     ]
+    live = data.get("live_collection_evidence")
+    if isinstance(live, dict):
+        lines.extend(
+            [
+                "Live collection evidence:",
+                f"- workflow run limit: {live.get('workflow_run_limit', 0)}",
+                f"- collection complete: {str(live.get('collection_complete') is True).lower()}",
+                f"- commit binding complete: {str(live.get('commit_binding_complete') is True).lower()}",
+                f"- requested commit: {live.get('requested_commit') or 'unspecified'}",
+            ]
+        )
+    lines.extend(
+        [
+            "Status contexts:",
+            *[
+                (
+                    f"- {review['name']}: kind={review['kind']}; state={review['state']}; "
+                    f"category={review['review_category']}; url_present={str(review['url_present']).lower()}"
+                )
+                for review in data["status_reviews"]
+            ],
+            "Summary:",
+            f"- total: {data['summary']['total']}",
+            f"- success: {data['summary']['success']}",
+            f"- failure: {data['summary']['failure']}",
+            f"- pending: {data['summary']['pending']}",
+            f"- unknown: {data['summary']['unknown']}",
+            "Review blockers:",
+            *[f"- {blocker}" for blocker in data["review_blockers"]],
+            f"Requires attention: {str(data['requires_attention']).lower()}",
+            f"Reason: {data['reason']}",
+            f"Next step: {data['next_step']}",
+            f"Safety boundary: {data['safety_boundary']}",
+        ]
+    )
     return "\n".join(lines)
 
 
