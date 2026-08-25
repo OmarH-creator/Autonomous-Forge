@@ -33,7 +33,9 @@ Without `--confirm-push`, the command can reach `ready_for_push` but does not in
 
 Forge validates the returned workflow-run metadata before it becomes status-review evidence. Every collected workflow run must carry a non-empty `headSha` (normalized internally as `head_sha`) that exactly equals the verified created commit. A missing or mismatched per-run SHA fails closed before the status-review builder is invoked. The resulting review must also retain the exact verified commit SHA, providing a second independent binding check.
 
-Forge refuses to start the live query when the change artifact is malformed, uncommitted, or unverified. The collector is bounded and read-only with respect to GitHub: it lists workflow runs and never reruns workflows, mutates checks, applies patches, commits, pushes, or changes repository settings.
+Live status also has a completeness gate. Forge reviews at most 20 workflow runs but asks `gh run list` for one additional sentinel result. If the sentinel is returned, the visible 20-run window may have omitted another failed, pending, or unknown run, so collection stops with `completeness is unknown` before push readiness. A successful collected payload therefore proves that the bounded workflow-run set was not truncated at the configured review limit.
+
+Forge refuses to start the live query when the change artifact is malformed, uncommitted, or unverified. Each live `git`/`gh` subprocess has a 15-second timeout. The collector is bounded and read-only with respect to GitHub: it lists workflow runs and never reruns workflows, mutates checks, applies patches, commits, pushes, or changes repository settings.
 
 This mode removes one caller-managed JSON handoff while keeping network access explicit at invocation time. Users who do not want a live GitHub query can continue supplying `--status-review` exactly as before.
 
