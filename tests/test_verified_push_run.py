@@ -218,7 +218,14 @@ def test_read_verified_push_run_collects_live_status_for_verified_commit(monkeyp
         observed["commit_sha"] = commit_sha
         return {
             "sha": commit_sha,
-            "workflow_runs": [{"name": "Test", "status": "completed", "conclusion": "success"}],
+            "workflow_runs": [
+                {
+                    "name": "Test",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": commit_sha,
+                }
+            ],
         }
 
     def fake_build_status(payload):
@@ -257,6 +264,84 @@ def test_read_verified_push_run_collects_live_status_for_verified_commit(monkeyp
     assert data["workflow_status"] == "ready_for_push"
     assert observed["commit_sha"] == "a" * 40
     assert observed["payload"]["sha"] == "a" * 40
+
+
+def test_read_verified_push_run_refuses_live_status_run_from_other_commit(monkeypatch, tmp_path):
+    change = _change_run()
+    status_builder_calls = []
+
+    monkeypatch.setattr(
+        verified_push_run,
+        "_read_json",
+        lambda path, *, root, label: change if label == "verified change evidence" else {},
+    )
+    monkeypatch.setattr(
+        verified_push_run,
+        "collect_github_workflow_status_payload",
+        lambda **kwargs: {
+            "sha": "a" * 40,
+            "workflow_runs": [
+                {
+                    "name": "Test",
+                    "status": "completed",
+                    "conclusion": "success",
+                    "head_sha": "b" * 40,
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        verified_push_run,
+        "build_commit_status_review_data",
+        lambda payload: status_builder_calls.append(payload),
+    )
+
+    try:
+        verified_push_run.read_verified_push_run(
+            Path("change.json"),
+            Path("trust.json"),
+            None,
+            Path("protection.json"),
+            root=tmp_path,
+            live_status=True,
+        )
+    except verified_push_run.VerifiedPushRunError as exc:
+        assert "not verified commit" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("mismatched live workflow run unexpectedly entered status review")
+    assert status_builder_calls == []
+
+
+def test_read_verified_push_run_refuses_live_status_without_run_head_sha(monkeypatch, tmp_path):
+    change = _change_run()
+
+    monkeypatch.setattr(
+        verified_push_run,
+        "_read_json",
+        lambda path, *, root, label: change if label == "verified change evidence" else {},
+    )
+    monkeypatch.setattr(
+        verified_push_run,
+        "collect_github_workflow_status_payload",
+        lambda **kwargs: {
+            "sha": "a" * 40,
+            "workflow_runs": [{"name": "Test", "status": "completed", "conclusion": "success"}],
+        },
+    )
+
+    try:
+        verified_push_run.read_verified_push_run(
+            Path("change.json"),
+            Path("trust.json"),
+            None,
+            Path("protection.json"),
+            root=tmp_path,
+            live_status=True,
+        )
+    except verified_push_run.VerifiedPushRunError as exc:
+        assert "lacks a head SHA" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("headless live workflow run unexpectedly entered status review")
 
 
 def test_read_verified_push_run_refuses_live_status_before_unverified_change(monkeypatch, tmp_path):
