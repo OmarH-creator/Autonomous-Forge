@@ -10,6 +10,7 @@ from typing import Any
 
 _MAX_STATUS_BYTES = 1_000_000
 _MAX_GH_RUNS = 20
+_GH_COMPLETENESS_SENTINEL_RUNS = 1
 _LIVE_COMMAND_TIMEOUT_SECONDS = 15
 _SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 _SUCCESS_STATES = {"success", "successful"}
@@ -26,8 +27,10 @@ _SAFE_BOUNDARY = (
 _LIVE_SAFE_BOUNDARY = (
     "GitHub workflow-status collection shells out to local git and GitHub CLI only when explicitly requested. "
     f"Each external command has a {_LIVE_COMMAND_TIMEOUT_SECONDS}-second timeout. "
-    "It reads the current commit SHA and workflow-run metadata, but it does not rerun workflows, inspect logs, "
-    "read repository file contents, apply patches, commit, push, or change repository files."
+    "It requests one sentinel workflow run beyond the configured review limit and refuses evidence when that "
+    "sentinel proves the result set was truncated. It reads the current commit SHA and workflow-run metadata, "
+    "but it does not rerun workflows, inspect logs, read repository file contents, apply patches, commit, push, "
+    "or change repository files."
 )
 
 
@@ -196,7 +199,7 @@ def collect_github_workflow_status_payload(
     commit_sha: str | None = None,
     limit: int = _MAX_GH_RUNS,
 ) -> dict[str, Any]:
-    """Collect live workflow-run status evidence using local git and GitHub CLI."""
+    """Collect complete bounded workflow-run status evidence using local git and GitHub CLI."""
     resolved_root = _resolve_root(root)
     if not 1 <= limit <= _MAX_GH_RUNS:
         raise CommitStatusReviewError(f"workflow run limit must be between 1 and {_MAX_GH_RUNS}")
@@ -207,6 +210,7 @@ def collect_github_workflow_status_payload(
     if not _SHA_RE.fullmatch(sha):
         raise CommitStatusReviewError("commit SHA must be a 7-40 character hexadecimal value")
 
+    query_limit = limit + _GH_COMPLETENESS_SENTINEL_RUNS
     runs = _run_json_command(
         [
             "gh",
@@ -215,7 +219,7 @@ def collect_github_workflow_status_payload(
             "--commit",
             sha,
             "--limit",
-            str(limit),
+            str(query_limit),
             "--json",
             "conclusion,databaseId,displayTitle,event,headSha,name,status,url,workflowName",
         ],
@@ -224,6 +228,10 @@ def collect_github_workflow_status_payload(
     )
     if not isinstance(runs, list):
         raise CommitStatusReviewError("gh workflow run output must be a JSON list")
+    if len(runs) > limit:
+        raise CommitStatusReviewError(
+            f"workflow status collection exceeded the configured {limit}-run review limit; completeness is unknown"
+        )
 
     workflow_runs: list[dict[str, Any]] = []
     for item in runs:
@@ -247,6 +255,8 @@ def collect_github_workflow_status_payload(
         "sha": sha,
         "source": "gh run list",
         "workflow_runs": workflow_runs,
+        "workflow_run_limit": limit,
+        "workflow_run_collection_complete": True,
         "collection_boundary": _LIVE_SAFE_BOUNDARY,
     }
 
