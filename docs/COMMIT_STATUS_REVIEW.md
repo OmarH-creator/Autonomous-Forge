@@ -34,6 +34,8 @@ Live collection reviews at most **20 workflow runs**, but the GitHub CLI query r
 
 Every workflow run admitted by live collection must also report a non-empty `headSha` equal to the exact requested commit SHA. A missing or mismatched run SHA fails closed inside the shared collector before any consumer can turn those rows into status-review evidence. Successful live payloads therefore record `workflow_run_commit_binding_complete=true`. This applies equally to direct `forge commit-status-review --from-github` callers and higher-level orchestration such as `forge verified-push-run --live-status`.
 
+AUTO-207 carries those collector guarantees across the **payload → status-review boundary** as structured `live_collection_evidence`. A live review is clear only when its collection limit is still within the configured 1–20 bound and both `collection_complete` and `commit_binding_complete` remain true. If a persisted or transformed live payload loses either proof, the resulting status review fails closed rather than silently retaining a clear result. Supplied non-live status evidence remains backward compatible and reports `live_collection_evidence: null`.
+
 ## Accepted evidence shapes
 
 The command accepts a JSON object with one or more of these fields:
@@ -43,7 +45,7 @@ The command accepts a JSON object with one or more of these fields:
 - `workflow_runs`: workflow-run style entries using `name`, `status`, `conclusion`, and optionally `html_url` or `url`.
 - `state`: a single combined status when no context list is present.
 
-Successful states are treated as clear. Failed or errored states, pending/in-progress states, unknown states, and missing status evidence are blocked. `--require-clear` changes only the process exit code.
+Successful states are treated as clear. Failed or errored states, pending/in-progress states, unknown states, missing status evidence, and incomplete/unbound live-collection guarantees are blocked. `--require-clear` changes only the process exit code.
 
 ## Example
 
@@ -63,4 +65,4 @@ Successful states are treated as clear. Failed or errored states, pending/in-pro
 
 Supplied-status mode reads repository-local JSON status evidence only. It does not call networks, poll GitHub, run workflows, run commands, inspect diffs, read repository file contents, infer correctness beyond supplied status fields, approve implementation, enforce policy decisions, mutate saved history, read environment variables, commit, push, or change repository files.
 
-Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, with a 15-second timeout on every external command. It requests one sentinel result beyond the 20-run review bound and fails closed if that sentinel proves the visible evidence would be incomplete. Before returning a live payload, the collector also requires every admitted run to identify that exact requested commit as its head SHA. It then applies the same deterministic review logic. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.
+Live GitHub mode is opt-in. It shells out only to local `git` and `gh` to collect workflow-run metadata for one commit, with a 15-second timeout on every external command. It requests one sentinel result beyond the 20-run review bound and fails closed if that sentinel proves the visible evidence would be incomplete. Before returning a live payload, the collector also requires every admitted run to identify that exact requested commit as its head SHA. The status-review conversion now preserves and revalidates those two collector guarantees instead of dropping them. It does not rerun workflows, inspect job logs, read repository file contents, apply patches, commit, push, or change files.
