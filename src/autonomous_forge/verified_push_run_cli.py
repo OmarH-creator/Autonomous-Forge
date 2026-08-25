@@ -22,7 +22,13 @@ def build_parser() -> argparse.ArgumentParser:
     change_input.add_argument("--change-run")
     change_input.add_argument("--change-apply-run")
     parser.add_argument("--commit-trust", required=True)
-    parser.add_argument("--status-review", required=True)
+    status_input = parser.add_mutually_exclusive_group(required=True)
+    status_input.add_argument("--status-review")
+    status_input.add_argument(
+        "--live-status",
+        action="store_true",
+        help="Collect fresh workflow status for the verified created commit using the existing bounded GitHub CLI collector.",
+    )
     parser.add_argument("--branch-protection", required=True)
     parser.add_argument("--branch", default="main")
     parser.add_argument("--remote", default="origin")
@@ -67,13 +73,14 @@ def main(argv: list[str] | None = None) -> int:
         data = read_verified_push_run(
             Path(change_evidence),
             Path(args.commit_trust),
-            Path(args.status_review),
+            Path(args.status_review) if args.status_review else None,
             Path(args.branch_protection),
             root=Path(args.root),
             branch=args.branch,
             remote=args.remote,
             confirm_push=args.confirm_push,
             fetch_after_push=args.fetch_after_push,
+            live_status=args.live_status,
         )
     except (FileNotFoundError, VerifiedPushRunError, ValueError) as exc:
         print(f"Verified push run refused: {exc}")
