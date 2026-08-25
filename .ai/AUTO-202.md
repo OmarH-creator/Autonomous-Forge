@@ -37,7 +37,7 @@ Work was performed directly on `main`. No branch, pull request, merge, or force 
 
 ## Validation
 
-Targeted deterministic coverage was added for the new integration. AUTO-201 final-head CI was confirmed green before this feature slice began. AUTO-202 final-head Python 3.10/3.11/3.12 CI must be observed and recorded before the run is considered complete.
+Targeted deterministic coverage was added for exact created-commit binding, refusal to query before a verified commit exists, backward-compatible supplied status input, and primary CLI help. Push-triggered GitHub Actions run `32804309834` on AUTO-202 head `40b924d7c05a5cfe3c25137ffb1eeb0c9e1cd52f` completed successfully. Python 3.10, 3.11, and 3.12 each passed package installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Visuals
 
@@ -45,4 +45,4 @@ No new visual was warranted because the lifecycle topology is unchanged; this re
 
 ## Next action
 
-If final AUTO-202 CI is green, continue the same integrated maintenance milestone with the next meaningful trust/protection evidence handoff reduction permitted by policy, or the next concrete cross-stage integrity defect. Any CI failure takes priority.
+Continue the same integrated maintenance milestone with the next meaningful trust/protection evidence handoff reduction permitted by policy, or the next concrete cross-stage integrity defect. Any future CI failure takes priority.
