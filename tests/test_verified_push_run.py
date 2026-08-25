@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import autonomous_forge.verified_push_run as verified_push_run
 from autonomous_forge.cli_entry_patch import main as forge_main
 from autonomous_forge.verified_validation_run import patch_apply_sha256
@@ -197,11 +199,105 @@ def test_verified_push_run_refuses_uncommitted_change_before_push(monkeypatch, t
     assert "verified change run did not finish in committed status" in data["blockers"]
 
 
+def test_read_verified_push_run_collects_live_status_for_verified_commit(monkeypatch, tmp_path):
+    change = _change_apply_run()
+    trust = {"trust": "supplied"}
+    protection = {"protection": "supplied"}
+    observed = {}
+
+    def fake_read(path, *, root, label):
+        if label == "verified change evidence":
+            return change
+        if label == "commit trust":
+            return trust
+        if label == "branch protection":
+            return protection
+        raise AssertionError(f"unexpected read: {label}")
+
+    def fake_collect(*, root, commit_sha):
+        observed["commit_sha"] = commit_sha
+        return {
+            "sha": commit_sha,
+            "workflow_runs": [{"name": "Test", "status": "completed", "conclusion": "success"}],
+        }
+
+    def fake_build_status(payload):
+        observed["payload"] = payload
+        return {
+            "title": "Autonomous Forge commit status review",
+            "commit_sha": payload["sha"],
+            "review_status": "clear",
+            "requires_attention": False,
+            "review_blockers": [],
+            "summary": {"total": 1, "success": 1, "failure": 0, "pending": 0, "unknown": 0},
+            "status_reviews": [{"name": "Test"}],
+        }
+
+    def fake_build_run(change_evidence, commit_trust, status_review, branch_protection, **kwargs):
+        assert change_evidence is change
+        assert commit_trust is trust
+        assert branch_protection is protection
+        assert status_review["commit_sha"] == "a" * 40
+        return {"workflow_status": "ready_for_push"}
+
+    monkeypatch.setattr(verified_push_run, "_read_json", fake_read)
+    monkeypatch.setattr(verified_push_run, "collect_github_workflow_status_payload", fake_collect)
+    monkeypatch.setattr(verified_push_run, "build_commit_status_review_data", fake_build_status)
+    monkeypatch.setattr(verified_push_run, "build_verified_push_run_data", fake_build_run)
+
+    data = verified_push_run.read_verified_push_run(
+        Path("change.json"),
+        Path("trust.json"),
+        None,
+        Path("protection.json"),
+        root=tmp_path,
+        live_status=True,
+    )
+
+    assert data["workflow_status"] == "ready_for_push"
+    assert observed["commit_sha"] == "a" * 40
+    assert observed["payload"]["sha"] == "a" * 40
+
+
+def test_read_verified_push_run_refuses_live_status_before_unverified_change(monkeypatch, tmp_path):
+    change = _change_run()
+    change["commit_report"]["commit_verified"] = False
+    called = []
+
+    monkeypatch.setattr(
+        verified_push_run,
+        "_read_json",
+        lambda path, *, root, label: change if label == "verified change evidence" else {},
+    )
+    monkeypatch.setattr(
+        verified_push_run,
+        "collect_github_workflow_status_payload",
+        lambda **kwargs: called.append(kwargs),
+    )
+
+    try:
+        verified_push_run.read_verified_push_run(
+            Path("change.json"),
+            Path("trust.json"),
+            None,
+            Path("protection.json"),
+            root=tmp_path,
+            live_status=True,
+        )
+    except verified_push_run.VerifiedPushRunError as exc:
+        assert "verified created commit" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("unverified change unexpectedly reached live status collection")
+    assert called == []
+
+
 def test_primary_forge_router_exposes_verified_push_run_help(capsys):
     assert forge_main(["verified-push-run", "--help"]) == 0
     text = capsys.readouterr().out
     assert "verified-push-run" in text
     assert "--change-run" in text
     assert "--change-apply-run" in text
+    assert "--status-review" in text
+    assert "--live-status" in text
     assert "--confirm-push" in text
     assert "--require-post-push-verified" in text
