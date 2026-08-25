@@ -28,9 +28,9 @@ _LIVE_SAFE_BOUNDARY = (
     "GitHub workflow-status collection shells out to local git and GitHub CLI only when explicitly requested. "
     f"Each external command has a {_LIVE_COMMAND_TIMEOUT_SECONDS}-second timeout. "
     "It requests one sentinel workflow run beyond the configured review limit and refuses evidence when that "
-    "sentinel proves the result set was truncated. It reads the current commit SHA and workflow-run metadata, "
-    "but it does not rerun workflows, inspect logs, read repository file contents, apply patches, commit, push, "
-    "or change repository files."
+    "sentinel proves the result set was truncated. Every admitted workflow run must report the exact requested "
+    "commit as its head SHA. It reads the current commit SHA and workflow-run metadata, but it does not rerun "
+    "workflows, inspect logs, read repository file contents, apply patches, commit, push, or change repository files."
 )
 
 
@@ -234,9 +234,16 @@ def collect_github_workflow_status_payload(
         )
 
     workflow_runs: list[dict[str, Any]] = []
-    for item in runs:
+    for index, item in enumerate(runs, start=1):
         if not isinstance(item, dict):
             raise CommitStatusReviewError("gh workflow run output must contain JSON objects")
+        head_sha = _normalize_text(item.get("headSha"))
+        if not head_sha:
+            raise CommitStatusReviewError(f"workflow run {index} lacks a head SHA for requested commit {sha}")
+        if head_sha != sha:
+            raise CommitStatusReviewError(
+                f"workflow run {index} belongs to {head_sha}, not requested commit {sha}"
+            )
         workflow_runs.append(
             {
                 "id": item.get("databaseId"),
@@ -246,7 +253,7 @@ def collect_github_workflow_status_payload(
                 "conclusion": _normalize_text(item.get("conclusion")) or None,
                 "event": _normalize_text(item.get("event")),
                 "display_title": _normalize_text(item.get("displayTitle")),
-                "head_sha": _normalize_text(item.get("headSha")),
+                "head_sha": head_sha,
                 "html_url": _normalize_text(item.get("url")),
             }
         )
@@ -257,6 +264,7 @@ def collect_github_workflow_status_payload(
         "workflow_runs": workflow_runs,
         "workflow_run_limit": limit,
         "workflow_run_collection_complete": True,
+        "workflow_run_commit_binding_complete": True,
         "collection_boundary": _LIVE_SAFE_BOUNDARY,
     }
 
