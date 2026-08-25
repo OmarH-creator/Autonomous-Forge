@@ -4,11 +4,16 @@
 
 It accepts either the historical standalone `verified-change-run` artifact or the newer `verified-change-apply-run` wrapper. Wrapper mode lets callers preserve the embedded guarded patch → live diff → validation → commit provenance without splitting the nested change-run back into another JSON file.
 
+The push stage can now obtain workflow status in either of two ways:
+
+- `--status-review <file>` consumes an already reviewed repository-local status artifact.
+- `--live-status` explicitly invokes Forge's existing bounded GitHub workflow-status collector for the exact verified created commit immediately before push readiness is evaluated.
+
 ```bash
 forge verified-push-run \
   --change-apply-run .ai/evidence/verified-change-apply-run.json \
   --commit-trust .ai/evidence/commit-trust.json \
-  --status-review .ai/evidence/commit-status.json \
+  --live-status \
   --branch-protection .ai/evidence/branch-protection.json \
   --branch main \
   --remote origin \
@@ -18,9 +23,17 @@ forge verified-push-run \
   --format json
 ```
 
-For backward compatibility, replace `--change-apply-run` with `--change-run` when using a standalone verified-change artifact. The two inputs are mutually exclusive.
+For backward compatibility, replace `--change-apply-run` with `--change-run` when using a standalone verified-change artifact. The two inputs are mutually exclusive. Likewise, `--status-review` and `--live-status` are mutually exclusive so supplied and freshly collected workflow evidence cannot be silently mixed.
 
 Without `--confirm-push`, the command can reach `ready_for_push` but does not invoke an authorized push. After an explicitly confirmed successful push, it runs the existing post-push remote verification; `--fetch-after-push` explicitly allows the verifier to refresh only the requested remote branch before checking reachability.
+
+## Live workflow-status binding
+
+`--live-status` reuses the already shipped `commit-status-review --from-github` collection boundary. It runs only after the change artifact proves a verified created commit, then queries workflow runs for that exact commit SHA and converts the result through the normal commit-status review contract.
+
+Forge refuses to start the live query when the change artifact is malformed, uncommitted, or unverified. The resulting review must retain the exact verified commit SHA before it can enter push readiness. The collector is bounded and read-only with respect to GitHub: it lists workflow runs and never reruns workflows, mutates checks, applies patches, commits, pushes, or changes repository settings.
+
+This mode removes one caller-managed JSON handoff while keeping network access explicit at invocation time. Users who do not want a live GitHub query can continue supplying `--status-review` exactly as before.
 
 ## Wrapper verification
 
@@ -40,4 +53,4 @@ The digest check prevents a valid committed nested change-run from being paired 
 
 Push authority remains independent from patch, validation, and commit confirmations. Forge reuses the existing commit-trust, status-review, branch-protection, fast-forward-only push, and post-push verification contracts. It never force-pushes, pushes tags, changes remotes or branch protections, or treats earlier confirmations as push authority.
 
-The supplied trust, status, and branch-protection JSON remain caller-provided evidence. This command composes and cross-checks those existing contracts; it does not independently query GitHub or prove signer identity.
+Commit-trust and branch-protection evidence remain caller-provided. Workflow status can be caller-provided or explicitly collected live for the verified commit through the existing bounded collector. Live status collection does not rerun workflows and cannot itself authorize a push; `--confirm-push` remains mandatory for the side effect.
