@@ -25,8 +25,8 @@ Evidence continuity only. This change adds no network or subprocess capability, 
 
 ## Validation
 
-Focused deterministic tests are committed. AUTO-211 remains incomplete until the final Python 3.10/3.11/3.12 Actions matrix is observed and green.
+Focused deterministic tests are committed. Pre-run AUTO-210 is green in Actions run `32962092448`. An AUTO-211 bookkeeping-head workflow (`32984482853`) concluded as a GitHub Actions startup/infrastructure failure while all three Python check runs remained queued and produced no job logs; the connector could not retry that run (`403`). No pytest failure or code-level annotation was produced. A fresh push from this factual run-record update is used as the next validation attempt. AUTO-211 remains incomplete until a Python 3.10/3.11/3.12 matrix actually runs and is green.
 
 ## Next action
 
-If CI is green, extend `maintenance-history-link-review --verify-linked-bundle` to verify and expose this same compact live-status summary against the linked durable bundle. Any CI failure takes priority.
+Any executable CI failure takes priority. If the matrix is green, extend `maintenance-history-link-review --verify-linked-bundle` to verify and expose this same compact live-status summary against the linked durable bundle.
