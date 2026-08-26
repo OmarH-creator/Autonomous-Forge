@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 _MAX_JSON_BYTES = 1_000_000
+_MAX_LIVE_WORKFLOW_RUNS = 20
 _SAFE_BOUNDARY = (
     "Push-readiness reads supplied commit-verify, commit-trust-review, commit-status-review, and "
     "branch-protection JSON evidence only. It never runs git, calls networks, stages files, creates commits, "
@@ -98,10 +99,7 @@ def _validate_commit_verify(report: dict[str, Any]) -> tuple[list[str], list[str
 
 
 def _validate_commit_trust(
-    report: dict[str, Any],
-    *,
-    expected_commit: str,
-    expected_paths: list[str],
+    report: dict[str, Any], *, expected_commit: str, expected_paths: list[str]
 ) -> tuple[list[str], str, str]:
     blockers: list[str] = []
     if report.get("title") != "Autonomous Forge commit trust review":
@@ -179,6 +177,45 @@ def _validate_status_review(report: dict[str, Any], *, expected_commit: str) -> 
     return blockers, status_names
 
 
+def _validate_live_collection_evidence(
+    report: dict[str, Any], *, expected_commit: str
+) -> tuple[dict[str, Any] | None, list[str]]:
+    evidence = report.get("live_collection_evidence")
+    if evidence is None:
+        return None, []
+    if not isinstance(evidence, dict):
+        return None, ["commit status review live collection evidence is malformed"]
+
+    blockers: list[str] = []
+    source = _clean_text(evidence.get("source"))
+    requested_commit = _clean_text(evidence.get("requested_commit"))
+    raw_limit = evidence.get("workflow_run_limit")
+    try:
+        workflow_run_limit = int(raw_limit)
+    except (TypeError, ValueError):
+        workflow_run_limit = 0
+
+    if source != "gh run list":
+        blockers.append("commit status review live collection source is not gh run list")
+    if requested_commit != expected_commit:
+        blockers.append("commit status review live collection commit does not match verified commit")
+    if not 1 <= workflow_run_limit <= _MAX_LIVE_WORKFLOW_RUNS:
+        blockers.append("commit status review live collection limit is invalid")
+    if evidence.get("collection_complete") is not True:
+        blockers.append("commit status review live collection does not prove bounded completeness")
+    if evidence.get("commit_binding_complete") is not True:
+        blockers.append("commit status review live collection does not prove per-run commit binding")
+
+    normalized = {
+        "source": source,
+        "requested_commit": requested_commit,
+        "workflow_run_limit": workflow_run_limit,
+        "collection_complete": evidence.get("collection_complete") is True,
+        "commit_binding_complete": evidence.get("commit_binding_complete") is True,
+    }
+    return normalized, blockers
+
+
 def _required_status_contexts(report: dict[str, Any]) -> list[str]:
     required_status_checks = report.get("required_status_checks")
     if not isinstance(required_status_checks, dict):
@@ -198,10 +235,7 @@ def _required_status_contexts(report: dict[str, Any]) -> list[str]:
 
 
 def _validate_branch_protection(
-    report: dict[str, Any],
-    *,
-    branch: str,
-    status_names: list[str],
+    report: dict[str, Any], *, branch: str, status_names: list[str]
 ) -> tuple[list[str], str, list[str], list[str], bool]:
     blockers: list[str] = []
     protected_value = report.get("protected")
@@ -253,13 +287,15 @@ def build_push_readiness_data(
 
     blockers, reviewed_paths, verified_commit = _validate_commit_verify(commit_verify)
     trust_blockers, trusted_commit, signature_code = _validate_commit_trust(
-        commit_trust,
-        expected_commit=verified_commit,
-        expected_paths=reviewed_paths,
+        commit_trust, expected_commit=verified_commit, expected_paths=reviewed_paths
     )
     blockers.extend(trust_blockers)
     status_blockers, status_names = _validate_status_review(status_review, expected_commit=verified_commit)
     blockers.extend(status_blockers)
+    live_status_evidence, live_status_blockers = _validate_live_collection_evidence(
+        status_review, expected_commit=verified_commit
+    )
+    blockers.extend(live_status_blockers)
     (
         branch_blockers,
         protected_branch,
@@ -282,6 +318,7 @@ def build_push_readiness_data(
         "verified_commit": verified_commit,
         "trusted_commit": trusted_commit,
         "status_commit": _clean_text(status_review.get("commit_sha")),
+        "live_status_evidence": live_status_evidence,
         "signature_code": signature_code,
         "branch": branch,
         "protected_branch": protected_branch,
@@ -302,6 +339,7 @@ def build_push_readiness_data(
             else 0,
             "required_status_contexts": len(required_status_contexts),
             "missing_required_status_contexts": len(missing_required_status_contexts),
+            "live_status_evidence": 1 if live_status_evidence is not None else 0,
             "blockers": len(blockers),
         },
         "push_readiness_blockers": blockers,
@@ -331,25 +369,41 @@ def format_push_readiness(data: dict[str, Any]) -> str:
         f"Branch status checks strict: {str(data['branch_status_checks_strict']).lower()}",
         f"Push ready: {str(data['push_ready']).lower()}",
         f"Push allowed: {str(data['push_allowed']).lower()}",
-        "Reviewed paths:",
-        *[f"- {path}" for path in data["reviewed_paths"]],
-        "Required status contexts:",
-        *[f"- {context}" for context in data["required_status_contexts"]],
-        "Observed status contexts:",
-        *[f"- {context}" for context in data["observed_status_contexts"]],
-        "Missing required status contexts:",
-        *[f"- {context}" for context in data["missing_required_status_contexts"]],
-        "Status summary:",
-        f"- total: {data['status_summary'].get('total', 0)}",
-        f"- success: {data['status_summary'].get('success', 0)}",
-        f"- failure: {data['status_summary'].get('failure', 0)}",
-        f"- pending: {data['status_summary'].get('pending', 0)}",
-        f"- unknown: {data['status_summary'].get('unknown', 0)}",
-        "Push-readiness blockers:",
-        *[f"- {blocker}" for blocker in data["push_readiness_blockers"]],
-        f"Next step: {data['next_step']}",
-        f"Safety boundary: {data['safety_boundary']}",
     ]
+    live = data.get("live_status_evidence")
+    if isinstance(live, dict):
+        lines.extend(
+            [
+                "Live status evidence:",
+                f"- source: {live.get('source') or 'none'}",
+                f"- requested commit: {live.get('requested_commit') or 'none'}",
+                f"- workflow run limit: {live.get('workflow_run_limit', 0)}",
+                f"- collection complete: {str(live.get('collection_complete') is True).lower()}",
+                f"- commit binding complete: {str(live.get('commit_binding_complete') is True).lower()}",
+            ]
+        )
+    lines.extend(
+        [
+            "Reviewed paths:",
+            *[f"- {path}" for path in data["reviewed_paths"]],
+            "Required status contexts:",
+            *[f"- {context}" for context in data["required_status_contexts"]],
+            "Observed status contexts:",
+            *[f"- {context}" for context in data["observed_status_contexts"]],
+            "Missing required status contexts:",
+            *[f"- {context}" for context in data["missing_required_status_contexts"]],
+            "Status summary:",
+            f"- total: {data['status_summary'].get('total', 0)}",
+            f"- success: {data['status_summary'].get('success', 0)}",
+            f"- failure: {data['status_summary'].get('failure', 0)}",
+            f"- pending: {data['status_summary'].get('pending', 0)}",
+            f"- unknown: {data['status_summary'].get('unknown', 0)}",
+            "Push-readiness blockers:",
+            *[f"- {blocker}" for blocker in data["push_readiness_blockers"]],
+            f"Next step: {data['next_step']}",
+            f"Safety boundary: {data['safety_boundary']}",
+        ]
+    )
     return "\n".join(lines)
 
 
@@ -368,9 +422,5 @@ def read_push_readiness(
     status_review = _read_json(status_review_path, root=root, label="commit-status-review")
     branch_protection = _read_json(branch_protection_path, root=root, label="branch-protection")
     return build_push_readiness_data(
-        commit_verify,
-        commit_trust,
-        status_review,
-        branch_protection,
-        branch=branch,
+        commit_verify, commit_trust, status_review, branch_protection, branch=branch
     )
