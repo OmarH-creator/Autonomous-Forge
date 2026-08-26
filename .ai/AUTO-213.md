@@ -28,7 +28,7 @@ Deterministic AUTO-213 tests cover:
 - propagation into comparison rows and preservation candidates; and
 - preservation-score independence from live-status presence/verification.
 
-Fresh GitHub Actions validation is required before this task can be marked DONE.
+Product/status head `5b1f5d9e6d79b6ba198c6994bbf866a163f2103d` passed GitHub Actions run `33022293550`. Python 3.10, 3.11, and 3.12 each passed checkout/install, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Safety and limitations
 
@@ -38,4 +38,4 @@ The linked durable bundle and linked-bundle reviewer remain authoritative. This 
 
 ## Next action
 
-Inspect AUTO-213 CI first. Any executable failure takes priority. If green, carry the normalized live-status proof only into the next preservation-facing surface where it materially improves reviewability without changing readiness or ranking semantics.
+Carry the normalized live-status proof only into the next preservation-facing surface where it materially improves reviewability without changing readiness or ranking semantics.
