@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 _MAX_JSON_BYTES = 1_000_000
+_MAX_LIVE_WORKFLOW_RUNS = 20
 _VALIDATION_CONTEXT_FIELDS = (
     "expected_file_changes",
     "implementation_steps",
@@ -276,6 +277,57 @@ def _external_validation_history_summary(data: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def _live_status_history_summary(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Return a compact verified summary of durable live workflow-status provenance."""
+    verified = data.get("verified_provenance")
+    if verified in (None, {}):
+        return None
+    if not isinstance(verified, dict):
+        raise MaintenanceEvidenceBundleError("verified provenance must be an object")
+    evidence = verified.get("live_status_evidence")
+    if evidence in (None, {}):
+        return None
+    if verified.get("status") != "complete" or verified.get("provenance_preserved") is not True:
+        raise MaintenanceEvidenceBundleError("live status history summary requires complete verified provenance")
+    if not isinstance(evidence, dict):
+        raise MaintenanceEvidenceBundleError("live status evidence must be an object")
+
+    source = _clean_text(evidence.get("source"))
+    requested_commit = _clean_text(evidence.get("requested_commit"))
+    try:
+        workflow_run_limit = int(evidence.get("workflow_run_limit"))
+    except (TypeError, ValueError):
+        workflow_run_limit = 0
+    collection_complete = evidence.get("collection_complete") is True
+    commit_binding_complete = evidence.get("commit_binding_complete") is True
+    digest = _clean_text(evidence.get("evidence_sha256"))
+
+    if source != "gh run list":
+        raise MaintenanceEvidenceBundleError("live status evidence source is not gh run list")
+    if requested_commit != _clean_text(data.get("commit_sha")):
+        raise MaintenanceEvidenceBundleError("live status commit does not match maintenance bundle")
+    if not 1 <= workflow_run_limit <= _MAX_LIVE_WORKFLOW_RUNS:
+        raise MaintenanceEvidenceBundleError("live status workflow-run limit is invalid")
+    if not collection_complete:
+        raise MaintenanceEvidenceBundleError("live status evidence does not prove bounded completeness")
+    if not commit_binding_complete:
+        raise MaintenanceEvidenceBundleError("live status evidence does not prove per-run commit binding")
+    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise MaintenanceEvidenceBundleError("live status evidence has invalid SHA-256")
+
+    normalized = {
+        "source": source,
+        "requested_commit": requested_commit,
+        "workflow_run_limit": workflow_run_limit,
+        "collection_complete": collection_complete,
+        "commit_binding_complete": commit_binding_complete,
+    }
+    canonical = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != digest:
+        raise MaintenanceEvidenceBundleError("live status evidence SHA-256 does not match normalized proof")
+    return {"present": True, **normalized, "evidence_sha256": digest}
+
+
 def build_maintenance_evidence_bundle_data(
     patch_apply: dict[str, Any],
     post_apply_validation: dict[str, Any],
@@ -498,6 +550,7 @@ def write_maintenance_history_link(
 
     bundle_id = _safe_bundle_id(_clean_text(data.get("bundle_id")))
     external_validation_summary = _external_validation_history_summary(data)
+    live_status_summary = _live_status_history_summary(data)
     link_payload = {
         "schema_version": "maintenance-bundle-history-link/v1",
         "title": "Autonomous Forge maintenance bundle history link",
@@ -527,6 +580,8 @@ def write_maintenance_history_link(
     }
     if external_validation_summary is not None:
         link_payload["external_validation_evidence_summary"] = external_validation_summary
+    if live_status_summary is not None:
+        link_payload["live_status_evidence_summary"] = live_status_summary
     if blockers:
         return {**data, "history_link": link_payload}
 
@@ -557,8 +612,8 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
         f"Bundle complete: {str(data['bundle_complete']).lower()}",
         f"Commit: {data['commit_sha'] or 'none'}",
         f"Remote branch: {data['remote']}/{data['branch']}",
-        f"Commit location: {data['commit_location'] or 'none'}",
-        f"Target path: {data['target_path']}",
+        f"Commit location: {data.get('commit_location') or 'none'}",
+        f"Target path: {data.get('target_path', 'none')}",
         "Reviewed paths:",
         *[f"- {path}" for path in data["reviewed_paths"]],
         "Validation steps:",
@@ -575,11 +630,11 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
             for item in data.get("source_reports", [])
         ],
         "Evidence chain:",
-        *[f"- {item['stage']}: {item['status']}" for item in data["evidence_chain"]],
+        *[f"- {item['stage']}: {item['status']}" for item in data.get("evidence_chain", [])],
         "Bundle blockers:",
         *[f"- {blocker}" for blocker in data["bundle_blockers"] or ["none"]],
-        f"Next step: {data['next_step']}",
-        f"Safety boundary: {data['safety_boundary']}",
+        f"Next step: {data.get('next_step', 'none')}",
+        f"Safety boundary: {data.get('safety_boundary', _SAFE_BOUNDARY)}",
     ]
     if "write_status" in data:
         lines.insert(4, f"Write status: {data['write_status']}")
@@ -588,6 +643,7 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
         link = data["history_link"]
         link_context = link.get("validation_context") or {}
         external_summary = link.get("external_validation_evidence_summary")
+        live_summary = link.get("live_status_evidence_summary")
         lines.extend(
             [
                 "History link:",
@@ -604,6 +660,16 @@ def format_maintenance_evidence_bundle(data: dict[str, Any]) -> str:
                     f"- external_validation_evidence_sha256={external_summary['evidence_sha256']}",
                     "- external_validation_executor_equivalent=false",
                     "- external_validation_gate_effect=advisory_only",
+                ]
+            )
+        if isinstance(live_summary, dict):
+            lines.extend(
+                [
+                    f"- live_status_requested_commit={live_summary['requested_commit']}",
+                    f"- live_status_workflow_run_limit={live_summary['workflow_run_limit']}",
+                    f"- live_status_collection_complete={str(live_summary['collection_complete']).lower()}",
+                    f"- live_status_commit_binding_complete={str(live_summary['commit_binding_complete']).lower()}",
+                    f"- live_status_evidence_sha256={live_summary['evidence_sha256']}",
                 ]
             )
         lines.extend(
