@@ -17,6 +17,8 @@ from autonomous_forge.maintenance_history_link_review import (
 )
 from autonomous_forge.maintenance_replay_summary import build_maintenance_replay_summary_data
 
+_MAX_LIVE_WORKFLOW_RUNS = 20
+
 
 def _is_lower_sha256(value: Any) -> bool:
     text = str(value or "").strip()
@@ -115,6 +117,123 @@ def _external_validation_summary_verification(
     }
 
 
+def _live_status_summary_verification(
+    data: dict[str, Any], *, bundle_path: str, root: Path
+) -> dict[str, Any]:
+    """Verify a compact history-link live-status summary against the linked bundle."""
+    link_path = Path(str(data.get("history_link_path") or ""))
+    link = _read_history_link(link_path, root=root)
+    summary = link.get("live_status_evidence_summary")
+    bundle = _read_bundle(Path(bundle_path), root=root)
+    verified_provenance = bundle.get("verified_provenance")
+    evidence = verified_provenance.get("live_status_evidence") if isinstance(verified_provenance, dict) else None
+    bundle_has_evidence = isinstance(evidence, dict) and bool(evidence)
+
+    if summary in (None, {}):
+        return {
+            "present": False,
+            "status": "not_present",
+            "verified": False,
+            "bundle_live_status_present": bundle_has_evidence,
+            "blockers": [],
+        }
+
+    blockers: list[str] = []
+    if not isinstance(summary, dict):
+        blockers.append("live status evidence summary must be an object")
+        summary = {}
+
+    source = str(summary.get("source") or "").strip()
+    requested_commit = str(summary.get("requested_commit") or "").strip()
+    try:
+        workflow_run_limit = int(summary.get("workflow_run_limit"))
+    except (TypeError, ValueError):
+        workflow_run_limit = 0
+    collection_complete = summary.get("collection_complete") is True
+    commit_binding_complete = summary.get("commit_binding_complete") is True
+    expected_sha256 = str(summary.get("evidence_sha256") or "").strip()
+
+    if summary.get("present") is not True:
+        blockers.append("live status evidence summary must declare present=true")
+    if source != "gh run list":
+        blockers.append("live status evidence summary source is not gh run list")
+    if requested_commit != str(data.get("commit_sha") or "").strip():
+        blockers.append("live status evidence summary commit does not match history link")
+    if not 1 <= workflow_run_limit <= _MAX_LIVE_WORKFLOW_RUNS:
+        blockers.append("live status evidence summary workflow-run limit is invalid")
+    if not collection_complete:
+        blockers.append("live status evidence summary does not prove bounded completeness")
+    if not commit_binding_complete:
+        blockers.append("live status evidence summary does not prove per-run commit binding")
+    if not _is_lower_sha256(expected_sha256):
+        blockers.append("live status evidence summary has invalid evidence SHA-256")
+
+    actual_sha256 = ""
+    bundle_evidence_sha256 = ""
+    if not bundle_has_evidence:
+        blockers.append("history link summarizes live status evidence missing from linked bundle")
+    else:
+        bundle_source = str(evidence.get("source") or "").strip()
+        bundle_commit = str(evidence.get("requested_commit") or "").strip()
+        try:
+            bundle_limit = int(evidence.get("workflow_run_limit"))
+        except (TypeError, ValueError):
+            bundle_limit = 0
+        bundle_collection = evidence.get("collection_complete") is True
+        bundle_binding = evidence.get("commit_binding_complete") is True
+        bundle_evidence_sha256 = str(evidence.get("evidence_sha256") or "").strip()
+        normalized = {
+            "source": bundle_source,
+            "requested_commit": bundle_commit,
+            "workflow_run_limit": bundle_limit,
+            "collection_complete": bundle_collection,
+            "commit_binding_complete": bundle_binding,
+        }
+        canonical = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        actual_sha256 = hashlib.sha256(canonical).hexdigest()
+
+        if bundle_source != "gh run list":
+            blockers.append("linked bundle live status source is not gh run list")
+        if bundle_commit != str(data.get("commit_sha") or "").strip():
+            blockers.append("linked bundle live status commit does not match history link")
+        if not 1 <= bundle_limit <= _MAX_LIVE_WORKFLOW_RUNS:
+            blockers.append("linked bundle live status workflow-run limit is invalid")
+        if not bundle_collection:
+            blockers.append("linked bundle live status does not prove bounded completeness")
+        if not bundle_binding:
+            blockers.append("linked bundle live status does not prove per-run commit binding")
+        if not _is_lower_sha256(bundle_evidence_sha256) or bundle_evidence_sha256 != actual_sha256:
+            blockers.append("linked bundle live status evidence SHA-256 does not match normalized provenance")
+        if _is_lower_sha256(expected_sha256) and expected_sha256 != actual_sha256:
+            blockers.append("live status evidence summary SHA-256 does not match linked bundle provenance")
+        if source != bundle_source:
+            blockers.append("live status evidence summary source differs from linked bundle provenance")
+        if requested_commit != bundle_commit:
+            blockers.append("live status evidence summary commit differs from linked bundle provenance")
+        if workflow_run_limit != bundle_limit:
+            blockers.append("live status evidence summary workflow-run limit differs from linked bundle provenance")
+        if collection_complete != bundle_collection:
+            blockers.append("live status evidence summary completeness differs from linked bundle provenance")
+        if commit_binding_complete != bundle_binding:
+            blockers.append("live status evidence summary commit binding differs from linked bundle provenance")
+
+    return {
+        "present": True,
+        "status": "verified" if not blockers else "blocked",
+        "verified": not blockers,
+        "bundle_live_status_present": bundle_has_evidence,
+        "source": source,
+        "requested_commit": requested_commit,
+        "workflow_run_limit": workflow_run_limit,
+        "collection_complete": collection_complete,
+        "commit_binding_complete": commit_binding_complete,
+        "expected_evidence_sha256": expected_sha256,
+        "bundle_evidence_sha256": bundle_evidence_sha256,
+        "actual_evidence_sha256": actual_sha256,
+        "blockers": blockers,
+    }
+
+
 def _linked_bundle_replay(data: dict[str, Any], *, root: Path) -> dict[str, Any]:
     """Verify the bundle pointer from a ready history link and run replay summary."""
     if data.get("review_status") != "ready":
@@ -171,8 +290,17 @@ def _linked_bundle_replay(data: dict[str, Any], *, root: Path) -> dict[str, Any]
         }
     replay = build_maintenance_replay_summary_data(Path(bundle_path), root=root)
     external_summary = _external_validation_summary_verification(data, bundle_path=bundle_path, root=root)
-    blockers = list(replay.get("replay_blockers") or []) + list(external_summary.get("blockers") or [])
-    linked_verified = replay.get("replay_status") == "replayable" and external_summary.get("status") != "blocked"
+    live_status_summary = _live_status_summary_verification(data, bundle_path=bundle_path, root=root)
+    blockers = (
+        list(replay.get("replay_blockers") or [])
+        + list(external_summary.get("blockers") or [])
+        + list(live_status_summary.get("blockers") or [])
+    )
+    linked_verified = (
+        replay.get("replay_status") == "replayable"
+        and external_summary.get("status") != "blocked"
+        and live_status_summary.get("status") != "blocked"
+    )
     return {
         "requested": True,
         "status": "verified" if linked_verified else "blocked",
@@ -189,6 +317,7 @@ def _linked_bundle_replay(data: dict[str, Any], *, root: Path) -> dict[str, Any]
         "validation_context": replay.get("validation_context") or {},
         "validation_context_consistency": replay.get("validation_context_consistency") or {},
         "external_validation_evidence_summary_verification": external_summary,
+        "live_status_evidence_summary_verification": live_status_summary,
         "blockers": blockers,
     }
 
@@ -197,6 +326,11 @@ def _format_with_linked_bundle(data: dict[str, Any]) -> str:
     linked_replay = data.get("linked_bundle_replay") or {"requested": False, "status": "not_requested"}
     replay_policy = linked_replay.get("replay_policy") or {"passed": 0, "failed": 0, "advisory": 0, "gates": []}
     external_summary = linked_replay.get("external_validation_evidence_summary_verification") or {
+        "present": False,
+        "status": "not_checked",
+        "verified": False,
+    }
+    live_status_summary = linked_replay.get("live_status_evidence_summary_verification") or {
         "present": False,
         "status": "not_checked",
         "verified": False,
@@ -211,6 +345,10 @@ def _format_with_linked_bundle(data: dict[str, Any]) -> str:
         "External validation provenance summary:",
         f"- present={str(bool(external_summary.get('present') is True)).lower()} status={external_summary.get('status') or 'not_checked'} verified={str(bool(external_summary.get('verified') is True)).lower()}",
         f"- executor_validation_equivalent={str(bool(external_summary.get('executor_validation_equivalent') is True)).lower()} bundle_gate_effect={external_summary.get('bundle_gate_effect') or 'none'}",
+        "Live workflow-status provenance summary:",
+        f"- present={str(bool(live_status_summary.get('present') is True)).lower()} status={live_status_summary.get('status') or 'not_checked'} verified={str(bool(live_status_summary.get('verified') is True)).lower()}",
+        f"- requested_commit={live_status_summary.get('requested_commit') or 'none'} workflow_run_limit={live_status_summary.get('workflow_run_limit') or 0}",
+        f"- collection_complete={str(bool(live_status_summary.get('collection_complete') is True)).lower()} commit_binding_complete={str(bool(live_status_summary.get('commit_binding_complete') is True)).lower()}",
         *[f"- linked replay blocker: {blocker}" for blocker in linked_replay.get("blockers", [])],
     ]
     return "\n".join(lines)
