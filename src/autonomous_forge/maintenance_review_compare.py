@@ -108,6 +108,26 @@ def _external_validation_summary(handoff: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _live_status_summary(handoff: dict[str, Any]) -> dict[str, Any]:
+    evidence = handoff.get("live_status_provenance")
+    if not isinstance(evidence, dict):
+        evidence = {}
+    limit = evidence.get("workflow_run_limit", 0)
+    return {
+        "present": bool(evidence.get("present") is True),
+        "status": str(evidence.get("status") or "not_present"),
+        "verified": bool(evidence.get("verified") is True),
+        "source": str(evidence.get("source") or ""),
+        "requested_commit": str(evidence.get("requested_commit") or ""),
+        "workflow_run_limit": int(limit) if isinstance(limit, int) else 0,
+        "collection_complete": bool(evidence.get("collection_complete") is True),
+        "commit_binding_complete": bool(evidence.get("commit_binding_complete") is True),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+        "review_effect": "informational_only",
+        "affects_preservation_ranking": False,
+    }
+
+
 def _receipt_review(completeness_path: Path, *, root: Path) -> dict[str, Any]:
     """Reuse the preservation-receipt contract and add candidate matching metadata."""
     receipt_preview = build_maintenance_preservation_receipt_data(completeness_path, root=root)
@@ -200,6 +220,7 @@ def _handoff_row(handoff: dict[str, Any]) -> dict[str, Any]:
             "advisory": int(policy.get("advisory", 0)),
         },
         "external_validation_provenance": _external_validation_summary(handoff),
+        "live_status_provenance": _live_status_summary(handoff),
         "reviewed_path_count": len(handoff.get("reviewed_paths") or []),
         "validation_step_count": len(handoff.get("validation_steps") or []),
         "validation_context_counts": _context_counts(handoff.get("validation_context") or {}),
@@ -224,6 +245,7 @@ def _preservation_candidate(row: dict[str, Any], rank: int) -> dict[str, Any]:
         "validation_step_count": row["validation_step_count"],
         "validation_context_counts": row["validation_context_counts"],
         "external_validation_provenance": row["external_validation_provenance"],
+        "live_status_provenance": row["live_status_provenance"],
         "preservation_receipt_review": row["preservation_receipt_review"],
         "preservation_score": row["preservation_score"],
         "reason": (
@@ -257,6 +279,7 @@ def build_maintenance_review_compare_data(
     verified_external_validation_count = sum(
         1 for row in rows if row["external_validation_provenance"]["verified"] is True
     )
+    verified_live_status_count = sum(1 for row in rows if row["live_status_provenance"]["verified"] is True)
     blockers = [
         f"{row['history_link_path']}: {blocker}"
         for row in rows
@@ -285,6 +308,7 @@ def build_maintenance_review_compare_data(
         "failed_handoff_gate_count": failed_gate_count,
         "failed_replay_policy_count": replay_failed_count,
         "verified_external_validation_count": verified_external_validation_count,
+        "verified_live_status_count": verified_live_status_count,
         "preservation_receipt_review_count": len(receipt_reviews),
         "verified_preservation_receipt_count": verified_receipt_count,
         "invalid_preservation_receipt_count": invalid_receipt_count,
@@ -303,11 +327,12 @@ def build_maintenance_review_compare_data(
             else "Resolve blocked handoffs before treating this completed run set as ready."
         ),
         "safety_boundary": (
-            "Maintenance review comparison reads repository-local history links and their linked bundle evidence. Optional "
-            "preservation-completeness inputs reuse bounded receipt discovery and remain informational only: receipt presence, "
-            "absence, or damage never changes comparison readiness or preservation ranking. Canonical-path deduplication is enforced "
-            "inside the comparison builder so CLI and direct Python callers share the same evidence-accounting rule. The command "
-            "does not rerun validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity."
+            "Maintenance review comparison reads repository-local history links and their linked bundle evidence. Verified live-status "
+            "provenance is surfaced for review and carried into preservation candidates but is excluded from preservation scoring. Optional "
+            "preservation-completeness inputs reuse bounded receipt discovery and remain informational only: receipt presence, absence, or "
+            "damage never changes comparison readiness or preservation ranking. Canonical-path deduplication is enforced inside the "
+            "comparison builder so CLI and direct Python callers share the same evidence-accounting rule. The command does not rerun "
+            "validation, inspect live remotes, change files, stage, commit, push, poll workflows, or verify signer identity."
         ),
     }
 
@@ -326,6 +351,7 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
             f"failed_handoff_gates={data['failed_handoff_gate_count']} "
             f"failed_replay_policy={data['failed_replay_policy_count']} "
             f"verified_external_validation={data['verified_external_validation_count']} "
+            f"verified_live_status={data['verified_live_status_count']} "
             f"receipt_reviews={data['preservation_receipt_review_count']} "
             f"verified_receipts={data['verified_preservation_receipt_count']} "
             f"invalid_receipts={data['invalid_preservation_receipt_count']} "
@@ -342,6 +368,7 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
     ]
     for row in data["handoffs"]:
         provenance = row["external_validation_provenance"]
+        live_status = row["live_status_provenance"]
         receipt_review = row["preservation_receipt_review"]
         lines.append(
             "- "
@@ -349,6 +376,7 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
             f"bundle={row['bundle_id'] or 'none'} commit={row['commit_sha'] or 'none'} "
             f"replay={row['replay_status']} hash_verified={str(row['bundle_sha256_verified']).lower()} "
             f"external_validation={provenance['status']} external_validation_verified={str(provenance['verified']).lower()} "
+            f"live_status={live_status['status']} live_status_verified={str(live_status['verified']).lower()} "
             f"receipt_review={receipt_review['status']} verified_receipts={receipt_review['verified_receipt_count']} "
             f"handoff_failed={row['handoff_gates']['failed']} replay_failed={row['replay_policy']['failed']} "
             f"context_items={_context_total(row['validation_context_counts'])} "
@@ -358,12 +386,14 @@ def format_maintenance_review_compare(data: dict[str, Any]) -> str:
     if data["preservation_candidates"]:
         for candidate in data["preservation_candidates"]:
             provenance = candidate["external_validation_provenance"]
+            live_status = candidate["live_status_provenance"]
             receipt_review = candidate["preservation_receipt_review"]
             lines.append(
                 "- "
                 f"rank={candidate['rank']} bundle={candidate['bundle_id']} "
                 f"link={candidate['history_link_path']} commit={candidate['commit_sha']} "
                 f"external_validation={provenance['status']} external_validation_verified={str(provenance['verified']).lower()} "
+                f"live_status={live_status['status']} live_status_verified={str(live_status['verified']).lower()} "
                 f"receipt_review={receipt_review['status']} verified_receipts={receipt_review['verified_receipt_count']} "
                 f"context_items={_context_total(candidate['validation_context_counts'])}"
             )
