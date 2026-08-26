@@ -59,8 +59,12 @@ def _live_status_evidence(
 ) -> dict[str, Any] | None:
     """Return normalized live-status proof retained by push readiness, when present."""
     readiness = verified_push_handoff.get("push_readiness")
+    if readiness is None:
+        # Historical verified-push handoffs predate retained push-readiness data.
+        # Absence therefore means legacy/non-live provenance, not corruption.
+        return None
     if not isinstance(readiness, dict):
-        blockers.append("verified push-handoff lacks push-readiness evidence")
+        blockers.append("verified push-handoff push-readiness evidence is malformed")
         return None
     evidence = readiness.get("live_status_evidence")
     if evidence is None:
