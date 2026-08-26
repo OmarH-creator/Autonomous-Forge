@@ -199,6 +199,7 @@ def build_verified_push_run_data(
         "push_confirmed": confirm_push,
         "fetch_after_push": fetch_after_push,
         "verified_push_handoff": None,
+        "live_status_evidence": None,
         "post_push_verification": None,
         "blockers": list(blockers),
         "force_push_allowed": False,
@@ -231,7 +232,14 @@ def build_verified_push_run_data(
         git_runner=git_runner,
         root=root,
     )
-    data = {**base, "verified_push_handoff": handoff, "blockers": list(handoff.get("blockers", []))}
+    readiness = handoff.get("push_readiness")
+    live_status_evidence = readiness.get("live_status_evidence") if isinstance(readiness, dict) else None
+    data = {
+        **base,
+        "verified_push_handoff": handoff,
+        "live_status_evidence": dict(live_status_evidence) if isinstance(live_status_evidence, dict) else None,
+        "blockers": list(handoff.get("blockers", [])),
+    }
     if handoff.get("handoff_status") != "pushed" or handoff.get("push_executed") is not True:
         if handoff.get("push_readiness_status") == "ready" and not handoff.get("blockers"):
             data["workflow_status"] = "ready_for_push"
