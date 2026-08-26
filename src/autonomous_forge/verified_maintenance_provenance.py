@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 _MAX_JSON_BYTES = 1_000_000
+_MAX_LIVE_WORKFLOW_RUNS = 20
 
 
 class VerifiedMaintenanceProvenanceError(ValueError):
@@ -51,6 +52,50 @@ def _commands(value: Any, *, label: str, blockers: list[str]) -> list[str]:
     if len(set(result)) != len(result):
         blockers.append(f"{label} duplicates a validation command")
     return [item for item in result if item]
+
+
+def _live_status_evidence(
+    verified_push_handoff: dict[str, Any], *, expected_commit: str, blockers: list[str]
+) -> dict[str, Any] | None:
+    """Return normalized live-status proof retained by push readiness, when present."""
+    readiness = verified_push_handoff.get("push_readiness")
+    if not isinstance(readiness, dict):
+        blockers.append("verified push-handoff lacks push-readiness evidence")
+        return None
+    evidence = readiness.get("live_status_evidence")
+    if evidence is None:
+        return None
+    if not isinstance(evidence, dict):
+        blockers.append("verified push-handoff live status evidence is malformed")
+        return None
+
+    source = _clean(evidence.get("source"))
+    requested_commit = _clean(evidence.get("requested_commit"))
+    try:
+        workflow_run_limit = int(evidence.get("workflow_run_limit"))
+    except (TypeError, ValueError):
+        workflow_run_limit = 0
+
+    if source != "gh run list":
+        blockers.append("verified push-handoff live status source is not gh run list")
+    if requested_commit != expected_commit:
+        blockers.append("verified push-handoff live status commit does not match maintenance bundle")
+    if not 1 <= workflow_run_limit <= _MAX_LIVE_WORKFLOW_RUNS:
+        blockers.append("verified push-handoff live status workflow-run limit is invalid")
+    if evidence.get("collection_complete") is not True:
+        blockers.append("verified push-handoff live status does not prove bounded completeness")
+    if evidence.get("commit_binding_complete") is not True:
+        blockers.append("verified push-handoff live status does not prove per-run commit binding")
+
+    normalized = {
+        "source": source,
+        "requested_commit": requested_commit,
+        "workflow_run_limit": workflow_run_limit,
+        "collection_complete": evidence.get("collection_complete") is True,
+        "commit_binding_complete": evidence.get("commit_binding_complete") is True,
+    }
+    canonical = json.dumps(normalized, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return {**normalized, "evidence_sha256": hashlib.sha256(canonical).hexdigest()}
 
 
 def _read_json(path: Path, *, root: Path, label: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -159,6 +204,12 @@ def enrich_maintenance_bundle_with_verified_provenance(
     if wrapper_commands != bundle_commands:
         blockers.append("verified validation commands do not match maintenance bundle validation steps")
 
+    live_status_evidence = _live_status_evidence(
+        verified_push_handoff,
+        expected_commit=bundle_commit,
+        blockers=blockers,
+    )
+
     status = "complete" if not blockers else "blocked"
     enriched = dict(bundle)
     existing_blockers = list(enriched.get("bundle_blockers", []))
@@ -169,6 +220,7 @@ def enrich_maintenance_bundle_with_verified_provenance(
         "reviewed_paths": bundle_paths,
         "verified_validation_commands": wrapper_commands,
         "verified_push_source": dict(verified_push_source or {}),
+        "live_status_evidence": live_status_evidence,
         "blockers": blockers,
     }
     if blockers:
@@ -183,6 +235,7 @@ def enrich_maintenance_bundle_with_verified_provenance(
     summary = dict(enriched.get("summary", {}))
     summary["verified_provenance"] = status == "complete"
     summary["verified_validation_commands"] = len(wrapper_commands)
+    summary["live_status_evidence"] = live_status_evidence is not None
     enriched["summary"] = summary
     return enriched
 
