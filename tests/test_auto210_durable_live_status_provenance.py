@@ -88,3 +88,14 @@ def test_supplied_non_live_status_remains_backward_compatible():
     assert data["bundle_complete"] is True
     assert data["verified_provenance"]["live_status_evidence"] is None
     assert data["summary"]["live_status_evidence"] is False
+
+
+def test_legacy_wrapper_without_push_readiness_remains_backward_compatible():
+    wrapper = _wrapper()
+    wrapper.pop("push_readiness")
+
+    data = enrich_maintenance_bundle_with_verified_provenance(_bundle(), wrapper, _post_push())
+
+    assert data["bundle_complete"] is True
+    assert data["verified_provenance"]["live_status_evidence"] is None
+    assert data["summary"]["live_status_evidence"] is False
