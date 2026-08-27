@@ -13,7 +13,30 @@ The command reuses `forge maintenance-review-compare`, selects the best ready ca
 - current SHA-256 verification for the maintenance bundle and source evidence reports;
 - archive integrity gate totals and per-entry pass/fail/advisory reasons;
 - the pushed commit, remote, and branch target;
+- verified live workflow-status provenance already carried by the selected preservation candidate, when present;
 - blockers and next preservation guidance.
+
+## Live workflow-status provenance
+
+When the selected preservation candidate carries the normalized live workflow-status proof established by linked-bundle review and reviewer comparison, the manifest preserves it as `live_status_provenance` across preview, confirmed write, written-manifest verification, JSON output, and stable text output.
+
+The retained fields are:
+
+- `present` and `status`;
+- `verified`;
+- `source`;
+- `requested_commit`;
+- `workflow_run_limit`;
+- `collection_complete`;
+- `commit_binding_complete`;
+- `evidence_sha256`;
+- `review_effect: informational_only`;
+- `affects_manifest_readiness: false`;
+- `affects_archive_integrity: false`.
+
+This is evidence continuity, not a new archive gate. Missing or unverified live-status provenance does not make an otherwise ready manifest blocked and does not change archive-integrity scoring. The authoritative trust remains the linked durable bundle plus `forge maintenance-history-link-review --verify-linked-bundle`; the archive manifest does not query GitHub or independently prove workflow sufficiency.
+
+Legacy candidates and written manifests without live-status provenance remain compatible and are reported as `present=false`, `status=not_present`.
 
 ## Usage
 
@@ -99,6 +122,8 @@ A ready manifest requires zero failed integrity gates. Missing files, source-rep
 
 The run-history link is still listed as an advisory entry when it lacks an expected digest because the linked bundle and replay gates already verify the hash-linked evidence chain. The command does not invent a new expected digest for the link itself.
 
+Live workflow-status provenance is not an integrity gate. It is carried only to keep already-verified workflow evidence reviewable through the preservation path.
+
 ## Confirmed write behavior
 
 Writing requires all of the following:
@@ -109,11 +134,13 @@ Writing requires all of the following:
 - the manifest must be ready;
 - `--confirm-write` must be supplied.
 
-The written JSON contains the same selected candidate, archive entries, integrity gates, blockers, and preservation guidance as the preview, plus `manifest_written: true` and `manifest_path`.
+The written JSON contains the same selected candidate, archive entries, integrity gates, provenance summaries, blockers, and preservation guidance as the preview, plus `manifest_written: true` and `manifest_path`.
 
 ## Written manifest verification
 
 `--manifest` is mutually exclusive with `--link`, `--output`, and `--confirm-write`. It reads one existing written manifest, requires `manifest_written: true`, verifies that every listed entry stays inside `--root`, recomputes current SHA-256 values where the manifest carries expected digests, recomputes byte counts, and returns a blocked status if any listed evidence is missing or drifted.
+
+Verification preserves the manifest's normalized live-status summary for review. It does not turn that informational provenance into an archive gate or re-query GitHub.
 
 Verification does not mutate the manifest. It is intended as the safety gate immediately before manual preservation or any future archive-copy command.
 
