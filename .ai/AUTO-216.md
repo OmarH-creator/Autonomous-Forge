@@ -28,7 +28,7 @@ Continue the existing end-to-end preservation provenance milestone by carrying t
 
 ## Validation
 
-Focused deterministic tests are committed. GitHub Actions validation is required before AUTO-216 is marked DONE.
+Implementation/status head `b8605b659e9fce92a9d9c4379da469eccd11830b` passed GitHub Actions run `33065892573`. Python 3.10, 3.11, and 3.12 each passed checkout/install, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Visuals
 
@@ -36,4 +36,4 @@ None. The lifecycle topology is unchanged; this extends an existing provenance f
 
 ## Next action
 
-Confirm the Python 3.10/3.11/3.12 matrix. If green, continue only with a concrete end-to-end preservation/provenance integrity defect or a meaningful evidence-handoff reduction.
+Continue only with a concrete end-to-end preservation/provenance integrity defect or a meaningful evidence-handoff reduction rather than another standalone review command.
