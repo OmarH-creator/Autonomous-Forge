@@ -67,12 +67,35 @@ def _require_complete(data: dict[str, Any]) -> None:
         raise MaintenancePreservationReceiptError("preservation completeness artifact has no commit SHA")
 
 
+def _live_status_receipt_summary(value: Any) -> dict[str, Any]:
+    """Normalize retained live workflow provenance without turning it into a receipt gate."""
+    evidence = value if isinstance(value, dict) else {}
+    present = evidence.get("present") is True
+    run_limit = evidence.get("workflow_run_limit", 0)
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "source": str(evidence.get("source") or ""),
+        "requested_commit": str(evidence.get("requested_commit") or ""),
+        "workflow_run_limit": int(run_limit) if isinstance(run_limit, int) else 0,
+        "collection_complete": bool(evidence.get("collection_complete") is True),
+        "commit_binding_complete": bool(evidence.get("commit_binding_complete") is True),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+        "review_effect": "informational_only" if present else "none",
+        "preservation_gate_effect": "none",
+        "affects_preservation_completeness": False,
+        "affects_preservation_integrity": False,
+    }
+
+
 def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
     completeness, raw, relative = _load_json_bytes(completeness_path, root=root)
     _require_complete(completeness)
     external = completeness.get("external_validation_provenance")
     if not isinstance(external, dict):
         external = {}
+    live_status = _live_status_receipt_summary(completeness.get("live_status_provenance"))
     return {
         "schema": "maintenance-preservation-receipt/v1",
         "title": "Autonomous Forge maintenance preservation receipt",
@@ -96,9 +119,10 @@ def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root
             "bundle_gate_effect": "advisory_only" if external.get("present") else "none",
             "preservation_gate_effect": "none",
         },
+        "live_status_provenance": live_status,
         "receipt_status": "ready",
         "write_allowed": False,
-        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. It does not re-run archive checks or validation, promote external observations to executor proof, or grant Git, network, workflow, or overwrite authority.",
+        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. Retained live workflow status is informational only. The receipt does not re-run archive checks or validation, promote external observations to executor proof, change preservation completeness, or grant Git, network, workflow, or overwrite authority.",
     }
 
 
@@ -170,7 +194,7 @@ def verify_maintenance_preservation_receipt(receipt_path: Path, *, root: Path = 
     if hashlib.sha256(raw).hexdigest() != source.get("sha256"):
         raise MaintenancePreservationReceiptError("preservation completeness SHA-256 drifted")
     rebuilt = build_maintenance_preservation_receipt_data(source_path, root=root)
-    for field in ("commit_sha", "remote", "branch", "manifest_path", "archive_root", "package_path", "package_format", "package_bytes", "package_sha256", "external_validation_provenance"):
+    for field in ("commit_sha", "remote", "branch", "manifest_path", "archive_root", "package_path", "package_format", "package_bytes", "package_sha256", "external_validation_provenance", "live_status_provenance"):
         if receipt.get(field) != rebuilt.get(field):
             raise MaintenancePreservationReceiptError(f"receipt field drifted: {field}")
     return {**receipt, "receipt_path": receipt_relative, "receipt_status": "verified", "receipt_verified": True, "source_completeness_verified": True, "write_allowed": False}
@@ -242,6 +266,7 @@ def discover_maintenance_preservation_receipts(
                 "commit_sha": receipt.get("commit_sha"),
                 "package_sha256": receipt.get("package_sha256"),
                 "source_completeness_sha256": (receipt.get("source_completeness") or {}).get("sha256"),
+                "live_status_provenance": receipt.get("live_status_provenance"),
             }
         )
 
@@ -270,7 +295,7 @@ def discover_maintenance_preservation_receipts(
         "receipt_required_for_preservation": False,
         "preservation_complete": True,
         "write_allowed": False,
-        "safety_boundary": "Receipt discovery is bounded and read-only. It verifies matching receipt bindings but never treats receipt presence or absence as a substitute for preservation completeness.",
+        "safety_boundary": "Receipt discovery is bounded and read-only. It verifies matching receipt bindings and can expose retained live workflow-status provenance, but receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
     }
 
 
