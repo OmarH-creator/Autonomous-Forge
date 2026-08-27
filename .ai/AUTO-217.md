@@ -23,7 +23,7 @@ Evidence propagation only. Receipt live status is forced to `review_effect=infor
 
 ## Validation
 
-AUTO-216 baseline head `c30f23bd25fca53aa5099c228be0f5f844104012` passed Actions run `33066076904` on Python 3.10, 3.11, and 3.12. AUTO-217 focused deterministic tests are committed; fresh Actions validation is required before the task is marked DONE because direct local checkout is unavailable in this execution environment.
+Corrected product head `f1598e417259b53940fdd3dd49185cde2d0512ad` passed GitHub Actions run `33086266911`; Python 3.10, 3.11, and 3.12 each passed package installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest. The first fresh run exposed one self-inflicted regression-test mistake: the test intended to prove that receipt persistence requires explicit confirmation accidentally passed `confirm_write=True`. That test-only defect was corrected and the full matrix passed before AUTO-217 was marked DONE.
 
 ## Visuals
 
@@ -31,4 +31,4 @@ None. The lifecycle topology is unchanged; this extends an existing evidence fie
 
 ## Next action
 
-Confirm the Python 3.10/3.11/3.12 matrix. Any failure takes priority. If green, continue only with another concrete end-to-end preservation/provenance integrity gap or meaningful evidence-handoff reduction.
+Continue only with another concrete end-to-end preservation/provenance integrity gap or meaningful evidence-handoff reduction rather than another standalone review command.
