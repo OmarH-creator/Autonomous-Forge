@@ -210,6 +210,8 @@ def discover_maintenance_preservation_receipts(
 
     Discovery is informational only: the completeness artifact is independently
     checked first, and receipt presence never changes preservation completeness.
+    Only a receipt that can be attributed to the selected completeness artifact
+    can downgrade that artifact's review status.
     """
     if max_receipts < 1:
         raise MaintenancePreservationReceiptError("receipt discovery limit must be positive")
@@ -236,20 +238,21 @@ def discover_maintenance_preservation_receipts(
 
     verified: list[dict[str, Any]] = []
     invalid: list[dict[str, Any]] = []
+    unattributed: list[dict[str, Any]] = []
     ignored = 0
     for candidate in candidates:
         candidate_relative = candidate.relative_to(resolved_root).as_posix()
         try:
             payload, _, _ = _load_json_bytes(candidate, root=root)
         except MaintenancePreservationReceiptError as exc:
-            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": str(exc)})
+            unattributed.append({"path": candidate_relative, "status": "unattributed_invalid", "error": str(exc)})
             continue
         if payload.get("schema") != "maintenance-preservation-receipt/v1":
-            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": "unsupported preservation receipt schema"})
+            unattributed.append({"path": candidate_relative, "status": "unattributed_invalid", "error": "unsupported preservation receipt schema"})
             continue
         source = payload.get("source_completeness")
         if not isinstance(source, dict):
-            invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": False, "error": "receipt has no source completeness binding"})
+            unattributed.append({"path": candidate_relative, "status": "unattributed_invalid", "error": "receipt has no source completeness binding"})
             continue
         if str(source.get("path") or "") != relative:
             ignored += 1
@@ -284,18 +287,20 @@ def discover_maintenance_preservation_receipts(
         "receipt_directory": _RECEIPT_DIR.as_posix(),
         "scan_limit": max_receipts,
         "candidate_count": len(candidates),
-        "matching_receipt_count": len(verified) + sum(1 for entry in invalid if entry.get("matches_source") is True),
+        "matching_receipt_count": len(verified) + len(invalid),
         "verified_receipt_count": len(verified),
         "invalid_receipt_count": len(invalid),
+        "unattributed_invalid_receipt_count": len(unattributed),
         "ignored_receipt_count": ignored,
         "receipts": verified,
         "invalid_receipts": invalid,
+        "unattributed_invalid_receipts": unattributed,
         "receipt_review_status": review_status,
         "receipt_gate_effect": "informational_only",
         "receipt_required_for_preservation": False,
         "preservation_complete": True,
         "write_allowed": False,
-        "safety_boundary": "Receipt discovery is bounded and read-only. It verifies matching receipt bindings and can expose retained live workflow-status provenance, but receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
+        "safety_boundary": "Receipt discovery is bounded and read-only. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
     }
 
 
