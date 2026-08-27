@@ -115,7 +115,7 @@ def test_receipt_requires_complete_artifact_and_confirmation(tmp_path: Path) -> 
     source = _write_complete(tmp_path)
     output = tmp_path / ".ai" / "preservation-receipts" / "receipt.json"
     with pytest.raises(MaintenancePreservationReceiptError, match="explicit confirmation"):
-        write_maintenance_preservation_receipt(source, output, root=tmp_path, confirm_write=True)
+        write_maintenance_preservation_receipt(source, output, root=tmp_path)
 
 
 def test_receipt_refuses_overwrite_and_detects_source_drift(tmp_path: Path) -> None:
