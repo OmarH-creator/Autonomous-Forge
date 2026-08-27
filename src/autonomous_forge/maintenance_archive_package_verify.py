@@ -169,6 +169,8 @@ def build_maintenance_archive_package_verify_data(
             }
         )
 
+    live_status = dict(preview.get("live_status_provenance") or {})
+    live_status["affects_package_verification"] = False
     status = "verified" if not blockers else "blocked"
     return {
         "title": "Autonomous Forge maintenance archive package verification",
@@ -178,6 +180,7 @@ def build_maintenance_archive_package_verify_data(
         "manifest_path": preview.get("manifest_path") or str(manifest_path),
         "copy_verify_status": preview.get("copy_verify_status"),
         "external_validation_provenance": dict(preview.get("external_validation_provenance") or {}),
+        "live_status_provenance": live_status,
         "archive_root": preview.get("archive_root"),
         "package_path": preview.get("package_path"),
         "package_format": preview.get("package_format"),
@@ -197,8 +200,8 @@ def build_maintenance_archive_package_verify_data(
         "safety_boundary": (
             "Archive package verification reopens one repository-local tar/zip package, verifies package entries against the "
             "ready package preview and copied archive root, and reports drift. External validation provenance remains advisory-only "
-            "and cannot change verification status. It does not write files, copy evidence, stage, commit, push, poll workflows, "
-            "rerun validation, or prove signer identity."
+            "and verified live status remains informational-only; neither can change package verification or archive integrity. "
+            "It does not write files, copy evidence, stage, commit, push, poll workflows, rerun validation, or prove signer identity."
         ),
     }
 
@@ -206,6 +209,7 @@ def build_maintenance_archive_package_verify_data(
 def format_maintenance_archive_package_verify(data: dict[str, Any]) -> str:
     """Format archive-package verification data as stable text."""
     external = data.get("external_validation_provenance") or {}
+    live_status = data.get("live_status_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -226,6 +230,27 @@ def format_maintenance_archive_package_verify(data: dict[str, Any]) -> str:
             f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'}"
         ),
         f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
+        (
+            "Live status provenance: "
+            f"present={str(bool(live_status.get('present'))).lower()} "
+            f"status={live_status.get('status') or 'not_present'} "
+            f"verified={str(bool(live_status.get('verified'))).lower()}"
+        ),
+        (
+            "Live status evidence: "
+            f"source={live_status.get('source') or 'none'} "
+            f"commit={live_status.get('requested_commit') or 'none'} "
+            f"run_limit={int(live_status.get('workflow_run_limit') or 0)} "
+            f"collection_complete={str(bool(live_status.get('collection_complete'))).lower()} "
+            f"commit_binding_complete={str(bool(live_status.get('commit_binding_complete'))).lower()}"
+        ),
+        (
+            "Live status semantics: "
+            f"review_effect={live_status.get('review_effect') or 'informational_only'} "
+            f"affects_package_verification={str(bool(live_status.get('affects_package_verification'))).lower()} "
+            f"affects_archive_integrity={str(bool(live_status.get('affects_archive_integrity'))).lower()}"
+        ),
+        f"Live status evidence SHA-256: {live_status.get('evidence_sha256') or 'none'}",
         f"Archive root: {data['archive_root']}",
         f"Package path: {data['package_path']}",
         f"Package format: {data['package_format']}",

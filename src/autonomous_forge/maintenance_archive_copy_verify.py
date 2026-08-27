@@ -73,6 +73,30 @@ def _external_validation_provenance(manifest: Any) -> dict[str, Any]:
     }
 
 
+def _live_status_provenance(manifest: Any) -> dict[str, Any]:
+    """Preserve archive-manifest live-status proof as informational evidence only."""
+    evidence = manifest.get("live_status_provenance") if isinstance(manifest, dict) else None
+    if not isinstance(evidence, dict):
+        evidence = {}
+    present = evidence.get("present") is True
+    limit = evidence.get("workflow_run_limit", 0)
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "source": str(evidence.get("source") or ""),
+        "requested_commit": str(evidence.get("requested_commit") or ""),
+        "workflow_run_limit": int(limit) if isinstance(limit, int) else 0,
+        "collection_complete": bool(evidence.get("collection_complete") is True),
+        "commit_binding_complete": bool(evidence.get("commit_binding_complete") is True),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+        "review_effect": "informational_only",
+        "affects_manifest_readiness": False,
+        "affects_copy_verification": False,
+        "affects_archive_integrity": False,
+    }
+
+
 def build_maintenance_archive_copy_verify_data(
     manifest_path: Path,
     *,
@@ -82,6 +106,7 @@ def build_maintenance_archive_copy_verify_data(
     """Verify archive-copy destinations against a ready written manifest without writing anything."""
     manifest = verify_written_archive_manifest_data(manifest_path, root=root)
     external_validation = _external_validation_provenance(manifest)
+    live_status = _live_status_provenance(manifest)
     archive_root_resolved = _resolved_inside_root(archive_root, root=root, label="archive root")
     root_resolved = root.resolve()
     blockers = list(manifest.get("archive_blockers") or [])
@@ -144,6 +169,7 @@ def build_maintenance_archive_copy_verify_data(
         "manifest_path": manifest.get("manifest_path") or str(manifest_path),
         "manifest_status": manifest.get("manifest_status"),
         "external_validation_provenance": external_validation,
+        "live_status_provenance": live_status,
         "archive_root": archive_root_resolved.relative_to(root_resolved).as_posix(),
         "verified_entries": verified_entries,
         "verified_entry_count": len(verified_entries),
@@ -156,8 +182,9 @@ def build_maintenance_archive_copy_verify_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive copy verification reads one written manifest and one repository-local archive root, then recomputes copied "
-            "file hashes and byte counts. It preserves external validation observations only as advisory provenance and does not "
-            "copy files, write archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
+            "file hashes and byte counts. External validation observations remain advisory and verified live workflow-status proof "
+            "remains informational-only; neither can change copy verification or archive integrity. It does not copy files, write "
+            "archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
         ),
     }
 
@@ -165,6 +192,7 @@ def build_maintenance_archive_copy_verify_data(
 def format_maintenance_archive_copy_verify(data: dict[str, Any]) -> str:
     """Format archive-copy verification as stable text."""
     external = data.get("external_validation_provenance") or {}
+    live_status = data.get("live_status_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -185,6 +213,27 @@ def format_maintenance_archive_copy_verify(data: dict[str, Any]) -> str:
             f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'}"
         ),
         f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
+        (
+            "Live status provenance: "
+            f"present={str(bool(live_status.get('present'))).lower()} "
+            f"status={live_status.get('status') or 'not_present'} "
+            f"verified={str(bool(live_status.get('verified'))).lower()}"
+        ),
+        (
+            "Live status evidence: "
+            f"source={live_status.get('source') or 'none'} "
+            f"commit={live_status.get('requested_commit') or 'none'} "
+            f"run_limit={int(live_status.get('workflow_run_limit') or 0)} "
+            f"collection_complete={str(bool(live_status.get('collection_complete'))).lower()} "
+            f"commit_binding_complete={str(bool(live_status.get('commit_binding_complete'))).lower()}"
+        ),
+        (
+            "Live status semantics: "
+            f"review_effect={live_status.get('review_effect') or 'informational_only'} "
+            f"affects_copy_verification={str(bool(live_status.get('affects_copy_verification'))).lower()} "
+            f"affects_archive_integrity={str(bool(live_status.get('affects_archive_integrity'))).lower()}"
+        ),
+        f"Live status evidence SHA-256: {live_status.get('evidence_sha256') or 'none'}",
         f"Archive root: {data['archive_root']}",
         f"Verified entries: {data.get('verified_entry_count', len(data.get('verified_entries') or []))}",
     ]

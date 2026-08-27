@@ -106,6 +106,8 @@ def build_maintenance_archive_package_preview_data(
             package_entry["stage"] = str(expected["stage"])
         package_entries.append(package_entry)
 
+    live_status = dict(copy_verify.get("live_status_provenance") or {})
+    live_status["affects_package_readiness"] = False
     status = "ready" if not blockers else "blocked"
     return {
         "title": "Autonomous Forge maintenance archive package preview",
@@ -115,6 +117,7 @@ def build_maintenance_archive_package_preview_data(
         "manifest_path": copy_verify.get("manifest_path") or str(manifest_path),
         "copy_verify_status": copy_verify.get("copy_verify_status"),
         "external_validation_provenance": dict(copy_verify.get("external_validation_provenance") or {}),
+        "live_status_provenance": live_status,
         "archive_root": archive_root_resolved.relative_to(root_resolved).as_posix(),
         "package_path": package_resolved.relative_to(root_resolved).as_posix(),
         "package_format": package_format,
@@ -130,9 +133,9 @@ def build_maintenance_archive_package_preview_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive package preview verifies the written manifest and copied archive root, compares root contents with manifest "
-            "entries, and previews package metadata. External validation provenance remains advisory-only and cannot change package "
-            "readiness. It does not create compressed archives, copy files, write manifests, stage, commit, push, poll workflows, "
-            "rerun validation, or prove signer identity."
+            "entries, and previews package metadata. External validation provenance remains advisory-only and verified live status "
+            "remains informational-only; neither can change package readiness or archive integrity. It does not create compressed "
+            "archives, copy files, write manifests, stage, commit, push, poll workflows, rerun validation, or prove signer identity."
         ),
     }
 
@@ -140,6 +143,7 @@ def build_maintenance_archive_package_preview_data(
 def format_maintenance_archive_package_preview(data: dict[str, Any]) -> str:
     """Format archive-package preview data as stable text."""
     external = data.get("external_validation_provenance") or {}
+    live_status = data.get("live_status_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -160,6 +164,27 @@ def format_maintenance_archive_package_preview(data: dict[str, Any]) -> str:
             f"bundle_gate_effect={external.get('bundle_gate_effect') or 'none'}"
         ),
         f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
+        (
+            "Live status provenance: "
+            f"present={str(bool(live_status.get('present'))).lower()} "
+            f"status={live_status.get('status') or 'not_present'} "
+            f"verified={str(bool(live_status.get('verified'))).lower()}"
+        ),
+        (
+            "Live status evidence: "
+            f"source={live_status.get('source') or 'none'} "
+            f"commit={live_status.get('requested_commit') or 'none'} "
+            f"run_limit={int(live_status.get('workflow_run_limit') or 0)} "
+            f"collection_complete={str(bool(live_status.get('collection_complete'))).lower()} "
+            f"commit_binding_complete={str(bool(live_status.get('commit_binding_complete'))).lower()}"
+        ),
+        (
+            "Live status semantics: "
+            f"review_effect={live_status.get('review_effect') or 'informational_only'} "
+            f"affects_package_readiness={str(bool(live_status.get('affects_package_readiness'))).lower()} "
+            f"affects_archive_integrity={str(bool(live_status.get('affects_archive_integrity'))).lower()}"
+        ),
+        f"Live status evidence SHA-256: {live_status.get('evidence_sha256') or 'none'}",
         f"Archive root: {data['archive_root']}",
         f"Package path: {data['package_path']}",
         f"Package format: {data['package_format']}",
