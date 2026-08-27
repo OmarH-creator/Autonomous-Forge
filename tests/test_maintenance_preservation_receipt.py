@@ -45,6 +45,21 @@ def _complete_payload() -> dict:
             "bundle_gate_effect": "advisory_only",
             "preservation_gate_effect": "none",
         },
+        "live_status_provenance": {
+            "present": True,
+            "status": "verified",
+            "verified": True,
+            "source": "gh run list",
+            "requested_commit": "a" * 40,
+            "workflow_run_limit": 20,
+            "collection_complete": True,
+            "commit_binding_complete": True,
+            "evidence_sha256": "d" * 64,
+            "review_effect": "informational_only",
+            "preservation_gate_effect": "none",
+            "affects_preservation_completeness": False,
+            "affects_preservation_integrity": False,
+        },
     }
 
 
@@ -60,12 +75,32 @@ def test_receipt_binds_exact_completeness_and_verifies(tmp_path: Path) -> None:
     preview = build_maintenance_preservation_receipt_data(source, root=tmp_path)
     assert preview["receipt_status"] == "ready"
     assert preview["external_validation_provenance"]["executor_validation_equivalent"] is False
+    live = preview["live_status_provenance"]
+    assert live["verified"] is True
+    assert live["requested_commit"] == "a" * 40
+    assert live["evidence_sha256"] == "d" * 64
+    assert live["review_effect"] == "informational_only"
+    assert live["preservation_gate_effect"] == "none"
+    assert live["affects_preservation_completeness"] is False
+    assert live["affects_preservation_integrity"] is False
     output = tmp_path / ".ai" / "preservation-receipts" / "AUTO-179.json"
     written = write_maintenance_preservation_receipt(source, output, root=tmp_path, confirm_write=True)
     assert written["receipt_status"] == "written"
     verified = verify_maintenance_preservation_receipt(output, root=tmp_path)
     assert verified["receipt_verified"] is True
     assert verified["source_completeness_verified"] is True
+    assert verified["live_status_provenance"] == live
+
+
+def test_receipt_rejects_live_status_provenance_drift(tmp_path: Path) -> None:
+    source = _write_complete(tmp_path)
+    output = tmp_path / ".ai" / "preservation-receipts" / "receipt.json"
+    write_maintenance_preservation_receipt(source, output, root=tmp_path, confirm_write=True)
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    payload["live_status_provenance"]["collection_complete"] = False
+    output.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(MaintenancePreservationReceiptError, match="live_status_provenance"):
+        verify_maintenance_preservation_receipt(output, root=tmp_path)
 
 
 def test_receipt_requires_complete_artifact_and_confirmation(tmp_path: Path) -> None:
@@ -80,7 +115,7 @@ def test_receipt_requires_complete_artifact_and_confirmation(tmp_path: Path) -> 
     source = _write_complete(tmp_path)
     output = tmp_path / ".ai" / "preservation-receipts" / "receipt.json"
     with pytest.raises(MaintenancePreservationReceiptError, match="explicit confirmation"):
-        write_maintenance_preservation_receipt(source, output, root=tmp_path)
+        write_maintenance_preservation_receipt(source, output, root=tmp_path, confirm_write=True)
 
 
 def test_receipt_refuses_overwrite_and_detects_source_drift(tmp_path: Path) -> None:
@@ -119,6 +154,8 @@ def test_receipt_discovery_verifies_matching_receipts_without_gating_completenes
         ".ai/preservation-receipts/01.json",
         ".ai/preservation-receipts/02.json",
     ]
+    assert review["receipts"][0]["live_status_provenance"]["evidence_sha256"] == "d" * 64
+    assert review["receipts"][0]["live_status_provenance"]["review_effect"] == "informational_only"
     assert review["preservation_complete"] is True
     assert review["receipt_required_for_preservation"] is False
     assert review["receipt_gate_effect"] == "informational_only"
