@@ -40,7 +40,7 @@ Focused AUTO-214 regression coverage validates:
 - unverified informational live status does not change manifest readiness or archive-integrity results; and
 - legacy candidates without live status remain compatible.
 
-The changed implementation and focused test syntax-compile, and a scratch package run passes all four focused tests. Fresh repository-wide GitHub Actions validation is required after push before AUTO-214 can be marked DONE.
+The changed implementation and focused test syntax-compiled, and a scratch package run passed all four focused tests. Product head `71e634479b974846ba33c3dd396412eaac55c603` then passed GitHub Actions run `33035784656`; Python 3.10, 3.11, and 3.12 each passed checkout/install, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Visuals
 
@@ -48,4 +48,4 @@ None. The lifecycle topology is unchanged; adding another diagram would duplicat
 
 ## Next action
 
-Inspect AUTO-214 CI first. Any executable failure takes priority. If green, carry the same normalized proof into archive-copy/package verification only where it materially improves preservation reviewability without changing readiness or integrity semantics.
+Carry the same normalized proof into archive-copy/package verification only where it materially improves preservation reviewability without changing readiness or integrity semantics.
