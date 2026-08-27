@@ -106,6 +106,61 @@ def _external_validation_provenance_review(
     }
 
 
+def _live_status_provenance_summary(value: Any) -> dict[str, Any]:
+    evidence = value if isinstance(value, dict) else {}
+    present = evidence.get("present") is True
+    run_limit = evidence.get("workflow_run_limit", 0)
+    return {
+        "present": present,
+        "status": str(evidence.get("status") or ("not_present" if not present else "not_checked")),
+        "verified": bool(evidence.get("verified") is True),
+        "source": str(evidence.get("source") or ""),
+        "requested_commit": str(evidence.get("requested_commit") or ""),
+        "workflow_run_limit": int(run_limit) if isinstance(run_limit, int) else 0,
+        "collection_complete": bool(evidence.get("collection_complete") is True),
+        "commit_binding_complete": bool(evidence.get("commit_binding_complete") is True),
+        "evidence_sha256": str(evidence.get("evidence_sha256") or ""),
+        "review_effect": "informational_only",
+        "affects_archive_integrity": False,
+    }
+
+
+def _live_status_provenance_review(
+    manifest: dict[str, Any],
+    copy_verify: dict[str, Any],
+    package_verify: dict[str, Any],
+) -> dict[str, Any]:
+    """Expose verified live-status continuity without turning it into a preservation gate."""
+    manifest_provenance = _live_status_provenance_summary(manifest.get("live_status_provenance"))
+    copy_provenance = _live_status_provenance_summary(copy_verify.get("live_status_provenance"))
+    package_provenance = _live_status_provenance_summary(package_verify.get("live_status_provenance"))
+    manifest_matches_copy = manifest_provenance == copy_provenance
+    manifest_matches_package = manifest_provenance == package_provenance
+    continuity_verified = bool(manifest_matches_copy and manifest_matches_package)
+    present = bool(manifest_provenance.get("present"))
+    verified = bool(present and manifest_provenance.get("verified") and continuity_verified)
+    status = (
+        "verified"
+        if verified
+        else "drifted"
+        if not continuity_verified
+        else "not_present"
+        if not present
+        else "informational_unverified"
+    )
+    return {
+        **manifest_provenance,
+        "status": status,
+        "verified": verified,
+        "continuity_verified": continuity_verified,
+        "manifest_matches_copy": manifest_matches_copy,
+        "manifest_matches_package": manifest_matches_package,
+        "preservation_gate_effect": "none",
+        "affects_preservation_completeness": False,
+        "affects_preservation_integrity": False,
+    }
+
+
 def _workflow_status_gate(
     manifest: dict[str, Any],
     *,
@@ -175,6 +230,7 @@ def build_maintenance_preservation_completeness_data(
         root=root,
     )
     external_validation = _external_validation_provenance_review(manifest, copy_verify, package_verify)
+    live_status = _live_status_provenance_review(manifest, copy_verify, package_verify)
     workflow_gate, workflow_status_review, workflow_blockers = _workflow_status_gate(
         manifest,
         status_payload=status_payload,
@@ -239,6 +295,7 @@ def build_maintenance_preservation_completeness_data(
         "remote": manifest.get("remote"),
         "branch": manifest.get("branch"),
         "external_validation_provenance": external_validation,
+        "live_status_provenance": live_status,
         "stage_gates": stage_gates,
         "manifest_entry_count": manifest_entry_count,
         "copied_entry_count": copied_entry_count,
@@ -262,9 +319,10 @@ def build_maintenance_preservation_completeness_data(
         "safety_boundary": (
             "Preservation completeness reads one written manifest, one copied archive root, one written archive package, "
             "and optionally one supplied workflow-status JSON file, then summarizes their existing verification gates. External "
-            "validation observations remain advisory-only; their cross-layer continuity is reported for reviewer visibility and "
-            "cannot change preservation completeness. It does not write files, copy evidence, create packages, stage, commit, "
-            "push, poll workflows, rerun validation, change remotes, or prove signer identity."
+            "validation observations remain advisory-only, and retained verified live workflow status remains informational-only; "
+            "cross-layer continuity for both is reported for reviewer visibility and cannot change preservation completeness or "
+            "integrity. It does not write files, copy evidence, create packages, stage, commit, push, poll workflows, rerun "
+            "validation, change remotes, or prove signer identity."
         ),
     }
 
@@ -274,6 +332,7 @@ def format_maintenance_preservation_completeness(data: dict[str, Any]) -> str:
     workflow_review = data.get("workflow_status_review") or {}
     workflow_summary = workflow_review.get("summary") if isinstance(workflow_review, dict) else None
     external = data.get("external_validation_provenance") or {}
+    live_status = data.get("live_status_provenance") or {}
     lines = [
         str(data["title"]),
         f"Mode: {data['mode']}",
@@ -304,6 +363,34 @@ def format_maintenance_preservation_completeness(data: dict[str, Any]) -> str:
             f"preservation_gate_effect={external.get('preservation_gate_effect') or 'none'}"
         ),
         f"External validation evidence SHA-256: {external.get('evidence_sha256') or 'none'}",
+        (
+            "Live status provenance: "
+            f"present={str(bool(live_status.get('present'))).lower()} "
+            f"status={live_status.get('status') or 'not_present'} "
+            f"verified={str(bool(live_status.get('verified'))).lower()}"
+        ),
+        (
+            "Live status continuity: "
+            f"verified={str(bool(live_status.get('continuity_verified'))).lower()} "
+            f"manifest_matches_copy={str(bool(live_status.get('manifest_matches_copy'))).lower()} "
+            f"manifest_matches_package={str(bool(live_status.get('manifest_matches_package'))).lower()}"
+        ),
+        (
+            "Live status evidence: "
+            f"source={live_status.get('source') or 'none'} "
+            f"commit={live_status.get('requested_commit') or 'none'} "
+            f"run_limit={int(live_status.get('workflow_run_limit') or 0)} "
+            f"collection_complete={str(bool(live_status.get('collection_complete'))).lower()} "
+            f"commit_binding_complete={str(bool(live_status.get('commit_binding_complete'))).lower()}"
+        ),
+        (
+            "Live status semantics: "
+            f"review_effect={live_status.get('review_effect') or 'informational_only'} "
+            f"preservation_gate_effect={live_status.get('preservation_gate_effect') or 'none'} "
+            f"affects_preservation_completeness={str(bool(live_status.get('affects_preservation_completeness'))).lower()} "
+            f"affects_preservation_integrity={str(bool(live_status.get('affects_preservation_integrity'))).lower()}"
+        ),
+        f"Live status evidence SHA-256: {live_status.get('evidence_sha256') or 'none'}",
         f"Manifest entries: {data.get('manifest_entry_count', 0)}",
         f"Copied entries: {data.get('copied_entry_count', 0)}",
         f"Package expected entries: {data.get('package_expected_entry_count', 0)}",
