@@ -16,6 +16,7 @@ class MaintenancePreservationReceiptError(ValueError):
 
 _RECEIPT_DIR = Path(".ai/preservation-receipts")
 _MAX_DISCOVERY_RECEIPTS = 100
+_MAX_DISCOVERY_RECEIPT_BYTES = 1_048_576
 
 
 def _resolve_repo_file(path: Path, *, root: Path, must_exist: bool = False) -> Path:
@@ -33,12 +34,27 @@ def _repo_relative(path: Path, *, root: Path) -> str:
     return _resolve_repo_file(path, root=root).relative_to(root.resolve()).as_posix()
 
 
-def _load_json_bytes(path: Path, *, root: Path) -> tuple[dict[str, Any], bytes, str]:
+def _load_json_bytes(
+    path: Path,
+    *,
+    root: Path,
+    max_bytes: int | None = None,
+) -> tuple[dict[str, Any], bytes, str]:
     candidate = path if path.is_absolute() else root / path
     if candidate.is_symlink():
         raise MaintenancePreservationReceiptError("receipt inputs must not be symlinks")
     resolved = _resolve_repo_file(path, root=root, must_exist=True)
-    raw = resolved.read_bytes()
+    if max_bytes is not None:
+        if max_bytes < 1:
+            raise MaintenancePreservationReceiptError("receipt input byte limit must be positive")
+        with resolved.open("rb") as handle:
+            raw = handle.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise MaintenancePreservationReceiptError(
+                f"receipt input exceeds bounded size limit of {max_bytes} bytes"
+            )
+    else:
+        raw = resolved.read_bytes()
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -177,8 +193,17 @@ def write_maintenance_preservation_receipt(completeness_path: Path, output_path:
     return result
 
 
-def verify_maintenance_preservation_receipt(receipt_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
-    receipt, _, receipt_relative = _load_json_bytes(receipt_path, root=root)
+def verify_maintenance_preservation_receipt(
+    receipt_path: Path,
+    *,
+    root: Path = Path("."),
+    max_receipt_bytes: int | None = None,
+) -> dict[str, Any]:
+    receipt, _, receipt_relative = _load_json_bytes(
+        receipt_path,
+        root=root,
+        max_bytes=max_receipt_bytes,
+    )
     if receipt.get("schema") != "maintenance-preservation-receipt/v1":
         raise MaintenancePreservationReceiptError("unsupported preservation receipt schema")
     source = receipt.get("source_completeness")
@@ -215,6 +240,10 @@ def discover_maintenance_preservation_receipts(
     """
     if max_receipts < 1:
         raise MaintenancePreservationReceiptError("receipt discovery limit must be positive")
+    if max_receipts > _MAX_DISCOVERY_RECEIPTS:
+        raise MaintenancePreservationReceiptError(
+            f"receipt discovery limit cannot exceed hard safety cap of {_MAX_DISCOVERY_RECEIPTS} JSON files"
+        )
     completeness, raw, relative = _load_json_bytes(completeness_path, root=root)
     _require_complete(completeness)
     source_sha = hashlib.sha256(raw).hexdigest()
@@ -243,7 +272,11 @@ def discover_maintenance_preservation_receipts(
     for candidate in candidates:
         candidate_relative = candidate.relative_to(resolved_root).as_posix()
         try:
-            payload, _, _ = _load_json_bytes(candidate, root=root)
+            payload, _, _ = _load_json_bytes(
+                candidate,
+                root=root,
+                max_bytes=_MAX_DISCOVERY_RECEIPT_BYTES,
+            )
         except MaintenancePreservationReceiptError as exc:
             unattributed.append({"path": candidate_relative, "status": "unattributed_invalid", "error": str(exc)})
             continue
@@ -258,7 +291,11 @@ def discover_maintenance_preservation_receipts(
             ignored += 1
             continue
         try:
-            receipt = verify_maintenance_preservation_receipt(candidate, root=root)
+            receipt = verify_maintenance_preservation_receipt(
+                candidate,
+                root=root,
+                max_receipt_bytes=_MAX_DISCOVERY_RECEIPT_BYTES,
+            )
         except MaintenancePreservationReceiptError as exc:
             invalid.append({"path": candidate_relative, "status": "invalid", "matches_source": True, "error": str(exc)})
             continue
@@ -286,6 +323,8 @@ def discover_maintenance_preservation_receipts(
         },
         "receipt_directory": _RECEIPT_DIR.as_posix(),
         "scan_limit": max_receipts,
+        "scan_hard_limit": _MAX_DISCOVERY_RECEIPTS,
+        "candidate_byte_limit": _MAX_DISCOVERY_RECEIPT_BYTES,
         "candidate_count": len(candidates),
         "matching_receipt_count": len(verified) + len(invalid),
         "verified_receipt_count": len(verified),
@@ -300,7 +339,7 @@ def discover_maintenance_preservation_receipts(
         "receipt_required_for_preservation": False,
         "preservation_complete": True,
         "write_allowed": False,
-        "safety_boundary": "Receipt discovery is bounded and read-only. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
+        "safety_boundary": "Receipt discovery is bounded and read-only: callers cannot raise the scan above 100 direct JSON files, and each candidate receipt is read through a 1 MiB ceiling. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, oversized, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
     }
 
 
