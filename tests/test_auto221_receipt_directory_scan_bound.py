@@ -90,7 +90,7 @@ def test_receipt_discovery_bounds_total_directory_entries(
     scanner = _ManyNonJson(receipt_dir, json_count=0)
     monkeypatch.setattr(receipt.os, "scandir", lambda _path: scanner)
 
-    with pytest.raises(MaintenancePreservationReceiptError, match="1,000 entries"):
+    with pytest.raises(MaintenancePreservationReceiptError, match="1000 entries"):
         discover_maintenance_preservation_receipts(source, root=tmp_path)
 
     assert scanner._index == 1001
