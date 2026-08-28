@@ -11,11 +11,12 @@ The command and writer:
 - require explicit confirmation through `--confirm-write` on the CLI or `confirm_write=True` through the Python API;
 - accept only validation results already supported by the preview surface: `passed`, `failed`, `error`, `not_run`, and `skipped`;
 - reuse the run-history reader path guard, so the target must be a real non-symlink `.json` file under `.ai/run-history/`;
-- refuse malformed records and unsupported schemas through the preview/reader path;
+- read the authoritative source record through a fixed 1 MiB ceiling before decoding, parsing, payload construction, stale-source comparison, or replacement;
+- refuse malformed records, invalid UTF-8, oversized records, and unsupported schemas through the writer/preview/reader path;
 - update the record validation fields from a supplied external observation only when the record does not already contain validation evidence;
 - treat the historical `run-history/v1` placeholder spelling `not run` and the newer `not_run` spelling as equivalent empty validation states, so legacy records can receive their first explicitly confirmed attachment without weakening immutability for real evidence;
 - refuse to replace an existing validation execution, result, or note, including executor-produced evidence or an earlier external attachment;
-- re-check the source record bytes immediately before replacement and refuse a stale attachment if another writer changed the record while the payload was being prepared;
+- re-read the source through the same 1 MiB ceiling immediately before replacement and refuse a stale or newly oversized attachment if another writer changed or grew the record while the payload was being prepared;
 - persist the first attachment through a flushed same-directory temporary file followed by `os.replace`, so a failed final replacement leaves the original durable record intact instead of exposing a partially written JSON file;
 - fsync the containing directory after the successful replacement so the rename metadata is pushed toward durable storage on supported platforms/filesystems;
 - distinguish a pre-replace failure from a post-replace directory-sync failure, avoiding a false claim that the original record survived when the replacement had already occurred;
@@ -24,6 +25,8 @@ The command and writer:
 - do not run validation commands, check workflow status, verify commits, inspect diffs, generate patches, infer success, enforce policy, commit, push, call networks, or scan history recursively.
 
 Validation evidence is single-assignment through this writer. After a result has been recorded, a later observation must use a new run-history record or a separately reviewed recovery mechanism; rerunning this command against the same validated record fails closed and preserves its bytes.
+
+The 1 MiB source ceiling is deliberately the same fixed local bound used by the primary `run-history-read` path and immutable validation-attachment inputs. The writer reads at most one sentinel byte beyond the ceiling and fails before JSON parsing or replacement if that sentinel exists. The ceiling is reapplied at the final stale-source check, so a record that grows after payload construction is not allowed to become an unbounded final read.
 
 The write is crash/failure resistant at the replacement boundary: Forge fully writes and flushes a temporary sibling file first, atomically replaces the target, and then fsyncs the containing directory. If replacement itself fails, the existing history record is preserved and the temporary file is removed. If directory fsync fails after replacement, Forge reports that the record was already replaced and requires inspection before retrying. Forge does not implement a shared cross-process lock, so the pre-replacement byte comparison narrows concurrent-writer races but does not claim full multi-process transactional locking.
 
@@ -68,7 +71,7 @@ forge validation-result-write \
 }
 ```
 
-If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record. If the record already contains validation evidence, the write is also refused and the existing record remains unchanged. If the record changes between the initial read and the final replacement, Forge refuses the stale attachment rather than replacing the newer bytes.
+If `--confirm-write` is omitted, the command returns exit code `2`, prints a refusal, and does not mutate the target record. If the record already contains validation evidence, the write is also refused and the existing record remains unchanged. If the record changes or grows beyond 1 MiB between the initial read and the final replacement, Forge refuses the stale attachment rather than replacing the newer bytes.
 
 ## Python API
 
