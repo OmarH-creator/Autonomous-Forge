@@ -22,6 +22,7 @@ CONTEXT_FIELDS = (
     "validation_steps",
     "risk_register",
 )
+MAX_VALIDATION_RESULT_RECORD_BYTES = 1024 * 1024
 
 
 class ValidationResultWriteError(ValueError):
@@ -35,10 +36,29 @@ def _require_mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
-def _load_record_payload(record_path: Path) -> dict[str, Any]:
-    """Load one already path-validated run-history payload."""
+def _read_bounded_record_bytes(record_path: Path) -> bytes:
+    """Read one authoritative run-history record with a fixed memory ceiling."""
     try:
-        payload = json.loads(record_path.read_text(encoding="utf-8"))
+        with record_path.open("rb") as stream:
+            raw = stream.read(MAX_VALIDATION_RESULT_RECORD_BYTES + 1)
+    except OSError as exc:
+        raise ValidationResultWriteError("record could not be read safely") from exc
+    if len(raw) > MAX_VALIDATION_RESULT_RECORD_BYTES:
+        raise ValidationResultWriteError(
+            f"record exceeds {MAX_VALIDATION_RESULT_RECORD_BYTES} bytes"
+        )
+    return raw
+
+
+def _load_record_payload(record_path: Path) -> dict[str, Any]:
+    """Load one already path-validated, resource-bounded run-history payload."""
+    raw = _read_bounded_record_bytes(record_path)
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValidationResultWriteError("record is not valid UTF-8") from exc
+    try:
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ValidationResultWriteError(f"record JSON is malformed: {exc.msg}") from exc
     return _require_mapping(payload, "record payload")
@@ -184,14 +204,14 @@ def write_validation_result_attachment(
     except RunHistoryReadError as exc:
         raise ValidationResultWriteError(str(exc)) from exc
 
-    source_bytes = safe_record.read_bytes()
+    source_bytes = _read_bounded_record_bytes(safe_record)
     payload = build_validation_result_write_payload(
         safe_record,
         result=result,
         root=root,
         note=note,
     )
-    if safe_record.read_bytes() != source_bytes:
+    if _read_bounded_record_bytes(safe_record) != source_bytes:
         raise ValidationResultWriteError(
             "record changed during validation-result write; refusing stale attachment"
         )
