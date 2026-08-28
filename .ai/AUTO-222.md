@@ -23,7 +23,7 @@ The reader remains local and read-only. The change does not execute validation, 
 
 ## Validation
 
-Focused deterministic tests cover the JSON-candidate limit, total-entry limit, and oversized candidate refusal. Fresh repository-wide Actions validation is required before AUTO-222 is marked DONE.
+Final corrected product/docs head `91d61c21dbae5204611c0ca5c30ee468e3443980` passed GitHub Actions run `33166236674`. Python 3.10, 3.11, and 3.12 each passed checkout/install, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Branch/PR disposition
 
@@ -31,4 +31,4 @@ Main-only. No branch or pull request was created or merged; no force-push or pro
 
 ## Next action
 
-Inspect the fresh AUTO-222 Python 3.10/3.11/3.12 matrix. Any failure takes priority; if green, continue only with another concrete end-to-end integrity defect or meaningful evidence-handoff reduction.
+Continue only with another concrete end-to-end integrity defect or meaningful evidence-handoff reduction. Any fresh CI failure takes priority.
