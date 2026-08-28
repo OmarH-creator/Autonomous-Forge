@@ -17,6 +17,7 @@ class MaintenancePreservationReceiptError(ValueError):
 _RECEIPT_DIR = Path(".ai/preservation-receipts")
 _MAX_DISCOVERY_RECEIPTS = 100
 _MAX_DISCOVERY_RECEIPT_BYTES = 1_048_576
+_MAX_COMPLETENESS_BYTES = 1_048_576
 
 
 def _resolve_repo_file(path: Path, *, root: Path, must_exist: bool = False) -> Path:
@@ -64,6 +65,26 @@ def _load_json_bytes(
     return payload, raw, _repo_relative(resolved, root=root)
 
 
+def _load_completeness_json_bytes(
+    path: Path,
+    *,
+    root: Path,
+) -> tuple[dict[str, Any], bytes, str]:
+    """Read one authoritative completeness artifact through the fixed local byte ceiling."""
+    try:
+        return _load_json_bytes(
+            path,
+            root=root,
+            max_bytes=_MAX_COMPLETENESS_BYTES,
+        )
+    except MaintenancePreservationReceiptError as exc:
+        if "receipt input exceeds bounded size limit" in str(exc):
+            raise MaintenancePreservationReceiptError(
+                f"preservation completeness input exceeds bounded size limit of {_MAX_COMPLETENESS_BYTES} bytes"
+            ) from exc
+        raise
+
+
 def _require_complete(data: dict[str, Any]) -> None:
     if data.get("mode") != "preservation completeness summary":
         raise MaintenancePreservationReceiptError("input is not a preservation completeness artifact")
@@ -106,7 +127,7 @@ def _live_status_receipt_summary(value: Any) -> dict[str, Any]:
 
 
 def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
-    completeness, raw, relative = _load_json_bytes(completeness_path, root=root)
+    completeness, raw, relative = _load_completeness_json_bytes(completeness_path, root=root)
     _require_complete(completeness)
     external = completeness.get("external_validation_provenance")
     if not isinstance(external, dict):
@@ -138,7 +159,7 @@ def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root
         "live_status_provenance": live_status,
         "receipt_status": "ready",
         "write_allowed": False,
-        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. Retained live workflow status is informational only. The receipt does not re-run archive checks or validation, promote external observations to executor proof, change preservation completeness, or grant Git, network, workflow, or overwrite authority.",
+        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. The authoritative completeness input is read through a fixed 1 MiB ceiling. Retained live workflow status is informational only. The receipt does not re-run archive checks or validation, promote external observations to executor proof, change preservation completeness, or grant Git, network, workflow, or overwrite authority.",
     }
 
 
@@ -210,7 +231,7 @@ def verify_maintenance_preservation_receipt(
     if not isinstance(source, dict):
         raise MaintenancePreservationReceiptError("receipt has no source completeness binding")
     source_path = Path(str(source.get("path") or ""))
-    completeness, raw, relative = _load_json_bytes(source_path, root=root)
+    completeness, raw, relative = _load_completeness_json_bytes(source_path, root=root)
     _require_complete(completeness)
     if relative != str(source.get("path") or ""):
         raise MaintenancePreservationReceiptError("receipt source path is not canonical")
@@ -244,7 +265,7 @@ def discover_maintenance_preservation_receipts(
         raise MaintenancePreservationReceiptError(
             f"receipt discovery limit cannot exceed hard safety cap of {_MAX_DISCOVERY_RECEIPTS} JSON files"
         )
-    completeness, raw, relative = _load_json_bytes(completeness_path, root=root)
+    completeness, raw, relative = _load_completeness_json_bytes(completeness_path, root=root)
     _require_complete(completeness)
     source_sha = hashlib.sha256(raw).hexdigest()
     resolved_root = root.resolve()
@@ -322,6 +343,7 @@ def discover_maintenance_preservation_receipts(
             "preservation_complete": True,
         },
         "receipt_directory": _RECEIPT_DIR.as_posix(),
+        "source_completeness_byte_limit": _MAX_COMPLETENESS_BYTES,
         "scan_limit": max_receipts,
         "scan_hard_limit": _MAX_DISCOVERY_RECEIPTS,
         "candidate_byte_limit": _MAX_DISCOVERY_RECEIPT_BYTES,
@@ -339,7 +361,7 @@ def discover_maintenance_preservation_receipts(
         "receipt_required_for_preservation": False,
         "preservation_complete": True,
         "write_allowed": False,
-        "safety_boundary": "Receipt discovery is bounded and read-only: callers cannot raise the scan above 100 direct JSON files, and each candidate receipt is read through a 1 MiB ceiling. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, oversized, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
+        "safety_boundary": "Receipt discovery is bounded and read-only: the authoritative preservation-completeness input and each candidate receipt are read through a 1 MiB ceiling, and callers cannot raise the scan above 100 direct JSON files. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, oversized, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
     }
 
 
