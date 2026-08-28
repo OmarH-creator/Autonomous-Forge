@@ -3,7 +3,9 @@ import json
 import pytest
 
 from autonomous_forge.cli import main
+import autonomous_forge.validation_result_writer as validation_result_writer
 from autonomous_forge.validation_result_writer import (
+    MAX_VALIDATION_RESULT_RECORD_BYTES,
     ValidationResultWriteError,
     build_validation_result_write_payload,
     write_validation_result_attachment,
@@ -60,6 +62,14 @@ def test_build_validation_result_write_payload_retains_enriched_context(tmp_path
     assert "implementation context fields were retained" in payload["safety_notes"][-1]
 
 
+def test_build_validation_result_write_payload_refuses_oversized_record(tmp_path):
+    record = _write_record(tmp_path)
+    record.write_bytes(b"{" + b"x" * MAX_VALIDATION_RESULT_RECORD_BYTES)
+
+    with pytest.raises(ValidationResultWriteError, match="exceeds 1048576 bytes"):
+        build_validation_result_write_payload(record, root=tmp_path, result="passed")
+
+
 def test_write_validation_result_attachment_requires_confirmation(tmp_path):
     record = _write_record(tmp_path)
     before = record.read_text(encoding="utf-8")
@@ -113,6 +123,40 @@ def test_write_validation_result_attachment_keeps_not_run_execution(tmp_path):
     assert saved["record"]["validation_execution"] == "not_run"
     assert saved["record"]["validation_result"] == "not_run"
     assert saved["record"]["validation_note"] == "none"
+
+
+def test_write_validation_result_attachment_refuses_record_that_grows_oversized(tmp_path, monkeypatch):
+    record = _write_record(tmp_path)
+    original_builder = validation_result_writer.build_validation_result_write_payload
+
+    def grow_after_build(*args, **kwargs):
+        payload = original_builder(*args, **kwargs)
+        record.write_bytes(b"{" + b"x" * MAX_VALIDATION_RESULT_RECORD_BYTES)
+        return payload
+
+    monkeypatch.setattr(
+        validation_result_writer,
+        "build_validation_result_write_payload",
+        grow_after_build,
+    )
+    replace_called = False
+
+    def unexpected_replace(*args, **kwargs):
+        nonlocal replace_called
+        replace_called = True
+
+    monkeypatch.setattr(validation_result_writer, "_atomic_replace_text", unexpected_replace)
+
+    with pytest.raises(ValidationResultWriteError, match="exceeds 1048576 bytes"):
+        write_validation_result_attachment(
+            record,
+            root=tmp_path,
+            result="passed",
+            confirm_write=True,
+        )
+
+    assert replace_called is False
+    assert record.stat().st_size == MAX_VALIDATION_RESULT_RECORD_BYTES + 1
 
 
 def test_write_validation_result_attachment_refuses_unsafe_path(tmp_path):
