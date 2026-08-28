@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,8 @@ _VALIDATION_CONTEXT_FIELDS = (
     "risk_register",
 )
 _MAX_DISCOVERED_ATTACHMENTS = 100
+_MAX_ATTACHMENT_DIRECTORY_ENTRIES = 1000
+_MAX_ATTACHMENT_BYTES = 1024 * 1024
 _ATTACHMENT_DIRECTORY = Path(".ai/run-history/validation-attachments")
 _ATTACHMENT_SCHEMA_VERSION = "validation-attachment/v1"
 
@@ -88,6 +91,26 @@ def _record_relative_path(root: Path, record_path: Path) -> str:
     return record_path.relative_to(root.resolve()).as_posix()
 
 
+def _read_bounded_attachment(candidate: Path) -> dict[str, Any] | None:
+    """Read one candidate without allowing an oversized sidecar into memory."""
+    try:
+        with candidate.open("rb") as stream:
+            raw = stream.read(_MAX_ATTACHMENT_BYTES + 1)
+    except OSError as exc:
+        raise RunHistoryReadError(
+            f"validation attachment could not be read safely: {candidate.name}"
+        ) from exc
+    if len(raw) > _MAX_ATTACHMENT_BYTES:
+        raise RunHistoryReadError(
+            f"validation attachment exceeds {_MAX_ATTACHMENT_BYTES} bytes: {candidate.name}"
+        )
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _discover_validation_attachments(
     record_path: Path,
     *,
@@ -110,22 +133,35 @@ def _discover_validation_attachments(
     if not attachment_root.is_dir():
         raise RunHistoryReadError("validation attachment directory must be a real directory")
 
-    candidates = sorted(attachment_root.glob("*.json"))
-    if len(candidates) > _MAX_DISCOVERED_ATTACHMENTS:
-        raise RunHistoryReadError(
-            f"validation attachment discovery exceeds {_MAX_DISCOVERED_ATTACHMENTS} files"
-        )
+    candidates: list[Path] = []
+    observed_entries = 0
+    try:
+        with os.scandir(attachment_root) as entries:
+            for entry in entries:
+                observed_entries += 1
+                if observed_entries > _MAX_ATTACHMENT_DIRECTORY_ENTRIES:
+                    raise RunHistoryReadError(
+                        "validation attachment discovery exceeds "
+                        f"{_MAX_ATTACHMENT_DIRECTORY_ENTRIES} direct directory entries"
+                    )
+                if not entry.name.endswith(".json"):
+                    continue
+                candidates.append(Path(entry.path))
+                if len(candidates) > _MAX_DISCOVERED_ATTACHMENTS:
+                    raise RunHistoryReadError(
+                        f"validation attachment discovery exceeds {_MAX_DISCOVERED_ATTACHMENTS} files"
+                    )
+    except OSError as exc:
+        raise RunHistoryReadError("validation attachment directory could not be enumerated safely") from exc
+    candidates.sort(key=lambda path: path.name)
 
     source_label = _record_relative_path(root, record_path)
     matches: list[dict[str, Any]] = []
     for candidate in candidates:
         if candidate.is_symlink() or not candidate.is_file():
             continue
-        try:
-            payload = json.loads(candidate.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(payload, dict) or payload.get("schema_version") != _ATTACHMENT_SCHEMA_VERSION:
+        payload = _read_bounded_attachment(candidate)
+        if payload is None or payload.get("schema_version") != _ATTACHMENT_SCHEMA_VERSION:
             continue
         source = payload.get("source_record")
         if not isinstance(source, dict) or source.get("path") != source_label:
