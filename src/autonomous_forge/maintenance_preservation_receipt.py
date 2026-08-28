@@ -16,6 +16,7 @@ class MaintenancePreservationReceiptError(ValueError):
 
 _RECEIPT_DIR = Path(".ai/preservation-receipts")
 _MAX_DISCOVERY_RECEIPTS = 100
+_MAX_DISCOVERY_DIRECTORY_ENTRIES = 1_000
 _MAX_DISCOVERY_RECEIPT_BYTES = 1_048_576
 _MAX_COMPLETENESS_BYTES = 1_048_576
 
@@ -124,6 +125,34 @@ def _live_status_receipt_summary(value: Any) -> dict[str, Any]:
         "affects_preservation_completeness": False,
         "affects_preservation_integrity": False,
     }
+
+
+def _bounded_receipt_candidates(receipt_dir: Path, *, max_receipts: int) -> tuple[list[Path], int]:
+    """Enumerate direct receipt candidates without materializing an unbounded directory listing."""
+    candidates: list[Path] = []
+    entries_seen = 0
+    try:
+        with os.scandir(receipt_dir) as entries:
+            for entry in entries:
+                entries_seen += 1
+                if entries_seen > _MAX_DISCOVERY_DIRECTORY_ENTRIES:
+                    raise MaintenancePreservationReceiptError(
+                        "receipt discovery exceeds bounded directory-entry limit of "
+                        f"{_MAX_DISCOVERY_DIRECTORY_ENTRIES} entries"
+                    )
+                if not entry.name.endswith(".json"):
+                    continue
+                candidates.append(Path(entry.path))
+                if len(candidates) > max_receipts:
+                    raise MaintenancePreservationReceiptError(
+                        f"receipt discovery exceeds bounded limit of {max_receipts} JSON files"
+                    )
+    except MaintenancePreservationReceiptError:
+        raise
+    except OSError as exc:
+        raise MaintenancePreservationReceiptError(f"receipt directory scan failed: {exc}") from exc
+    candidates.sort(key=lambda item: item.name)
+    return candidates, entries_seen
 
 
 def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
@@ -272,6 +301,7 @@ def discover_maintenance_preservation_receipts(
     receipt_dir = resolved_root / _RECEIPT_DIR
     if receipt_dir.is_symlink():
         raise MaintenancePreservationReceiptError("receipt directory must not be a symlink")
+    directory_entry_count = 0
     if not receipt_dir.exists():
         candidates: list[Path] = []
     else:
@@ -280,11 +310,10 @@ def discover_maintenance_preservation_receipts(
         resolved_dir = receipt_dir.resolve()
         if resolved_root not in resolved_dir.parents:
             raise MaintenancePreservationReceiptError("receipt directory must stay inside the repository root")
-        candidates = sorted(receipt_dir.glob("*.json"), key=lambda item: item.name)
-        if len(candidates) > max_receipts:
-            raise MaintenancePreservationReceiptError(
-                f"receipt discovery exceeds bounded limit of {max_receipts} JSON files"
-            )
+        candidates, directory_entry_count = _bounded_receipt_candidates(
+            receipt_dir,
+            max_receipts=max_receipts,
+        )
 
     verified: list[dict[str, Any]] = []
     invalid: list[dict[str, Any]] = []
@@ -346,6 +375,8 @@ def discover_maintenance_preservation_receipts(
         "source_completeness_byte_limit": _MAX_COMPLETENESS_BYTES,
         "scan_limit": max_receipts,
         "scan_hard_limit": _MAX_DISCOVERY_RECEIPTS,
+        "directory_entry_count": directory_entry_count,
+        "directory_entry_hard_limit": _MAX_DISCOVERY_DIRECTORY_ENTRIES,
         "candidate_byte_limit": _MAX_DISCOVERY_RECEIPT_BYTES,
         "candidate_count": len(candidates),
         "matching_receipt_count": len(verified) + len(invalid),
@@ -361,7 +392,7 @@ def discover_maintenance_preservation_receipts(
         "receipt_required_for_preservation": False,
         "preservation_complete": True,
         "write_allowed": False,
-        "safety_boundary": "Receipt discovery is bounded and read-only: the authoritative preservation-completeness input and each candidate receipt are read through a 1 MiB ceiling, and callers cannot raise the scan above 100 direct JSON files. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, oversized, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
+        "safety_boundary": "Receipt discovery is bounded and read-only: the authoritative preservation-completeness input and each candidate receipt are read through a 1 MiB ceiling; callers cannot raise the scan above 100 direct JSON files; and directory enumeration stops after at most 1,000 direct entries instead of materializing an unbounded listing. Only invalid receipts that explicitly bind to the selected completeness artifact can downgrade that artifact's receipt review. Malformed, unsupported, oversized, or unbound receipt-directory entries remain visible as unattributed invalid evidence but do not contaminate another artifact's review. Receipt presence never substitutes for preservation completeness or changes readiness/integrity gates.",
     }
 
 
