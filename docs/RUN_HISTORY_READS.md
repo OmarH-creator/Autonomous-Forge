@@ -1,8 +1,8 @@
 # Run-history reads
 
-`forge run-history-read` reads and summarizes one persisted local run-history JSON record. It is a read-only companion to `forge run-history-write` and now also discovers immutable validation-result sidecars created by `forge validation-result-attachment-write`.
+`forge run-history-read` reads and summarizes one persisted local run-history JSON record. It is a read-only companion to `forge run-history-write` and also discovers immutable validation-result sidecars created by `forge validation-result-attachment-write`.
 
-The command reads the explicit JSON file supplied by `--record`, then performs one bounded, non-recursive scan of `.ai/run-history/validation-attachments/`. It only verifies and surfaces attachments whose `source_record.path` explicitly names the selected record. It does not mutate the source record, run validation commands, inspect diffs, generate patches, approve exceptions, commit, push, call networks, or read environment variables.
+The command reads the explicit JSON file supplied by `--record` through a fixed **1 MiB ceiling**, then performs one bounded, non-recursive scan of `.ai/run-history/validation-attachments/`. It only verifies and surfaces attachments whose `source_record.path` explicitly names the selected record. It does not mutate the source record, run validation commands, inspect diffs, generate patches, approve exceptions, commit, push, call networks, or read environment variables.
 
 ## Example
 
@@ -32,11 +32,13 @@ The reader refuses to summarize a record unless all of these are true:
 - The record path uses a `.json` extension.
 - The record is a real file, not a symlink.
 - The record is a file, not a directory.
-- The JSON payload uses the supported `run-history/v1` schema.
+- The authoritative record is at most **1 MiB**; Forge reads at most one sentinel byte beyond the limit before refusing it.
+- The record is valid UTF-8 JSON using the supported `run-history/v1` schema.
 - The core `record`, `record.task`, and `preflight_summary` fields are JSON objects.
 - If present, `record.validation_context` is a JSON object.
 - The validation-attachment directory, when present, is a real directory rather than a symlink.
-- Discovery is bounded to at most 100 non-recursive `.json` candidates.
+- Attachment discovery is bounded to at most 100 non-recursive `.json` candidates and 1,000 total direct directory entries.
+- Each admitted validation attachment is read through a 1 MiB ceiling.
 - Every matching `validation-attachment/v1` sidecar still matches the selected source record's exact SHA-256 and byte count.
 
 Malformed or unrelated sidecar files are ignored unless they explicitly claim the selected source record; a matching attachment that fails verification blocks the read instead of being silently accepted.
@@ -60,4 +62,4 @@ The text and JSON summaries include:
 
 ## Current limitations
 
-Attachment discovery is intentionally bounded and non-recursive. The reader surfaces immutable sidecars but does not collapse multiple observations into one inferred validation result, does not rewrite `run-history/v1`, and does not yet make replay/maintenance-bundle consumers treat an attachment as equivalent to executor-produced validation evidence. That separation keeps legacy consumers compatible while making the new immutable evidence visible and verifiable through the primary history-reading path.
+The 1 MiB authoritative-record and attachment ceilings are fixed local fail-closed contracts rather than streaming validation. Attachment discovery is intentionally bounded and non-recursive. The reader surfaces immutable sidecars but does not collapse multiple observations into one inferred validation result, does not rewrite `run-history/v1`, and does not make replay/maintenance-bundle consumers treat an attachment as equivalent to executor-produced validation evidence. That separation keeps legacy consumers compatible while making the immutable evidence visible and verifiable through the primary history-reading path.

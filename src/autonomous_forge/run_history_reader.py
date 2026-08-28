@@ -18,6 +18,7 @@ _VALIDATION_CONTEXT_FIELDS = (
     "validation_steps",
     "risk_register",
 )
+_MAX_RECORD_BYTES = 1024 * 1024
 _MAX_DISCOVERED_ATTACHMENTS = 100
 _MAX_ATTACHMENT_DIRECTORY_ENTRIES = 1000
 _MAX_ATTACHMENT_BYTES = 1024 * 1024
@@ -65,6 +66,28 @@ def _validate_record_path(root: Path, record_path: Path | str) -> Path:
     if not resolved_record.is_file():
         raise RunHistoryReadError("record path must point to a regular file")
     return resolved_record
+
+
+def _read_bounded_record(record_path: Path) -> dict[str, Any]:
+    """Read one authoritative run-history record through a fixed byte ceiling."""
+    try:
+        with record_path.open("rb") as stream:
+            raw = stream.read(_MAX_RECORD_BYTES + 1)
+    except OSError as exc:
+        raise RunHistoryReadError("record could not be read safely") from exc
+    if len(raw) > _MAX_RECORD_BYTES:
+        raise RunHistoryReadError(
+            f"record exceeds {_MAX_RECORD_BYTES} bytes"
+        )
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RunHistoryReadError("record must be valid UTF-8") from exc
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RunHistoryReadError(f"record JSON is malformed: {exc.msg}") from exc
+    return _require_mapping(payload, "record payload")
 
 
 def _require_mapping(value: Any, label: str) -> dict[str, Any]:
@@ -241,9 +264,8 @@ def summarize_run_history_record(payload: dict[str, Any], *, source_path: str) -
         "safety_notes": safety_notes,
         "safety_boundary": (
             "Run-history read output only; no files are changed and no validation commands are run. "
-            "The reader performs a bounded, non-recursive scan of immutable validation sidecars and "
-            "verifies only attachments that explicitly name this source record. No approvals are granted "
-            "and policy is not enforced."
+            "The authoritative record and discovered immutable validation sidecars are read through fixed "
+            "local byte ceilings. No approvals are granted and policy is not enforced."
         ),
     }
 
@@ -328,13 +350,10 @@ def read_run_history_record(
 ) -> str:
     """Read and summarize one persisted local run-history record."""
     safe_record_path = _validate_record_path(root, record_path)
-    try:
-        payload = json.loads(safe_record_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise RunHistoryReadError(f"record JSON is malformed: {exc.msg}") from exc
+    payload = _read_bounded_record(safe_record_path)
 
     data = summarize_run_history_record(
-        _require_mapping(payload, "record payload"),
+        payload,
         source_path=str(safe_record_path),
     )
     data["validation_attachments"] = _discover_validation_attachments(
