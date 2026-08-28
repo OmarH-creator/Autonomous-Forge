@@ -19,6 +19,7 @@ from autonomous_forge.validation_result_writer import (
 
 ATTACHMENT_SCHEMA_VERSION = "validation-attachment/v1"
 ATTACHMENT_DIRECTORY = Path(".ai/run-history/validation-attachments")
+MAX_VALIDATION_ATTACHMENT_BYTES = 1024 * 1024
 
 
 class ValidationResultAttachmentError(ValueError):
@@ -50,6 +51,20 @@ def _resolve_attachment_output(root: Path, output_path: Path | str) -> Path:
     return resolved_output
 
 
+def _read_bounded_bytes(path: Path, *, label: str) -> bytes:
+    """Read one attachment-stage input without allowing an oversized file into memory."""
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_VALIDATION_ATTACHMENT_BYTES + 1)
+    except OSError as exc:
+        raise ValidationResultAttachmentError(f"{label} could not be read safely") from exc
+    if len(raw) > MAX_VALIDATION_ATTACHMENT_BYTES:
+        raise ValidationResultAttachmentError(
+            f"{label} exceeds {MAX_VALIDATION_ATTACHMENT_BYTES} bytes"
+        )
+    return raw
+
+
 def _source_fingerprint(source_bytes: bytes) -> dict[str, Any]:
     return {
         "sha256": hashlib.sha256(source_bytes).hexdigest(),
@@ -70,7 +85,7 @@ def build_validation_result_attachment_payload(
         raise ValidationResultAttachmentError(f"validation result must be one of: {allowed}")
     try:
         safe_record = _validate_record_path(root, record_path)
-        source_bytes = safe_record.read_bytes()
+        source_bytes = _read_bounded_bytes(safe_record, label="source run-history record")
         legacy_payload = build_validation_result_write_payload(
             safe_record,
             result=result,
@@ -173,14 +188,14 @@ def write_validation_result_attachment_sidecar(
     except RunHistoryReadError as exc:
         raise ValidationResultAttachmentError(str(exc)) from exc
     output = _resolve_attachment_output(root, output_path)
-    source_bytes = safe_record.read_bytes()
+    source_bytes = _read_bounded_bytes(safe_record, label="source run-history record")
     payload = build_validation_result_attachment_payload(
         safe_record,
         result=result,
         root=root,
         note=note,
     )
-    if safe_record.read_bytes() != source_bytes:
+    if _read_bounded_bytes(safe_record, label="source run-history record") != source_bytes:
         raise ValidationResultAttachmentError(
             "record changed during validation attachment write; refusing stale attachment"
         )
@@ -201,8 +216,11 @@ def verify_validation_result_attachment(
 ) -> dict[str, Any]:
     """Verify one immutable attachment still matches its source run-history bytes."""
     attachment = _resolve_existing_attachment(root, attachment_path)
+    raw_attachment = _read_bounded_bytes(attachment, label="validation attachment")
     try:
-        payload = json.loads(attachment.read_text(encoding="utf-8"))
+        payload = json.loads(raw_attachment.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ValidationResultAttachmentError("attachment is not valid UTF-8") from exc
     except json.JSONDecodeError as exc:
         raise ValidationResultAttachmentError(f"attachment JSON is malformed: {exc.msg}") from exc
     if not isinstance(payload, dict) or payload.get("schema_version") != ATTACHMENT_SCHEMA_VERSION:
@@ -219,7 +237,9 @@ def verify_validation_result_attachment(
         safe_record = _validate_record_path(root, source_path)
     except RunHistoryReadError as exc:
         raise ValidationResultAttachmentError(str(exc)) from exc
-    fingerprint = _source_fingerprint(safe_record.read_bytes())
+    fingerprint = _source_fingerprint(
+        _read_bounded_bytes(safe_record, label="source run-history record")
+    )
     if source.get("bytes") != fingerprint["bytes"] or source.get("sha256") != fingerprint["sha256"]:
         raise ValidationResultAttachmentError(
             "source run-history record no longer matches attachment bytes/sha256"
