@@ -19,7 +19,7 @@ def test_archive_package_streams_zip_sources_and_final_hash(tmp_path, monkeypatc
         package_path=package_path,
         root=tmp_path,
     )
-    assert any(not entry.get("sha256") for entry in preview["package_entries"])
+    assert all(entry.get("sha256") for entry in preview["package_entries"])
 
     original_read_bytes = Path.read_bytes
     archive_root_resolved = archive_root.resolve()
