@@ -15,7 +15,7 @@ Close the whole-file memory amplification defect in the confirmed archive-copy e
 - Replaced archive-copy SHA-256 verification with incremental 64 KiB reads.
 - Kept full-byte hashing semantics unchanged: every byte is still hashed and must match the verified preview before publication.
 - Added deterministic tests that replace `Path.read_bytes()` with a failure and prove both the hashing helper and the real no-clobber copy path still verify and publish multi-megabyte evidence.
-- Added `docs/ARCHIVE_COPY_STREAMING_HASH.md`.
+- Added `docs/ARCHIVE_COPY_STREAMING_HASH.md` and updated README/current autonomous state.
 
 ## Safety
 
@@ -23,8 +23,8 @@ Close the whole-file memory amplification defect in the confirmed archive-copy e
 
 ## Validation
 
-Fresh Python 3.10/3.11/3.12 Actions validation is required before marking AUTO-226 DONE. Any CI failure takes priority over further feature work.
+Final AUTO-226 product/README head `0a5c0cdb2853a01e1bbdbf1b62d4a5c303f5bed8` passed GitHub Actions run `33230548589`. Python 3.10, 3.11, and 3.12 all passed package installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Next
 
-If CI is green, inspect the downstream archive-copy verification/package hashing boundaries for the same whole-file memory defect or select the next concrete end-to-end integrity gap. Archive-copy remains intentionally per-file rather than transactional across the whole preservation set.
+Inspect downstream archive-copy verification/package hashing for the same whole-file memory defect or select the next concrete end-to-end integrity gap. Archive-copy remains intentionally per-file rather than transactional across the whole preservation set; any fresh CI failure takes priority.
