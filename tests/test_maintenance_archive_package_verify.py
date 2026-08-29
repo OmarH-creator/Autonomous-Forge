@@ -1,5 +1,6 @@
 import json
 import zipfile
+from pathlib import Path
 
 from autonomous_forge.maintenance_archive_package import write_maintenance_archive_package
 from autonomous_forge.maintenance_archive_package_verify import build_maintenance_archive_package_verify_data
@@ -54,6 +55,32 @@ def test_archive_package_verify_accepts_matching_zip(tmp_path):
 
     assert data["package_verified"] is True
     assert data["package_format"] == "zip"
+    assert data["package_entry_count"] == data["expected_entry_count"]
+
+
+def test_archive_package_verify_streams_package_and_zip_members(tmp_path, monkeypatch):
+    manifest, archive_root, package_path = _write_package(tmp_path, suffix="zip")
+    original_read_bytes = Path.read_bytes
+
+    def guarded_read_bytes(path):
+        if path.resolve() == package_path.resolve():
+            raise AssertionError("package verification must not materialize the whole package")
+        return original_read_bytes(path)
+
+    def forbidden_zip_read(*args, **kwargs):
+        raise AssertionError("package verification must stream zip members instead of ZipFile.read")
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+    monkeypatch.setattr(zipfile.ZipFile, "read", forbidden_zip_read)
+
+    data = build_maintenance_archive_package_verify_data(
+        manifest,
+        archive_root=archive_root,
+        package_path=package_path,
+        root=tmp_path,
+    )
+
+    assert data["package_verified"] is True
     assert data["package_entry_count"] == data["expected_entry_count"]
 
 
