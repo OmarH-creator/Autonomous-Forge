@@ -297,11 +297,15 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
     source_reports = _source_report_entries(bundle, root=root)
     link_entry = _safe_repository_path(str(selected["history_link_path"]), root=root, label="history link")
     bundle_entry = _safe_repository_path(str(selected["bundle_path"]), root=root, label="bundle")
+    link_sha256 = _file_sha256(link_entry["resolved"])
     bundle_sha256 = _file_sha256(bundle_entry["resolved"])
     entries = [
         {
             "kind": "run_history_link",
             "path": link_entry["path"],
+            "sha256": link_sha256,
+            "current_sha256": link_sha256,
+            "sha256_verified": True,
             "exists": bool(link_entry["exists"]),
             "current_bytes": int(link_entry["bytes"]),
         },
@@ -349,9 +353,10 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         "manifest_written": False,
         "safety_boundary": (
             "Archive manifest preview reads repository-local run-history links, linked bundles, and source-report metadata. "
-            "It recomputes local source-report hashes and byte counts, but does not copy files, change evidence files, "
-            "stage, commit, push, poll workflows, or prove signer identity. Writing a manifest requires --output and "
-            "--confirm-write and only writes the manifest JSON."
+            "It recomputes local history-link, bundle, and source-report hashes and byte counts, but does not copy files, "
+            "change evidence files, stage, commit, push, poll workflows, or prove signer identity. A history-link digest "
+            "binds preserved bytes only and does not promote advisory provenance into validation authority. Writing a manifest "
+            "requires --output and --confirm-write and only writes the manifest JSON."
         ),
     }
 
