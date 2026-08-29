@@ -16,8 +16,13 @@ class MaintenanceArchiveManifestError(ValueError):
     """Raised when archive manifest inputs are incomplete or unsafe."""
 
 
-def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _file_sha256(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Hash a file incrementally so evidence size does not determine peak memory use."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(chunk_size):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _external_validation_provenance(candidate: Any) -> dict[str, Any]:
@@ -292,6 +297,7 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
     source_reports = _source_report_entries(bundle, root=root)
     link_entry = _safe_repository_path(str(selected["history_link_path"]), root=root, label="history link")
     bundle_entry = _safe_repository_path(str(selected["bundle_path"]), root=root, label="bundle")
+    bundle_sha256 = _file_sha256(bundle_entry["resolved"])
     entries = [
         {
             "kind": "run_history_link",
@@ -302,8 +308,8 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
         {
             "kind": "maintenance_bundle",
             "path": bundle_entry["path"],
-            "sha256": _file_sha256(bundle_entry["resolved"]),
-            "current_sha256": _file_sha256(bundle_entry["resolved"]),
+            "sha256": bundle_sha256,
+            "current_sha256": bundle_sha256,
             "sha256_verified": True,
             "exists": bool(bundle_entry["exists"]),
             "current_bytes": int(bundle_entry["bytes"]),
