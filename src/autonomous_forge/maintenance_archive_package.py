@@ -56,14 +56,16 @@ def _file_sha256(path: Path) -> str:
 
 
 def _validate_streamed_entry(entry: dict[str, Any], *, bytes_read: int, sha256: str) -> None:
-    expected_bytes = int(entry.get("bytes", -1))
+    expected_bytes_raw = entry.get("bytes")
     expected_sha256 = str(entry.get("sha256") or "")
     relative_path = str(entry.get("path") or "unknown")
-    if bytes_read != expected_bytes:
-        raise MaintenanceArchivePackageError(
-            f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {bytes_read}"
-        )
-    if sha256 != expected_sha256:
+    if expected_bytes_raw is not None:
+        expected_bytes = int(expected_bytes_raw)
+        if bytes_read != expected_bytes:
+            raise MaintenanceArchivePackageError(
+                f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {bytes_read}"
+            )
+    if expected_sha256 and sha256 != expected_sha256:
         raise MaintenanceArchivePackageError(
             f"archive source changed during packaging: {relative_path} sha256 expected {expected_sha256}, got {sha256}"
         )
@@ -90,11 +92,13 @@ def _write_tar_package(package_path: Path, *, archive_root: Path, entries: list[
             relative_path = str(entry["path"])
             source = archive_root / relative_path
             info = archive.gettarinfo(str(source), arcname=relative_path)
-            expected_bytes = int(entry.get("bytes", -1))
-            if info.size != expected_bytes:
-                raise MaintenanceArchivePackageError(
-                    f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {info.size}"
-                )
+            expected_bytes_raw = entry.get("bytes")
+            if expected_bytes_raw is not None:
+                expected_bytes = int(expected_bytes_raw)
+                if info.size != expected_bytes:
+                    raise MaintenanceArchivePackageError(
+                        f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {info.size}"
+                    )
             info.mtime = 0
             info.uid = 0
             info.gid = 0

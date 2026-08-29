@@ -13,6 +13,14 @@ def test_archive_package_streams_zip_sources_and_final_hash(tmp_path, monkeypatc
     package_path = tmp_path / ".ai" / "archive-packages" / "AUTO-230.zip"
     package_path.parent.mkdir(parents=True)
 
+    preview = package_module.build_maintenance_archive_package_preview_data(
+        manifest,
+        archive_root=archive_root,
+        package_path=package_path,
+        root=tmp_path,
+    )
+    assert any(not entry.get("sha256") for entry in preview["package_entries"])
+
     original_read_bytes = Path.read_bytes
     archive_root_resolved = archive_root.resolve()
     package_resolved = package_path.resolve()
@@ -39,7 +47,7 @@ def test_archive_package_streams_zip_sources_and_final_hash(tmp_path, monkeypatc
     assert package_path.is_file()
 
 
-def test_archive_package_refuses_source_drift_during_confirmed_write(tmp_path, monkeypatch):
+def test_archive_package_refuses_same_size_hashed_source_drift_after_preview(tmp_path, monkeypatch):
     manifest, archive_root = _write_copied_archive(tmp_path)
     package_path = tmp_path / ".ai" / "archive-packages" / "AUTO-230.zip"
     package_path.parent.mkdir(parents=True)
@@ -47,9 +55,12 @@ def test_archive_package_refuses_source_drift_during_confirmed_write(tmp_path, m
 
     def preview_then_mutate(*args, **kwargs):
         preview = real_preview(*args, **kwargs)
-        first_entry = preview["package_entries"][0]
-        source = archive_root / first_entry["path"]
-        source.write_bytes(source.read_bytes() + b"\nconcurrent drift\n")
+        target_entry = next(entry for entry in preview["package_entries"] if entry.get("sha256"))
+        source = archive_root / target_entry["path"]
+        payload = bytearray(source.read_bytes())
+        assert payload
+        payload[0] ^= 1
+        source.write_bytes(bytes(payload))
         return preview
 
     monkeypatch.setattr(
@@ -67,9 +78,9 @@ def test_archive_package_refuses_source_drift_during_confirmed_write(tmp_path, m
             confirm_package=True,
         )
     except MaintenanceArchivePackageError as exc:
-        assert "changed during packaging" in str(exc)
+        assert "sha256 expected" in str(exc)
     else:  # pragma: no cover - defensive assertion
-        raise AssertionError("archive packaging should refuse source drift after preview")
+        raise AssertionError("archive packaging should refuse same-size hashed source drift after preview")
 
     assert not package_path.exists()
     assert list(package_path.parent.glob(f".{package_path.name}.*.tmp")) == []
