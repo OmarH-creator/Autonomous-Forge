@@ -7,7 +7,7 @@ import json
 import tarfile
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from autonomous_forge.maintenance_archive_copy_verify import MaintenanceArchiveCopyVerifyError
 from autonomous_forge.maintenance_archive_manifest import MaintenanceArchiveManifestError
@@ -21,8 +21,25 @@ class MaintenanceArchivePackageVerifyError(ValueError):
     """Raised when archive-package verification inputs are incomplete or unsafe."""
 
 
+_HASH_CHUNK_BYTES = 64 * 1024
+
+
+def _stream_sha256(stream: BinaryIO) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    total_bytes = 0
+    while True:
+        chunk = stream.read(_HASH_CHUNK_BYTES)
+        if not chunk:
+            break
+        total_bytes += len(chunk)
+        digest.update(chunk)
+    return total_bytes, digest.hexdigest()
+
+
 def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    with path.open("rb") as stream:
+        _, digest = _stream_sha256(stream)
+    return digest
 
 
 def _resolved_repo_path(path: Path, *, root: Path, label: str) -> Path:
@@ -37,10 +54,6 @@ def _resolved_repo_path(path: Path, *, root: Path, label: str) -> Path:
     except (OSError, ValueError) as exc:
         raise MaintenanceArchivePackageVerifyError(f"{label} path must stay inside the configured root") from exc
     return resolved
-
-
-def _hash_bytes(payload: bytes) -> str:
-    return hashlib.sha256(payload).hexdigest()
 
 
 def _tar_package_entries(package_path: Path, *, gzipped: bool) -> tuple[list[dict[str, Any]], list[str]]:
@@ -58,8 +71,9 @@ def _tar_package_entries(package_path: Path, *, gzipped: bool) -> tuple[list[dic
             if extracted is None:
                 blockers.append(f"package tar member could not be read: {member.name}")
                 continue
-            payload = extracted.read()
-            entries.append({"path": member.name, "bytes": len(payload), "sha256": _hash_bytes(payload)})
+            with extracted:
+                byte_count, digest = _stream_sha256(extracted)
+            entries.append({"path": member.name, "bytes": byte_count, "sha256": digest})
     return entries, blockers
 
 
@@ -70,8 +84,9 @@ def _zip_package_entries(package_path: Path) -> tuple[list[dict[str, Any]], list
         for info in sorted(archive.infolist(), key=lambda item: item.filename):
             if info.is_dir():
                 continue
-            payload = archive.read(info.filename)
-            entries.append({"path": info.filename, "bytes": len(payload), "sha256": _hash_bytes(payload)})
+            with archive.open(info, "r") as extracted:
+                byte_count, digest = _stream_sha256(extracted)
+            entries.append({"path": info.filename, "bytes": byte_count, "sha256": digest})
     return entries, blockers
 
 
@@ -199,9 +214,10 @@ def build_maintenance_archive_package_verify_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive package verification reopens one repository-local tar/zip package, verifies package entries against the "
-            "ready package preview and copied archive root, and reports drift. External validation provenance remains advisory-only "
-            "and verified live status remains informational-only; neither can change package verification or archive integrity. "
-            "It does not write files, copy evidence, stage, commit, push, poll workflows, rerun validation, or prove signer identity."
+            "ready package preview and copied archive root, and reports drift. Package and member SHA-256 values are computed "
+            "incrementally with bounded-memory reads. External validation provenance remains advisory-only and verified live status "
+            "remains informational-only; neither can change package verification or archive integrity. It does not write files, "
+            "copy evidence, stage, commit, push, poll workflows, rerun validation, or prove signer identity."
         ),
     }
 
