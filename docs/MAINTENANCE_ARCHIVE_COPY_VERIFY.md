@@ -41,6 +41,12 @@ A verified copy requires:
 
 Missing copied files, byte-count drift, SHA-256 drift, blocked manifest verification, or an unsafe path blocks `copy_verified`.
 
+## Bounded-memory hashing
+
+Copied-file SHA-256 verification is incremental. Forge reads copied evidence in 64 KiB chunks instead of using `Path.read_bytes()`, so verification does not require materializing an entire preserved artifact in memory. Every byte is still hashed, so verification time and disk I/O remain proportional to evidence size.
+
+This complements the confirmed archive-copy write path, which uses the same bounded-memory hashing principle before no-clobber publication.
+
 ## Safety boundary
 
 The command reads one repository-local written manifest and one repository-local archive root. It does not copy files, write archives, create compressed bundles, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity.
