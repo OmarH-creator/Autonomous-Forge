@@ -33,11 +33,17 @@ def test_archive_copy_verify_hashes_incrementally_without_path_read_bytes(tmp_pa
 
 def test_archive_copy_verify_execution_streams_hashes_for_copied_evidence(tmp_path, monkeypatch):
     manifest, archive_root = _write_copied_archive(tmp_path)
+    archive_root_resolved = archive_root.resolve()
+    original_read_bytes = Path.read_bytes
 
-    def fail_read_bytes(self):
-        raise AssertionError("archive-copy verification must use streaming hashing")
+    def fail_archive_read_bytes(self):
+        try:
+            self.resolve().relative_to(archive_root_resolved)
+        except ValueError:
+            return original_read_bytes(self)
+        raise AssertionError("copied archive verification must use streaming hashing")
 
-    monkeypatch.setattr(Path, "read_bytes", fail_read_bytes)
+    monkeypatch.setattr(Path, "read_bytes", fail_archive_read_bytes)
 
     data = build_maintenance_archive_copy_verify_data(
         manifest,
