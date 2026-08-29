@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, BinaryIO, Callable
 
 from autonomous_forge.maintenance_archive_copy_verify import MaintenanceArchiveCopyVerifyError
 from autonomous_forge.maintenance_archive_manifest import MaintenanceArchiveManifestError
@@ -19,12 +19,54 @@ from autonomous_forge.maintenance_archive_package_preview import (
 )
 
 
+_HASH_CHUNK_SIZE = 64 * 1024
+
+
 class MaintenanceArchivePackageError(ValueError):
     """Raised when archive-package execution inputs are incomplete or unsafe."""
 
 
+class _HashingReader:
+    """Track the exact bytes tarfile consumes without buffering the whole source."""
+
+    def __init__(self, handle: BinaryIO) -> None:
+        self._handle = handle
+        self._digest = hashlib.sha256()
+        self.bytes_read = 0
+
+    def read(self, size: int = -1) -> bytes:
+        data = self._handle.read(size)
+        self.bytes_read += len(data)
+        self._digest.update(data)
+        return data
+
+    def hexdigest(self) -> str:
+        return self._digest.hexdigest()
+
+
 def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(_HASH_CHUNK_SIZE)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_streamed_entry(entry: dict[str, Any], *, bytes_read: int, sha256: str) -> None:
+    expected_bytes = int(entry.get("bytes", -1))
+    expected_sha256 = str(entry.get("sha256") or "")
+    relative_path = str(entry.get("path") or "unknown")
+    if bytes_read != expected_bytes:
+        raise MaintenanceArchivePackageError(
+            f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {bytes_read}"
+        )
+    if sha256 != expected_sha256:
+        raise MaintenanceArchivePackageError(
+            f"archive source changed during packaging: {relative_path} sha256 expected {expected_sha256}, got {sha256}"
+        )
 
 
 def _resolved_repo_path(path: Path, *, root: Path, label: str) -> Path:
@@ -48,13 +90,24 @@ def _write_tar_package(package_path: Path, *, archive_root: Path, entries: list[
             relative_path = str(entry["path"])
             source = archive_root / relative_path
             info = archive.gettarinfo(str(source), arcname=relative_path)
+            expected_bytes = int(entry.get("bytes", -1))
+            if info.size != expected_bytes:
+                raise MaintenanceArchivePackageError(
+                    f"archive source changed during packaging: {relative_path} byte count expected {expected_bytes}, got {info.size}"
+                )
             info.mtime = 0
             info.uid = 0
             info.gid = 0
             info.uname = ""
             info.gname = ""
             with source.open("rb") as handle:
-                archive.addfile(info, handle)
+                hashing_reader = _HashingReader(handle)
+                archive.addfile(info, hashing_reader)
+                _validate_streamed_entry(
+                    entry,
+                    bytes_read=hashing_reader.bytes_read,
+                    sha256=hashing_reader.hexdigest(),
+                )
 
 
 def _write_zip_package(package_path: Path, *, archive_root: Path, entries: list[dict[str, Any]]) -> None:
@@ -66,7 +119,17 @@ def _write_zip_package(package_path: Path, *, archive_root: Path, entries: list[
             info.date_time = (1980, 1, 1, 0, 0, 0)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            archive.writestr(info, source.read_bytes())
+            digest = hashlib.sha256()
+            bytes_read = 0
+            with source.open("rb") as source_handle, archive.open(info, "w") as package_handle:
+                while True:
+                    chunk = source_handle.read(_HASH_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    bytes_read += len(chunk)
+                    digest.update(chunk)
+                    package_handle.write(chunk)
+            _validate_streamed_entry(entry, bytes_read=bytes_read, sha256=digest.hexdigest())
 
 
 def _fsync_directory(path: Path) -> None:
@@ -195,10 +258,11 @@ def write_maintenance_archive_package(
     result["write_allowed"] = False
     result["next_step"] = "Review and preserve the written archive package with the copied archive root and manifest."
     result["safety_boundary"] = (
-        "Archive package writing verifies a ready package preview, requires explicit confirmation, builds the package "
-        "in a same-directory temporary file, and atomically publishes it without clobbering an existing destination. "
-        "It writes exactly one repository-local tar/zip package from the verified archive root and does not stage, "
-        "commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
+        "Archive package writing verifies a ready package preview, requires explicit confirmation, streams and "
+        "revalidates every source entry while building a same-directory temporary package, and atomically publishes "
+        "it without clobbering an existing destination. It writes exactly one repository-local tar/zip package from "
+        "the verified archive root and does not stage, commit, push, poll workflows, rerun validation, change remotes, "
+        "or prove signer identity."
     )
     return result
 
