@@ -21,8 +21,19 @@ class MaintenanceArchiveCopyError(ValueError):
     """Raised when archive-copy execution inputs are incomplete or unsafe."""
 
 
+HASH_CHUNK_BYTES = 64 * 1024
+
+
 def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash a file incrementally so archive verification never materializes it in memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _resolved_repo_file(path_text: str, *, root: Path, label: str) -> Path:
@@ -196,10 +207,10 @@ def copy_maintenance_archive_entries(
     result["next_step"] = "Review the copied archive evidence and preserve the archive root with the written manifest."
     result["safety_boundary"] = (
         "Archive copy verifies one written manifest, requires explicit confirmation, copies each repository-local "
-        "manifest entry into a same-directory temporary file, rechecks its expected byte count and SHA-256, and "
-        "atomically publishes it without clobbering an existing destination. It optionally creates missing destination "
-        "parents when explicitly requested and does not create compressed archives, stage, commit, push, poll workflows, "
-        "rerun validation, change remotes, or prove signer identity."
+        "manifest entry into a same-directory temporary file, rechecks its expected byte count and SHA-256 with "
+        "incremental bounded-memory hashing, and atomically publishes it without clobbering an existing destination. "
+        "It optionally creates missing destination parents when explicitly requested and does not create compressed "
+        "archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
     )
     return result
 
