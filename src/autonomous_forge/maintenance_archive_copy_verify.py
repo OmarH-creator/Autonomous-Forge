@@ -17,8 +17,13 @@ class MaintenanceArchiveCopyVerifyError(ValueError):
     """Raised when archive-copy verification inputs are incomplete or unsafe."""
 
 
-def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _file_sha256(path: Path, *, chunk_size: int = 64 * 1024) -> str:
+    """Hash one copied archive file without materializing it wholly in memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(chunk_size):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _resolved_inside_root(path: Path, *, root: Path, label: str) -> Path:
@@ -182,9 +187,10 @@ def build_maintenance_archive_copy_verify_data(
         "write_allowed": False,
         "safety_boundary": (
             "Archive copy verification reads one written manifest and one repository-local archive root, then recomputes copied "
-            "file hashes and byte counts. External validation observations remain advisory and verified live workflow-status proof "
-            "remains informational-only; neither can change copy verification or archive integrity. It does not copy files, write "
-            "archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
+            "file hashes and byte counts with bounded-memory streaming reads. External validation observations remain advisory and "
+            "verified live workflow-status proof remains informational-only; neither can change copy verification or archive "
+            "integrity. It does not copy files, write archives, stage, commit, push, poll workflows, rerun validation, change "
+            "remotes, or prove signer identity."
         ),
     }
 
