@@ -37,9 +37,15 @@ forge-maintenance-archive-package-verify --help
 - unmanifested package entries are reported as blockers;
 - each matched entry has the expected byte count and SHA-256 value when available.
 
+## Bounded-memory hashing
+
+Package verification hashes the package file and each tar/zip member incrementally in **64 KiB chunks**. It does not use `Path.read_bytes()`, `ZipFile.read()`, or an unbounded member `read()` to materialize complete package contents in memory before hashing.
+
+The verification contract is unchanged: Forge still reads every byte needed to compute SHA-256 and byte counts, so runtime and disk/decompression work remain proportional to package size. The improvement bounds memory use while preserving exact package/member integrity checks.
+
 ## Safety boundary
 
-The verifier reads repository-local manifest, archive-root, and package files only. It does not write files, copy evidence, create packages, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity.
+The verifier reads repository-local manifest, archive-root, and package files only. Package and archive-member hashes are computed incrementally with bounded-memory reads. It does not write files, copy evidence, create packages, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity.
 
 ## Exit codes
 
