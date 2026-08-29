@@ -16,7 +16,7 @@ Remove whole-file memory materialization from the read-only copied-archive verif
 - Replaced whole-file SHA-256 with incremental 64 KiB reads in `maintenance_archive_copy_verify.py`.
 - Kept byte-count and digest comparison behavior unchanged.
 - Updated the verification safety text and command documentation to describe bounded-memory hashing.
-- Added deterministic tests that disable `Path.read_bytes()` and prove both the hashing helper and real copied-root verification still succeed.
+- Added deterministic tests that disable `Path.read_bytes()` for the target helper and reject whole-file reads specifically inside the copied archive root during the real verification path.
 
 ## Safety
 
@@ -24,7 +24,7 @@ Archive-copy verification remains read-only. Written-manifest verification, repo
 
 ## Validation
 
-Focused regression coverage is committed and the changed path is covered by the repository's Python 3.10/3.11/3.12 matrix. Final-head CI must complete successfully before the run is reported as fully green.
+The first regression head exposed one test-scoping mistake: globally disabling `Path.read_bytes()` also broke upstream archive-manifest verification before the copied-root verifier ran. The test was narrowed to the copied archive root without changing product behavior. Corrected head `a40f1f2e5ff24e7ddd31eff4519837c8238696bc` passed Actions run `33240113217`; Python 3.10, 3.11, and 3.12 all passed installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest.
 
 ## Limitations
 
@@ -32,4 +32,4 @@ Streaming bounds memory, not total verification time or I/O; every byte still co
 
 ## Next action
 
-Inspect AUTO-227 final CI first. If green, harden package verification to stream both package-file hashing and member hashing without changing verification semantics.
+Harden package verification to stream both package-file hashing and member hashing without changing verification semantics; any fresh CI failure takes priority.
