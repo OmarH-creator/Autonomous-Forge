@@ -11,7 +11,9 @@ from autonomous_forge.maintenance_archive_manifest import (
     build_maintenance_archive_manifest_data,
     format_maintenance_archive_manifest,
     verify_written_archive_manifest_data,
-    write_maintenance_archive_manifest,
+)
+from autonomous_forge.maintenance_archive_manifest_publication import (
+    write_verified_maintenance_archive_manifest as write_maintenance_archive_manifest,
 )
 from autonomous_forge.maintenance_evidence_bundle import MaintenanceEvidenceBundleError
 
