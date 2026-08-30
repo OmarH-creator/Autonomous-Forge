@@ -17,6 +17,10 @@ from autonomous_forge.maintenance_archive_package_preview import (
     MaintenanceArchivePackagePreviewError,
     build_maintenance_archive_package_preview_data,
 )
+from autonomous_forge.maintenance_archive_package_verify import (
+    MaintenanceArchivePackageVerifyError,
+    build_maintenance_archive_package_verify_data,
+)
 
 
 _HASH_CHUNK_SIZE = 64 * 1024
@@ -147,10 +151,11 @@ def _fsync_directory(path: Path) -> None:
         os.close(directory_fd)
 
 
-def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], None]) -> None:
+def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], None]) -> str:
     """Build a package off-path, then durably publish it without replacing a racing writer."""
     temp_path: Path | None = None
     published = False
+    intended_sha256 = ""
     try:
         fd, temp_name = tempfile.mkstemp(
             prefix=f".{package_path.name}.",
@@ -163,6 +168,7 @@ def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], Non
         writer(temp_path)
         with temp_path.open("rb") as handle:
             os.fsync(handle.fileno())
+        intended_sha256 = _file_sha256(temp_path)
 
         try:
             os.link(temp_path, package_path)
@@ -192,6 +198,54 @@ def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], Non
                 temp_path.unlink()
             except FileNotFoundError:
                 pass
+    return intended_sha256
+
+
+def _rollback_published_package(package_path: Path, *, intended_sha256: str) -> None:
+    """Remove only the exact package bytes published by this invocation."""
+    try:
+        current_sha256 = _file_sha256(package_path)
+    except FileNotFoundError:
+        return
+    if current_sha256 != intended_sha256:
+        raise MaintenanceArchivePackageError(
+            "published archive package changed before rollback; refusing to delete potentially foreign bytes"
+        )
+    try:
+        package_path.unlink()
+        _fsync_directory(package_path.parent)
+    except OSError as exc:
+        raise MaintenanceArchivePackageError(
+            f"published archive package failed verification and rollback could not be durably completed: {exc}"
+        ) from exc
+
+
+def _verify_published_package(
+    manifest_path: Path,
+    *,
+    archive_root: Path,
+    package_path: Path,
+    root: Path,
+    intended_sha256: str,
+) -> dict[str, Any]:
+    verification = build_maintenance_archive_package_verify_data(
+        manifest_path,
+        archive_root=archive_root,
+        package_path=package_path,
+        root=root,
+    )
+    if not verification.get("package_verified"):
+        blockers = "; ".join(str(item) for item in verification.get("package_verify_blockers") or [])
+        raise MaintenanceArchivePackageError(
+            "published archive package failed immediate verification"
+            + (f": {blockers}" if blockers else "")
+        )
+    verified_sha256 = str(verification.get("package_sha256") or "")
+    if verified_sha256 != intended_sha256:
+        raise MaintenanceArchivePackageError(
+            f"published archive package sha256 changed after publication: expected {intended_sha256}, got {verified_sha256 or 'none'}"
+        )
+    return verification
 
 
 def write_maintenance_archive_package(
@@ -248,7 +302,34 @@ def write_maintenance_archive_package(
     else:
         raise MaintenanceArchivePackageError(f"unsupported package format: {package_format}")
 
-    _publish_package_no_clobber(package_resolved, writer)
+    intended_sha256 = _publish_package_no_clobber(package_resolved, writer)
+    try:
+        verification = _verify_published_package(
+            manifest_path,
+            archive_root=archive_root_resolved,
+            package_path=package_resolved,
+            root=root,
+            intended_sha256=intended_sha256,
+        )
+    except (KeyboardInterrupt, SystemExit):
+        _rollback_published_package(package_resolved, intended_sha256=intended_sha256)
+        raise
+    except MaintenanceArchivePackageError:
+        _rollback_published_package(package_resolved, intended_sha256=intended_sha256)
+        raise
+    except (
+        MaintenanceArchivePackageVerifyError,
+        MaintenanceArchivePackagePreviewError,
+        MaintenanceArchiveCopyVerifyError,
+        MaintenanceArchiveManifestError,
+        OSError,
+        RuntimeError,
+        ValueError,
+    ) as exc:
+        _rollback_published_package(package_resolved, intended_sha256=intended_sha256)
+        raise MaintenanceArchivePackageError(
+            f"published archive package failed immediate verification: {exc}"
+        ) from exc
 
     result = dict(preview)
     result["title"] = "Autonomous Forge maintenance archive package"
@@ -256,17 +337,19 @@ def write_maintenance_archive_package(
     result["package_status"] = "packaged"
     result["package_ready"] = True
     result["package_written"] = True
-    result["package_bytes"] = package_resolved.stat().st_size
-    result["package_sha256"] = _file_sha256(package_resolved)
+    result["package_bytes"] = int(verification.get("package_bytes") or package_resolved.stat().st_size)
+    result["package_sha256"] = str(verification.get("package_sha256") or intended_sha256)
     result["package_blockers"] = []
     result["write_allowed"] = False
     result["next_step"] = "Review and preserve the written archive package with the copied archive root and manifest."
     result["safety_boundary"] = (
         "Archive package writing verifies a ready package preview, requires explicit confirmation, streams and "
-        "revalidates every source entry while building a same-directory temporary package, and atomically publishes "
-        "it without clobbering an existing destination. It writes exactly one repository-local tar/zip package from "
-        "the verified archive root and does not stage, commit, push, poll workflows, rerun validation, change remotes, "
-        "or prove signer identity."
+        "revalidates every source entry while building a same-directory temporary package, atomically publishes it "
+        "without clobbering an existing destination, then immediately reopens and verifies the published package "
+        "against the current manifest/copy-root evidence before returning success. Failed or Python-interrupted "
+        "verification removes only the exact package bytes published by this invocation. It writes exactly one "
+        "repository-local tar/zip package from the verified archive root and does not stage, commit, push, poll "
+        "workflows, rerun validation, change remotes, or prove signer identity."
     )
     return result
 
