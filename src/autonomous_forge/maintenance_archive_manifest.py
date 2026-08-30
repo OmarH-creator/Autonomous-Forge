@@ -137,6 +137,32 @@ def _persist_text_no_clobber(target: Path, text: str) -> None:
                 pass
 
 
+def _rollback_published_manifest(target: Path, *, expected_sha256: str) -> None:
+    """Remove only the exact manifest bytes published by this invocation."""
+    if not target.exists():
+        return
+    if not target.is_file():
+        raise MaintenanceArchiveManifestError(
+            "archive manifest verification failed after publication; refusing to remove a non-file output"
+        )
+    current_sha256 = _file_sha256(target)
+    if current_sha256 != expected_sha256:
+        raise MaintenanceArchiveManifestError(
+            "archive manifest verification failed after publication; output bytes changed, refusing rollback"
+        )
+    try:
+        target.unlink()
+        dir_fd = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError as exc:
+        raise MaintenanceArchiveManifestError(
+            f"archive manifest verification failed and rollback could not be durably completed: {exc}"
+        ) from exc
+
+
 def _load_json_file(path: Path, *, label: str) -> dict[str, Any]:
     if not path.is_file():
         raise MaintenanceArchiveManifestError(f"{label} must be a regular file")
@@ -364,7 +390,14 @@ def build_maintenance_archive_manifest_data(link_paths: list[Path], *, root: Pat
 def write_maintenance_archive_manifest(
     link_paths: list[Path], *, output_path: Path, root: Path = Path("."), confirm_write: bool = False
 ) -> dict[str, Any]:
-    """Write a ready archive manifest JSON when explicitly confirmed."""
+    """Write and immediately verify a ready archive manifest when explicitly confirmed.
+
+    The core API now owns the same publication-continuity guarantee as the CLI:
+    after no-clobber publication it verifies the listed evidence against the new
+    manifest, requires the output bytes to remain exactly the bytes this call
+    published, and rolls that output back on verification failure or any
+    Python-level interruption while cleanup can still run.
+    """
     if not confirm_write:
         raise MaintenanceArchiveManifestError("writing an archive manifest requires --confirm-write")
     data = build_maintenance_archive_manifest_data(link_paths, root=root)
@@ -378,8 +411,34 @@ def write_maintenance_archive_manifest(
     payload["write_allowed"] = False
     payload["next_step"] = "Preserve every archive entry listed in this manifest together with this manifest file."
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    text_bytes = text.encode("utf-8")
+    published_sha256 = hashlib.sha256(text_bytes).hexdigest()
     _persist_text_no_clobber(target, text)
-    payload["manifest_bytes"] = len(text.encode("utf-8"))
+    try:
+        verification = verify_written_archive_manifest_data(target, root=root)
+        if _file_sha256(target) != published_sha256:
+            raise MaintenanceArchiveManifestError(
+                "archive manifest output changed during immediate post-publication verification"
+            )
+    except BaseException as exc:
+        try:
+            _rollback_published_manifest(target, expected_sha256=published_sha256)
+        except MaintenanceArchiveManifestError as rollback_exc:
+            raise rollback_exc from exc
+        raise
+    if not verification.get("manifest_ready"):
+        blockers = list(verification.get("archive_blockers") or [])
+        try:
+            _rollback_published_manifest(target, expected_sha256=published_sha256)
+        except MaintenanceArchiveManifestError as rollback_exc:
+            raise rollback_exc
+        detail = f": {'; '.join(str(item) for item in blockers)}" if blockers else ""
+        raise MaintenanceArchiveManifestError(
+            f"archive manifest failed immediate post-publication verification{detail}"
+        )
+    payload["manifest_bytes"] = len(text_bytes)
+    payload["publication_verified"] = True
+    payload["publication_verification_status"] = "ready"
     return payload
 
 
