@@ -68,7 +68,12 @@ def _rollback_published_manifest(target: Path, *, expected_sha256: str) -> None:
 def write_verified_maintenance_archive_manifest(
     link_paths: list[Path], *, output_path: Path, root: Path = Path("."), confirm_write: bool = False
 ) -> dict[str, Any]:
-    """Write a manifest and immediately verify its evidence binding or roll it back."""
+    """Write a manifest and immediately verify its evidence binding or roll it back.
+
+    Rollback is attempted for all Python-level interruptions, including
+    ``KeyboardInterrupt`` and ``SystemExit``, so a published manifest is not left
+    behind merely because verification was interrupted after publication.
+    """
     data = write_maintenance_archive_manifest(
         link_paths,
         output_path=output_path,
@@ -79,7 +84,7 @@ def write_verified_maintenance_archive_manifest(
     published_sha256 = _file_sha256(target)
     try:
         verification = verify_written_archive_manifest_data(target, root=root)
-    except Exception as exc:
+    except BaseException as exc:
         try:
             _rollback_published_manifest(target, expected_sha256=published_sha256)
         except MaintenanceArchiveManifestError as rollback_exc:
