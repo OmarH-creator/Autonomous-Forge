@@ -155,6 +155,20 @@ def _bounded_receipt_candidates(receipt_dir: Path, *, max_receipts: int) -> tupl
     return candidates, entries_seen
 
 
+def _assert_source_completeness_binding_current(data: dict[str, Any], *, root: Path) -> None:
+    """Fail closed if the authoritative completeness bytes changed during receipt publication."""
+    source = data.get("source_completeness")
+    if not isinstance(source, dict):
+        raise MaintenancePreservationReceiptError("receipt has no source completeness binding")
+    expected_path = str(source.get("path") or "")
+    completeness, raw, relative = _load_completeness_json_bytes(Path(expected_path), root=root)
+    _require_complete(completeness)
+    if relative != expected_path:
+        raise MaintenancePreservationReceiptError("preservation completeness path changed during receipt publication")
+    if len(raw) != source.get("bytes") or hashlib.sha256(raw).hexdigest() != source.get("sha256"):
+        raise MaintenancePreservationReceiptError("preservation completeness changed during receipt publication")
+
+
 def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root: Path = Path(".")) -> dict[str, Any]:
     completeness, raw, relative = _load_completeness_json_bytes(completeness_path, root=root)
     _require_complete(completeness)
@@ -188,7 +202,7 @@ def build_maintenance_preservation_receipt_data(completeness_path: Path, *, root
         "live_status_provenance": live_status,
         "receipt_status": "ready",
         "write_allowed": False,
-        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. The authoritative completeness input is read through a fixed 1 MiB ceiling. Retained live workflow status is informational only. The receipt does not re-run archive checks or validation, promote external observations to executor proof, change preservation completeness, or grant Git, network, workflow, or overwrite authority.",
+        "safety_boundary": "This receipt is a compact hash binding to one already-complete preservation artifact. The authoritative completeness input is read through a fixed 1 MiB ceiling and is rechecked around immutable receipt publication so a stale source cannot produce a successful write. Retained live workflow status is informational only. The receipt does not re-run archive checks or validation, promote external observations to executor proof, change preservation completeness, or grant Git, network, workflow, or overwrite authority.",
     }
 
 
@@ -221,7 +235,20 @@ def write_maintenance_preservation_receipt(completeness_path: Path, output_path:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
+        _assert_source_completeness_binding_current(data, root=root)
         os.link(temp_path, output)
+        try:
+            _assert_source_completeness_binding_current(data, root=root)
+        except MaintenancePreservationReceiptError:
+            try:
+                output.unlink()
+            finally:
+                dir_fd = os.open(allowed_dir, os.O_RDONLY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
+            raise
         dir_fd = os.open(allowed_dir, os.O_RDONLY)
         try:
             os.fsync(dir_fd)
