@@ -77,3 +77,25 @@ def test_verified_manifest_write_never_deletes_output_changed_after_publication(
         )
 
     assert target.read_text(encoding="utf-8") == "changed-by-another-writer\n"
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt(), SystemExit(130)])
+def test_verified_manifest_write_rolls_back_when_verification_is_interrupted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    interruption: BaseException,
+) -> None:
+    target = tmp_path / "manifest.json"
+    monkeypatch.setattr(publication, "write_maintenance_archive_manifest", _fake_writer(target))
+
+    def interrupted(*_args, **_kwargs):
+        raise interruption
+
+    monkeypatch.setattr(publication, "verify_written_archive_manifest_data", interrupted)
+
+    with pytest.raises(type(interruption)):
+        publication.write_verified_maintenance_archive_manifest(
+            [Path("history.json")], output_path=Path("manifest.json"), root=tmp_path, confirm_write=True
+        )
+
+    assert not target.exists()
