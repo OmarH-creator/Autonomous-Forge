@@ -247,8 +247,9 @@ def verify_maintenance_preservation_receipt(
     receipt_path: Path,
     *,
     root: Path = Path("."),
-    max_receipt_bytes: int | None = None,
+    max_receipt_bytes: int | None = _MAX_DISCOVERY_RECEIPT_BYTES,
 ) -> dict[str, Any]:
+    """Verify one receipt with the same fixed 1 MiB ceiling used by discovery by default."""
     receipt, _, receipt_relative = _load_json_bytes(
         receipt_path,
         root=root,
