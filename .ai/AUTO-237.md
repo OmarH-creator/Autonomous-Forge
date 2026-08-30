@@ -4,7 +4,7 @@
 Close the remaining direct archive-package writer gap where a confirmed package could be durably published and returned without reopening the final tar/zip through the existing verifier.
 
 ## Inspection
-Started from AUTO-236 on `main`. Inspected README/docs/examples, source/tests/config/CI, `.forge/policy.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, recent commits and Actions, all eight visible branches, open issues, and recent PR history. The policy-aware `forge plan` milestone and guarded end-to-end maintenance workflow are already shipped. Seven non-main branches remain historical/diverged; inspected PRs are merged, closed, obsolete, superseded, or unrelated. No branch work warranted integration.
+Started from AUTO-236 on `main`. Inspected README/docs/examples, source/tests/config/CI, `.forge/policy.md`, `.ai/AUTONOMOUS_PLAN.md`, `.ai/AUTONOMOUS_STATE.md`, `.ai/AUTONOMOUS_CHANGELOG.md`, `.ai/DECISIONS.md`, recent commits and Actions, all eight visible branches, open issues, and recent PR history. The policy-aware `forge plan` milestone and guarded end-to-end maintenance workflow are already shipped. Seven non-main branches remain historical/diverged; inspected PRs are merged, closed, obsolete, superseded, or unrelated. No branch work warranted integration. A repository TODO/FIXME search returned no matches.
 
 ## Change
 `write_maintenance_archive_package(...)` now:
@@ -24,13 +24,13 @@ Added deterministic tests for blocked immediate verification rollback, Python-le
 Added `docs/ARCHIVE_PACKAGE_PUBLICATION_BINDING.md`, updated README current status/evidence language, and updated autonomous state. No visual change is warranted because workflow topology is unchanged.
 
 ## Safety
-No new command or authority surface. Explicit confirmation, repository confinement, bounded-memory streaming, no-clobber publication, source entry byte/SHA checks, file fsync, and parent-directory fsync remain intact. No branch, PR, merge, force-push, remote mutation, workflow mutation, or branch-protection change is used.
+No new command or authority surface. Explicit confirmation, repository confinement, bounded-memory streaming, no-clobber publication, source entry byte/SHA checks, file fsync, and parent-directory fsync remain intact. All changed paths are allowed by `.forge/policy.md`; prohibited workflow/secret/key/token areas were untouched. No branch, PR, merge, force-push, remote mutation, workflow mutation, or branch-protection change is used.
 
 ## Validation
-GitHub Actions validates installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest on Python 3.10, 3.11, and 3.12. Final run/commit evidence is recorded after the completed head is green.
+Implementation and deterministic publication-binding tests at `9a770b93e0a0e4746f860a4930afdf910b65e646` passed GitHub Actions run `33340904321`. The complete README/project-memory head `ed2636e371364788ebb0b0bb91dabca0029bfcaa` passed run `33340972663`; Python 3.10, 3.11, and 3.12 each passed installation, source compilation, installed CLI smoke tests, roadmap validation, and pytest. The final state-only head is checked before completion is reported.
 
 ## Limitations
-Immediate verification is not a permanent filesystem lock. Later package/source mutation is detected by normal package verification. Cleanup cannot execute after termination that prevents Python cleanup entirely, such as SIGKILL, host failure, interpreter crash, or power loss.
+Immediate verification is not a permanent filesystem lock. Later package/source mutation is detected by normal package verification. Cleanup cannot execute after termination that prevents Python cleanup entirely, such as SIGKILL, host failure, interpreter crash, or power loss. A parent-directory fsync failure immediately after no-clobber package publication can still report failure after the destination exists; that pre-existing durability-failure path is a candidate for ownership-safe rollback hardening.
 
 ## Next action
-Inspect the remaining preservation writers for the next concrete direct-API publication-continuity or cross-stage integrity gap; any fresh CI failure takes priority.
+Prioritize ownership-checked rollback when archive-package parent-directory durability sync fails after publication, if the current contract can be strengthened without risking deletion of foreign bytes; otherwise inspect the remaining preservation writers for the next concrete direct-API publication-continuity or cross-stage integrity gap. Any fresh CI failure takes priority.
