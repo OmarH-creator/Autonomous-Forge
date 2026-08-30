@@ -1,4 +1,4 @@
-"""Bind confirmed archive-manifest publication to immediate evidence verification."""
+"""Compatibility wrapper for verified archive-manifest publication."""
 
 from __future__ import annotations
 
@@ -68,11 +68,12 @@ def _rollback_published_manifest(target: Path, *, expected_sha256: str) -> None:
 def write_verified_maintenance_archive_manifest(
     link_paths: list[Path], *, output_path: Path, root: Path = Path("."), confirm_write: bool = False
 ) -> dict[str, Any]:
-    """Write a manifest and immediately verify its evidence binding or roll it back.
+    """Write a manifest through the core verified writer.
 
-    Rollback is attempted for all Python-level interruptions, including
-    ``KeyboardInterrupt`` and ``SystemExit``, so a published manifest is not left
-    behind merely because verification was interrupted after publication.
+    AUTO-236 moved publication verification into ``write_maintenance_archive_manifest``
+    itself. The historical wrapper remains for compatibility. A legacy or
+    monkeypatched writer that does not report core verification still follows
+    the previous wrapper-level verification and rollback path.
     """
     data = write_maintenance_archive_manifest(
         link_paths,
@@ -80,6 +81,9 @@ def write_verified_maintenance_archive_manifest(
         root=root,
         confirm_write=confirm_write,
     )
+    if data.get("publication_verified") is True and data.get("publication_verification_status") == "ready":
+        return data
+
     target = _published_manifest_path(data, root=root)
     published_sha256 = _file_sha256(target)
     try:
