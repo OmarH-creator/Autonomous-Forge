@@ -50,12 +50,13 @@ Recent preservation hardening includes:
 - archive copy/package verification hashes content incrementally and rejects byte-count or digest drift;
 - archive manifests and archive packages are immediately reverified after publication;
 - failed or Python-interrupted verification rolls back only bytes still owned by the current invocation;
+- archive-package and archive-copy publication now perform ownership-checked rollback when parent-directory durability sync fails after publication;
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-AUTO-238 closes the archive-package durability-sync failure gap: if the destination hard link has been published but the parent-directory `fsync` fails, Forge now SHA-256 checks the current destination and removes it only when it still matches the exact package created by this invocation. The directory is fsynced again to persist rollback. If another writer changed the package, Forge preserves those bytes and fails closed rather than deleting potentially foreign data.
+AUTO-239 closes the equivalent archive-copy durability-sync failure gap left after AUTO-238 hardened package publication. If an individual copied destination has been published but its parent-directory `fsync` fails, Forge hashes the current destination and removes it only when it still matches the exact copied bytes produced by this invocation. The rollback directory is then fsynced. If another writer changed the destination, Forge preserves those bytes and fails closed rather than deleting potentially foreign data.
 
-See `docs/ARCHIVE_PACKAGE_DURABILITY_ROLLBACK.md` for that contract and its limits.
+See `docs/ARCHIVE_COPY_DURABILITY_ROLLBACK.md` for that contract and its limits.
 
 ## Testing and CI
 
@@ -93,13 +94,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-238 — roll back archive packages when publication durability sync fails**.
+Latest stewardship run: **AUTO-239 — roll back archive copies when publication durability sync fails**.
 
-- **Changed:** archive-package no-clobber publication now treats parent-directory `fsync` failure after publication as a failed write and performs SHA-256 ownership-checked rollback. If the destination still equals the exact package created by this invocation it is removed and the directory is fsynced again; if the bytes changed, Forge preserves them and refuses unsafe deletion.
-- **Why:** AUTO-237 immediately reverified packages after publication, but a pre-existing failure path could still publish the destination and then fail the first directory durability sync, leaving an artifact behind despite the command reporting failure. AUTO-238 closes that concrete ambiguity without adding a new command or authority surface.
-- **Validation:** deterministic tests cover both clean rollback after synthetic directory-sync failure and the racing-mutation case that must preserve changed destination bytes. Final GitHub Actions validation on the completed `main` head is required before this cycle is reported complete.
-- **Safety:** explicit confirmation, repository containment, bounded-memory hashing, no-clobber publication, source-entry byte/SHA checks, immediate package verification, and Python-level interruption rollback remain intact. No network, workflow-control, Git commit/push, force-push, overwrite, remote, or branch-protection authority was added.
-- **Branch/PR disposition:** work stayed directly on `main`; seven non-main branches remain historical/diverged and inspected PRs are merged, closed, obsolete, superseded, or unrelated. No branch or PR was created or merged.
-- **Visual updates:** none; archive/preservation topology did not change, only the existing package publication failure contract became safer.
-- **Current limitations:** rollback depends on Python cleanup executing. Abrupt termination can prevent cleanup, and failure of the rollback directory `fsync` leaves durability uncertain. A destination changed by another writer is intentionally preserved for inspection.
-- **Next autonomous objective:** inspect the remaining preservation writers for another confirmed durability/publication boundary that can leave ambiguous evidence after failure; any fresh CI failure takes priority.
+- **Changed:** archive-copy no-clobber publication now treats parent-directory `fsync` failure after an individual destination is linked as a failed publication and performs SHA-256 ownership-checked rollback. Unchanged owned bytes are removed and the directory is fsynced again; bytes changed after publication are preserved for inspection.
+- **Why:** the package writer already had this protection after AUTO-238, but the archive-copy helper still raised after directory-sync failure while leaving the just-published destination visible. AUTO-239 closes that concrete durability ambiguity without adding a new command or authority surface.
+- **Validation:** deterministic tests cover clean rollback after a synthetic first directory-sync failure and the racing-mutation case that must preserve changed destination bytes. GitHub Actions validation on the completed `main` head is required before this cycle is reported complete.
+- **Safety:** explicit confirmation, repository containment, bounded-memory hashing, source byte/SHA checks, same-directory temporary copies, no-clobber hard-link publication, and per-file copy semantics remain intact. No network, workflow-control, Git commit/push, force-push, overwrite, remote, or branch-protection authority was added.
+- **Branch/PR disposition:** all seven non-main branches were compared with current `main`; every one is heavily behind/diverged and contains historical or already-integrated work. There are no open PRs. Open issues #1, #6, and #9 are broader product/discussion requests rather than a release blocker, so nothing was integrated or closed this run.
+- **Visual updates:** none; archive/preservation topology did not change, only the existing archive-copy publication failure contract became safer.
+- **Current limitations:** rollback depends on Python cleanup executing, rollback-directory `fsync` can itself fail, and archive copying remains deliberately per-file rather than transactional across the whole manifest.
+- **Next autonomous objective:** inspect the remaining durable evidence writers—especially validation-result and attachment publication—for a confirmed post-publication durability failure or direct-call integrity gap; any fresh CI failure takes priority.
