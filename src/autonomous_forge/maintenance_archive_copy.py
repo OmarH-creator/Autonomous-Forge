@@ -61,6 +61,23 @@ def _fsync_directory(path: Path) -> None:
         os.close(directory_fd)
 
 
+def _rollback_owned_destination(destination: Path, *, expected_sha256: str) -> bool:
+    """Remove a just-published destination only while this invocation still owns its bytes."""
+    try:
+        if not destination.is_file() or _file_sha256(destination) != expected_sha256:
+            return False
+        destination.unlink()
+        _fsync_directory(destination.parent)
+        return True
+    except FileNotFoundError:
+        return True
+    except OSError as exc:
+        raise MaintenanceArchiveCopyError(
+            "archive-copy rollback could not be durably completed: "
+            f"{destination.name}: {exc}"
+        ) from exc
+
+
 def _copy_file_no_clobber(
     source: Path,
     destination: Path,
@@ -102,9 +119,14 @@ def _copy_file_no_clobber(
         try:
             _fsync_directory(destination.parent)
         except OSError as exc:
+            rolled_back = _rollback_owned_destination(
+                destination,
+                expected_sha256=actual_sha256,
+            )
+            detail = "rolled back owned destination" if rolled_back else "destination changed after publication; preserved for inspection"
             raise MaintenanceArchiveCopyError(
-                "archive-copy destination was published but directory durability sync failed: "
-                f"{destination.name}: {exc}"
+                "archive-copy destination publication durability sync failed: "
+                f"{destination.name}: {exc}; {detail}"
             ) from exc
         return actual_bytes, actual_sha256
     except MaintenanceArchiveCopyError:
@@ -209,8 +231,10 @@ def copy_maintenance_archive_entries(
         "Archive copy verifies one written manifest, requires explicit confirmation, copies each repository-local "
         "manifest entry into a same-directory temporary file, rechecks its expected byte count and SHA-256 with "
         "incremental bounded-memory hashing, and atomically publishes it without clobbering an existing destination. "
-        "It optionally creates missing destination parents when explicitly requested and does not create compressed "
-        "archives, stage, commit, push, poll workflows, rerun validation, change remotes, or prove signer identity."
+        "A failed publication-directory durability sync rolls back only when the destination still has the exact "
+        "SHA-256 published by this invocation; changed bytes are preserved for inspection. It optionally creates "
+        "missing destination parents when explicitly requested and does not create compressed archives, stage, commit, "
+        "push, poll workflows, rerun validation, change remotes, or prove signer identity."
     )
     return result
 
