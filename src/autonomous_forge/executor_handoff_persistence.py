@@ -13,6 +13,8 @@ from autonomous_forge.validation_result_writer import (
     write_validation_result_attachment,
 )
 
+_MAX_EXECUTOR_OUTPUT_BYTES = 1_000_000
+
 
 class ExecutorHandoffPersistenceError(ValueError):
     """Raised when executor handoff persistence input is unsafe or unsupported."""
@@ -50,11 +52,33 @@ def _validate_executor_output_path(root: Path, path: Path | str) -> Path:
     return resolved_path
 
 
+def _read_bounded_executor_output(source: Path) -> bytes:
+    """Read one executor output without allowing an unbounded in-memory payload."""
+    try:
+        with source.open("rb") as handle:
+            raw = handle.read(_MAX_EXECUTOR_OUTPUT_BYTES + 1)
+    except OSError as exc:
+        raise ExecutorHandoffPersistenceError(f"executor output could not be read: {exc}") from exc
+
+    if not raw:
+        raise ExecutorHandoffPersistenceError("executor output JSON must not be empty")
+    if len(raw) > _MAX_EXECUTOR_OUTPUT_BYTES:
+        raise ExecutorHandoffPersistenceError(
+            f"executor output JSON exceeds {_MAX_EXECUTOR_OUTPUT_BYTES} bytes"
+        )
+    return raw
+
+
 def _load_executor_output(path: Path | str, *, root: Path = Path(".")) -> dict[str, Any]:
     """Load one reviewed executor-run JSON payload from a safe repository-local path."""
     source = _validate_executor_output_path(root, path)
+    raw = _read_bounded_executor_output(source)
     try:
-        payload = json.loads(source.read_text(encoding="utf-8"))
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ExecutorHandoffPersistenceError("executor output JSON must be valid UTF-8") from exc
+    try:
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ExecutorHandoffPersistenceError(f"executor output JSON is malformed: {exc.msg}") from exc
     return _require_mapping(payload, "executor output")
