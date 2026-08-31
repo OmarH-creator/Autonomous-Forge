@@ -50,13 +50,14 @@ Recent preservation hardening includes:
 - archive copy/package verification hashes content incrementally and rejects byte-count or digest drift;
 - archive manifests and archive packages are immediately reverified after publication;
 - failed or Python-interrupted verification rolls back only bytes still owned by the current invocation;
-- archive-package and archive-copy publication now perform ownership-checked rollback when parent-directory durability sync fails after publication;
+- archive-package and archive-copy publication perform ownership-checked rollback when parent-directory durability sync fails after publication;
+- immutable validation-result sidecar publication now applies the same ownership-checked rollback rule when its parent-directory durability sync fails;
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-AUTO-239 closes the equivalent archive-copy durability-sync failure gap left after AUTO-238 hardened package publication. If an individual copied destination has been published but its parent-directory `fsync` fails, Forge hashes the current destination and removes it only when it still matches the exact copied bytes produced by this invocation. The rollback directory is then fsynced. If another writer changed the destination, Forge preserves those bytes and fails closed rather than deleting potentially foreign data.
+AUTO-240 closes the corresponding durability ambiguity for immutable validation-result attachments. If a sidecar has been no-clobber published but its parent-directory `fsync` fails, Forge hashes the current sidecar and removes it only while its SHA-256 still matches the exact serialized bytes created by that invocation, then fsyncs the directory again. If another writer changed the sidecar, Forge preserves those bytes and fails closed rather than deleting potentially foreign data.
 
-See `docs/ARCHIVE_COPY_DURABILITY_ROLLBACK.md` for that contract and its limits.
+See `docs/VALIDATION_RESULT_ATTACHMENTS.md` for the attachment contract and durability limits.
 
 ## Testing and CI
 
@@ -66,7 +67,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published archive evidence.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published evidence.
 
 Important limitations remain:
 
@@ -94,13 +95,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-239 — roll back archive copies when publication durability sync fails**.
+Latest stewardship run: **AUTO-240 — roll back immutable validation attachments when publication durability sync fails**.
 
-- **Changed:** archive-copy no-clobber publication now treats parent-directory `fsync` failure after an individual destination is linked as a failed publication and performs SHA-256 ownership-checked rollback. Unchanged owned bytes are removed and the directory is fsynced again; bytes changed after publication are preserved for inspection.
-- **Why:** the package writer already had this protection after AUTO-238, but the archive-copy helper still raised after directory-sync failure while leaving the just-published destination visible. AUTO-239 closes that concrete durability ambiguity without adding a new command or authority surface.
-- **Validation:** deterministic tests cover clean rollback after a synthetic first directory-sync failure and the racing-mutation case that must preserve changed destination bytes. GitHub Actions validation on the completed `main` head is required before this cycle is reported complete.
-- **Safety:** explicit confirmation, repository containment, bounded-memory hashing, source byte/SHA checks, same-directory temporary copies, no-clobber hard-link publication, and per-file copy semantics remain intact. No network, workflow-control, Git commit/push, force-push, overwrite, remote, or branch-protection authority was added.
-- **Branch/PR disposition:** all seven non-main branches were compared with current `main`; every one is heavily behind/diverged and contains historical or already-integrated work. There are no open PRs. Open issues #1, #6, and #9 are broader product/discussion requests rather than a release blocker, so nothing was integrated or closed this run.
-- **Visual updates:** none; archive/preservation topology did not change, only the existing archive-copy publication failure contract became safer.
-- **Current limitations:** rollback depends on Python cleanup executing, rollback-directory `fsync` can itself fail, and archive copying remains deliberately per-file rather than transactional across the whole manifest.
-- **Next autonomous objective:** inspect the remaining durable evidence writers—especially validation-result and attachment publication—for a confirmed post-publication durability failure or direct-call integrity gap; any fresh CI failure takes priority.
+- **Changed:** immutable validation-result sidecar publication now treats parent-directory `fsync` failure after the no-clobber hard-link as a failed publication. Forge SHA-256 checks the current sidecar; unchanged bytes created by this invocation are removed and the directory is fsynced again, while bytes changed after publication are preserved for inspection.
+- **Why:** archive package and copy writers already had this protection, but validation-result attachment publication still raised after directory-sync failure while leaving the newly created sidecar behind. AUTO-240 closes that concrete durability ambiguity in a user-facing evidence writer without adding another read-only command.
+- **Validation:** deterministic tests cover clean rollback after a synthetic first directory-sync failure and the racing-mutation case that must preserve changed sidecar bytes. The repository's Python 3.10/3.11/3.12 Actions matrix is used for installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest before this cycle is reported complete.
+- **Safety:** explicit confirmation, repository containment, 1 MiB source/verification bounds, source byte/SHA binding, same-directory temporary files, and no-clobber hard-link publication remain intact. Rollback hashes the sidecar incrementally and never overwrites a path or deletes bytes that no longer match this invocation's publication.
+- **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged and there are no open PRs requiring integration. Open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this integrity fix.
+- **Visual updates:** none; workflow topology did not change, only the durability failure behavior at an existing write boundary became safer.
+- **Current limitations:** rollback requires Python cleanup to execute; a second rollback-directory `fsync` failure leaves durability uncertain; and SHA ownership checks cannot provide a permanent filesystem lock against later mutation.
+- **Next autonomous objective:** inspect the historical in-place validation-result writer for a safe recovery strategy when `os.replace()` succeeds but parent-directory durability sync fails, without risking rollback over pre-existing authoritative record bytes; any fresh CI failure takes priority.
