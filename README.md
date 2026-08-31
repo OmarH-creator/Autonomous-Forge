@@ -38,6 +38,8 @@ The connected workflow includes guarded replacement → live-diff verification �
 
 Verified commit creation isolates staging through a private temporary Git index, binds reviewed target bytes and changed paths to the expected parent, refuses unrelated shared staging, and rechecks reviewed state before and after commit synchronization. Push execution is non-force and explicitly confirmed, and post-push verification remains separate.
 
+Executor handoff persistence keeps observed executor output reviewable before it becomes durable validation history. The reviewed executor-run JSON must stay inside the repository, be a real `.json` file, and is read through a strict 1,000,000-byte bound before UTF-8 and JSON parsing so the persistence bridge cannot consume an unbounded input file.
+
 ## Evidence and preservation
 
 Forge supports SHA-linked maintenance bundles, run-history records, replay/reviewer handoffs, archive manifests, copied archive roots, `.tar`/`.tar.gz`/`.zip` packages, package verification, preservation-completeness checks, and immutable preservation receipts.
@@ -53,13 +55,11 @@ Recent preservation hardening includes:
 - archive-package and archive-copy publication perform ownership-checked rollback when parent-directory durability sync fails after publication;
 - immutable validation-result sidecar publication applies the same ownership-checked rollback rule when its parent-directory durability sync fails;
 - the historical in-place validation-result writer restores the exact original run-history bytes when its post-replacement directory sync fails, but only while the current record still matches this invocation's replacement digest;
-- immutable run-history publication now removes its own unchanged record when the post-link parent-directory durability sync fails, while preserving a destination whose bytes changed before rollback;
+- immutable run-history publication removes its own unchanged record when the post-link parent-directory durability sync fails, while preserving a destination whose bytes changed before rollback;
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-AUTO-242 closes the equivalent durability ambiguity in the no-clobber run-history writer. If hard-link publication succeeds but the parent-directory `fsync` fails, Forge hashes the exact serialized record and removes the published path only while its current SHA-256 still matches. If another writer changed those bytes, Forge preserves them for inspection rather than deleting foreign data.
-
-See `docs/RUN_HISTORY_WRITES.md` for the run-history publication contract and recovery limits.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md` for the executor-output review and bounded-input contract, and `docs/RUN_HISTORY_WRITES.md` for the durable run-history publication contract and recovery limits.
 
 ## Testing and CI
 
@@ -69,7 +69,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence.
 
 Important limitations remain:
 
@@ -98,13 +98,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-242 — roll back run-history publication when directory durability sync fails**.
+Latest stewardship run: **AUTO-243 — bound executor-handoff persistence input before parsing or writing**.
 
-- **Changed:** `forge run-history-write` no longer leaves a newly hard-linked history record behind when publication succeeds but the following parent-directory `fsync` fails. Forge SHA-256 binds the exact serialized bytes, removes the output only while those bytes still match, and fsyncs the directory again after rollback.
-- **Why:** the writer already protected against racing creation with atomic no-clobber hard-link publication, but a post-publication durability failure returned an error while leaving the record visible. AUTO-242 closes that concrete durable-evidence ambiguity without adding another command.
-- **Validation:** deterministic regression tests cover both rollback of an unchanged publication and preservation of a destination mutated before rollback. The final Python 3.10/3.11/3.12 Actions matrix is checked for installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest before this cycle is reported complete.
-- **Safety:** explicit confirmation, `.ai/run-history/` confinement, blocked-readiness refusal, immutable/no-clobber publication, same-directory temporary-file flushing, and ordinary hard-link race safety remain intact. Rollback never intentionally deletes a destination whose current SHA-256 differs from this invocation's serialized record.
-- **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged and no open PR requires integration. Open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
-- **Visual updates:** none; workflow topology did not change, only durability recovery at an existing run-history write boundary became safer.
-- **Current limitations:** rollback requires Python cleanup to execute; a second directory-sync failure leaves durability uncertain; there is no shared cross-process filesystem lock; and a target mutation in the narrow interval after the final digest check still requires external coordination to eliminate completely.
-- **Next autonomous objective:** inspect the remaining durable evidence writers for another proven post-publication durability gap, prioritizing authoritative maintenance evidence or executor-handoff persistence; any fresh CI failure takes priority.
+- **Changed:** the existing `forge executor-handoff-persist` bridge and its preview path now read executor-run JSON through a shared 1,000,000-byte bound. Forge reads at most one extra byte to detect overflow, rejects oversized input before JSON parsing, and reports invalid UTF-8 explicitly instead of using an unbounded `Path.read_text()`.
+- **Why:** executor output was already repository-confined and schema-validated, but the loader could allocate memory proportional to an unexpectedly large or concurrently expanded file before any handoff checks reached the guarded validation-result writer. AUTO-243 closes that concrete resource-safety gap without adding another command or weakening persistence gates.
+- **Validation:** deterministic regression tests cover rejection of an oversized executor JSON file and invalid UTF-8 through the bounded reader; existing executor-handoff tests continue to exercise normal preview/persistence behavior. The product/test head passed the full Python 3.10/3.11/3.12 Actions workflow, and the final documentation/state head is checked again before this run is reported complete.
+- **Safety:** repository confinement, real-file/no-symlink checks, `.json` extension enforcement, handoff/result consistency, explicit `--confirm-write`, and delegation to the existing validation-result writer remain intact. The 1 MiB bound is resource protection only and does not promote bounded input into trusted evidence.
+- **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged, no open PR requires integration, and open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
+- **Visual updates:** none; the maintenance workflow topology did not change, only the resource-safety boundary on an existing executor-to-history write bridge became stricter.
+- **Current limitations:** the bound limits memory exposure but does not authenticate executor output or eliminate all time-of-check/time-of-use races; durable validation history still depends on the downstream validation-result writer's existing ownership/durability guarantees; and Forge remains human-in-the-loop.
+- **Next autonomous objective:** return to the durability-integrity milestone and harden the shared maintenance-evidence bundle/history-link no-clobber publication path if its post-link directory-sync ambiguity remains reproducible; any fresh CI failure takes priority.
