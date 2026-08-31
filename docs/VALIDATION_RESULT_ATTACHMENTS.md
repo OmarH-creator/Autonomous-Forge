@@ -26,10 +26,15 @@ Use `--format json` for a stable machine-readable summary.
 - The same 1 MiB source ceiling is reapplied immediately before publication and during later verification, so a source that grows beyond the reviewed bound is refused rather than admitted as stale evidence.
 - The output must remain under `.ai/run-history/validation-attachments/`, must use `.json`, and must not be a symlink.
 - Existing attachment paths are never overwritten. Publication uses a flushed same-directory temporary file plus an atomic no-clobber hard-link step, followed by directory fsync.
+- If that parent-directory durability fsync fails after publication, Forge hashes the current sidecar incrementally and removes it only when its SHA-256 still matches the exact serialized bytes published by this invocation. The rollback directory is then fsynced. If the sidecar changed after publication, Forge preserves it for inspection rather than risking deletion of another writer's bytes.
 - The source bytes are snapshotted before payload construction and checked again immediately before publication; concurrent source changes fail closed.
 - `source_record.sha256` and `source_record.bytes` bind the attachment to the reviewed source bytes. `verify_validation_result_attachment()` recomputes both and refuses source drift.
 - Existing validation evidence in the source record is still single-assignment: sidecar creation reuses the legacy validation payload gate and refuses a record that already has validation execution/result/note evidence.
 - No validation command is executed, no Git operation is performed, no network call is made, and no commit/push authority is granted.
+
+## Durability failure limits
+
+Ownership-checked rollback narrows the failure state when publication succeeds but its parent-directory fsync fails; it is not a filesystem transaction or lock. Python cleanup cannot run after abrupt termination such as `SIGKILL`, host/interpreter failure, or power loss. A second directory-fsync failure while recording rollback leaves durability uncertain and requires inspection. If the published path no longer contains the exact bytes Forge created, Forge intentionally leaves it in place.
 
 ## Resource-bound limitation
 
