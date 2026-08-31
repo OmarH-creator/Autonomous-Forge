@@ -51,13 +51,14 @@ Recent preservation hardening includes:
 - archive manifests and archive packages are immediately reverified after publication;
 - failed or Python-interrupted verification rolls back only bytes still owned by the current invocation;
 - archive-package and archive-copy publication perform ownership-checked rollback when parent-directory durability sync fails after publication;
-- immutable validation-result sidecar publication now applies the same ownership-checked rollback rule when its parent-directory durability sync fails;
+- immutable validation-result sidecar publication applies the same ownership-checked rollback rule when its parent-directory durability sync fails;
+- the historical in-place validation-result writer now restores the exact original run-history bytes when its post-replacement directory sync fails, but only while the current record still matches this invocation's replacement digest;
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-AUTO-240 closes the corresponding durability ambiguity for immutable validation-result attachments. If a sidecar has been no-clobber published but its parent-directory `fsync` fails, Forge hashes the current sidecar and removes it only while its SHA-256 still matches the exact serialized bytes created by that invocation, then fsyncs the directory again. If another writer changed the sidecar, Forge preserves those bytes and fails closed rather than deleting potentially foreign data.
+AUTO-241 closes the remaining durability ambiguity in the historical in-place validation-result writer. If `os.replace()` succeeds but the parent-directory `fsync` fails, Forge SHA-256 checks the current replacement, recreates the exact pre-write record bytes in a flushed same-directory rollback temporary file, checks ownership again, restores those original bytes, and fsyncs the directory. If the record changed after replacement, Forge preserves the changed bytes for inspection rather than overwriting another writer's data.
 
-See `docs/VALIDATION_RESULT_ATTACHMENTS.md` for the attachment contract and durability limits.
+See `docs/VALIDATION_RESULT_WRITES.md` for the in-place validation-result write contract and recovery limits.
 
 ## Testing and CI
 
@@ -67,7 +68,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published evidence.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence.
 
 Important limitations remain:
 
@@ -78,6 +79,7 @@ Important limitations remain:
 - no filesystem-level lock can permanently prevent later evidence mutation;
 - Python cleanup cannot run after abrupt termination such as `SIGKILL`, host failure, interpreter crash, or power loss;
 - a filesystem that fails both publication and rollback directory sync leaves durability uncertain and requires inspection;
+- in-place validation rollback still has a small cross-process race between its final ownership check and rollback rename because Forge does not hold a shared filesystem lock;
 - archive-copy publication is per-file rather than a cross-file transaction;
 - no-clobber durable publication relies on ordinary same-filesystem hard-link support;
 - Forge is not ready for unattended use on important repositories.
@@ -95,13 +97,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-240 — roll back immutable validation attachments when publication durability sync fails**.
+Latest stewardship run: **AUTO-241 — restore in-place validation records when replacement durability sync fails**.
 
-- **Changed:** immutable validation-result sidecar publication now treats parent-directory `fsync` failure after the no-clobber hard-link as a failed publication. Forge SHA-256 checks the current sidecar; unchanged bytes created by this invocation are removed and the directory is fsynced again, while bytes changed after publication are preserved for inspection.
-- **Why:** archive package and copy writers already had this protection, but validation-result attachment publication still raised after directory-sync failure while leaving the newly created sidecar behind. AUTO-240 closes that concrete durability ambiguity in a user-facing evidence writer without adding another read-only command.
-- **Validation:** deterministic tests cover clean rollback after a synthetic first directory-sync failure and the racing-mutation case that must preserve changed sidecar bytes. The repository's Python 3.10/3.11/3.12 Actions matrix is used for installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest before this cycle is reported complete.
-- **Safety:** explicit confirmation, repository containment, 1 MiB source/verification bounds, source byte/SHA binding, same-directory temporary files, and no-clobber hard-link publication remain intact. Rollback hashes the sidecar incrementally and never overwrites a path or deletes bytes that no longer match this invocation's publication.
-- **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged and there are no open PRs requiring integration. Open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this integrity fix.
-- **Visual updates:** none; workflow topology did not change, only the durability failure behavior at an existing write boundary became safer.
-- **Current limitations:** rollback requires Python cleanup to execute; a second rollback-directory `fsync` failure leaves durability uncertain; and SHA ownership checks cannot provide a permanent filesystem lock against later mutation.
-- **Next autonomous objective:** inspect the historical in-place validation-result writer for a safe recovery strategy when `os.replace()` succeeds but parent-directory durability sync fails, without risking rollback over pre-existing authoritative record bytes; any fresh CI failure takes priority.
+- **Changed:** the historical `forge validation-result-write` path no longer leaves a newly replaced authoritative run-history record behind when `os.replace()` succeeds but the following parent-directory `fsync` fails. Forge retains the exact pre-write bytes, SHA-256 checks the replacement, writes a flushed rollback sibling, checks ownership again, restores the original bytes, and fsyncs the directory.
+- **Why:** AUTO-240 hardened immutable sidecars, but the older in-place writer still had a concrete failure mode where a command returned an error after already replacing the authoritative record. AUTO-241 resolves that write-integrity defect without adding a new command or weakening single-assignment validation semantics.
+- **Validation:** deterministic tests cover successful restoration after a synthetic first directory-sync failure, the public confirmed write path, and the racing-mutation case where changed bytes must be preserved. The final Python 3.10/3.11/3.12 Actions matrix is checked for installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest before this cycle is reported complete.
+- **Safety:** explicit confirmation, `.ai/run-history` path confinement, the 1 MiB source ceiling, stale-source checks, atomic same-directory replacement, and single-assignment evidence rules remain intact. Rollback never intentionally overwrites a target whose current digest no longer matches this invocation's replacement.
+- **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged; there are no open PRs requiring integration. Open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
+- **Visual updates:** none; workflow topology did not change, only durability recovery at an existing in-place evidence write boundary became safer.
+- **Current limitations:** rollback requires Python cleanup to execute; a second directory-sync failure can leave durability uncertain; there is no shared cross-process filesystem lock; and a target mutation in the narrow interval after the last ownership check still requires external coordination to eliminate completely.
+- **Next autonomous objective:** inspect the remaining overwrite-capable durable writers for the same replace-then-directory-sync ambiguity, prioritizing any path that can mutate authoritative evidence rather than immutable sidecars; any fresh CI failure takes priority.
