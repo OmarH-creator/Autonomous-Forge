@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -50,9 +51,43 @@ def _validate_output_path(root: Path, output_path: Path | str) -> Path:
     return resolved_output
 
 
+def _sha256_file(path: Path) -> str:
+    """Hash one file without loading the whole artifact into memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sync_directory(path: Path) -> None:
+    """Flush one directory entry update before reporting durable state."""
+    dir_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _rollback_owned_publication(target: Path, expected_sha256: str) -> None:
+    """Remove this invocation's publication only while its bytes still match."""
+    try:
+        if _sha256_file(target) != expected_sha256:
+            return
+    except FileNotFoundError:
+        return
+
+    try:
+        target.unlink()
+    except FileNotFoundError:
+        return
+    _sync_directory(target.parent)
+
+
 def _persist_text_no_clobber(target: Path, text: str) -> None:
     """Durably publish text without replacing a target created after preflight."""
     payload = text.encode("utf-8")
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
     temp_path: Path | None = None
     try:
         fd, temp_name = tempfile.mkstemp(
@@ -70,11 +105,11 @@ def _persist_text_no_clobber(target: Path, text: str) -> None:
         # competing writer created after the earlier existence check.
         os.link(temp_path, target)
 
-        dir_fd = os.open(target.parent, os.O_RDONLY)
         try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
+            _sync_directory(target.parent)
+        except OSError:
+            _rollback_owned_publication(target, payload_sha256)
+            raise
     except FileExistsError as exc:
         raise RunHistoryWriteError(
             "output path already exists; choose a new run-history path"
@@ -128,6 +163,7 @@ def build_run_history_write_payload(
             "refuses existing output to preserve durable history",
             "publishes atomically without replacing a racing writer",
             "flushes the file and containing directory before reporting success",
+            "rolls back its own unchanged publication when directory durability sync fails",
             "does not run validation commands",
             "does not inspect diffs or read changed-file contents",
             "does not generate patches or enforce policy decisions",
