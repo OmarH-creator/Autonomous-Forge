@@ -173,6 +173,66 @@ def test_write_run_history_record_fsyncs_file_and_directory(tmp_path, monkeypatc
     assert len(fsync_calls) == 2
 
 
+def test_write_run_history_record_rolls_back_when_directory_fsync_fails(tmp_path, monkeypatch):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "durability-failure.json"
+    fsync_calls = 0
+    real_fsync = run_history_writer.os.fsync
+
+    def failing_directory_fsync(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        if fsync_calls == 2:
+            raise OSError("simulated directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(run_history_writer.os, "fsync", failing_directory_fsync)
+
+    with pytest.raises(RunHistoryWriteError, match="simulated directory fsync failure"):
+        write_run_history_record(
+            VALID_PLAN,
+            VALID_POLICY,
+            root=tmp_path,
+            output_path=output,
+            confirm_write=True,
+        )
+
+    assert not output.exists()
+    assert fsync_calls == 3
+    assert list(output.parent.glob(".run-history-*.tmp")) == []
+
+
+def test_write_run_history_record_preserves_changed_output_when_directory_fsync_fails(tmp_path, monkeypatch):
+    _write_required_inventory(tmp_path)
+    output = tmp_path / ".ai" / "run-history" / "durability-race.json"
+    foreign_bytes = b'{"foreign_writer": true}\n'
+    fsync_calls = 0
+    real_fsync = run_history_writer.os.fsync
+
+    def mutating_directory_fsync(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        if fsync_calls == 2:
+            output.write_bytes(foreign_bytes)
+            raise OSError("simulated directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(run_history_writer.os, "fsync", mutating_directory_fsync)
+
+    with pytest.raises(RunHistoryWriteError, match="simulated directory fsync failure"):
+        write_run_history_record(
+            VALID_PLAN,
+            VALID_POLICY,
+            root=tmp_path,
+            output_path=output,
+            confirm_write=True,
+        )
+
+    assert output.read_bytes() == foreign_bytes
+    assert fsync_calls == 2
+    assert list(output.parent.glob(".run-history-*.tmp")) == []
+
+
 def test_write_run_history_record_refuses_racing_writer_without_clobber(tmp_path, monkeypatch):
     _write_required_inventory(tmp_path)
     output = tmp_path / ".ai" / "run-history" / "race.json"
