@@ -31,7 +31,9 @@ Relative output paths are resolved under `--root`, so `.ai/run-history/latest.js
 
 Run-history records are durable project memory, so an existing record is not silently replaced. If another run needs to be persisted, choose a new record path. This command intentionally provides no overwrite escape hatch because run-history is durable project memory.
 
-Confirmed publication is also race-safe. Forge writes the JSON bytes to a same-directory temporary file, flushes and `fsync`s that file, publishes it with an atomic no-clobber hard link, then `fsync`s the containing directory before reporting success. If another process creates the requested output after preflight but before publication, the hard-link step fails and Forge preserves the competing file instead of overwriting it. Temporary files are cleaned on both success and failure.
+Confirmed publication is race-safe. Forge writes the JSON bytes to a same-directory temporary file, flushes and `fsync`s that file, publishes it with an atomic no-clobber hard link, then `fsync`s the containing directory before reporting success. If another process creates the requested output after preflight but before publication, the hard-link step fails and Forge preserves the competing file instead of overwriting it. Temporary files are cleaned on both success and failure.
+
+If the hard link succeeds but the containing-directory `fsync` fails, Forge now SHA-256 checks the published path against the exact serialized bytes from this invocation. It removes the output only while those bytes still match and then syncs the directory again before returning the original persistence failure. If the destination changed before rollback, Forge leaves those changed bytes in place rather than risk deleting another writer's data.
 
 ## Record shape
 
@@ -43,10 +45,10 @@ The persisted JSON payload includes:
 - `preflight_summary`: the pass/warn/block counts used to gate the write.
 - `preflight_next_gate`: the next gate reported by preflight readiness.
 - `persistence`: `written by explicit request`.
-- `safety_notes`: the write boundary that future maintainers must preserve, including no-clobber publication and file/directory durability syncing.
+- `safety_notes`: the write boundary that future maintainers must preserve, including no-clobber publication, file/directory durability syncing, and ownership-checked rollback after failed directory durability sync.
 
 ## Current limitations
 
 This command writes a local history artifact only. It does not append to a long-lived index, rotate files, inspect Git state, compare existing records, detect secrets, run tests, or validate the repository after writing. Callers should still review the output and run the repository test suite separately. Existing records must be preserved or replaced through a separately reviewed/manual recovery process; this command does not merge or reconcile divergent record contents.
 
-No-clobber publication uses a same-filesystem hard link, so the underlying filesystem must support ordinary hard links. The temporary file is deliberately created in the output directory so publication cannot cross filesystem boundaries.
+No-clobber publication uses a same-filesystem hard link, so the underlying filesystem must support ordinary hard links. The temporary file is deliberately created in the output directory so publication cannot cross filesystem boundaries. Ownership-checked rollback still requires Python cleanup to execute; abrupt process/host failure can prevent it, a second directory-sync failure leaves durability uncertain, and without a shared filesystem lock there remains a narrow race between the final digest check and unlink.
