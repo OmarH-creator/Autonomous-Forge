@@ -181,8 +181,15 @@ def _publish_package_no_clobber(package_path: Path, writer: Callable[[Path], Non
         try:
             _fsync_directory(package_path.parent)
         except OSError as exc:
+            try:
+                _rollback_published_package(package_path, intended_sha256=intended_sha256)
+            except MaintenanceArchivePackageError as rollback_exc:
+                raise MaintenanceArchivePackageError(
+                    "archive package directory durability sync failed after publication and ownership-checked "
+                    f"rollback could not be completed safely: {rollback_exc}"
+                ) from exc
             raise MaintenanceArchivePackageError(
-                f"archive package was published but directory durability sync failed: {exc}"
+                f"archive package directory durability sync failed after publication; published package was rolled back: {exc}"
             ) from exc
     except MaintenanceArchivePackageError:
         raise
@@ -345,11 +352,12 @@ def write_maintenance_archive_package(
     result["safety_boundary"] = (
         "Archive package writing verifies a ready package preview, requires explicit confirmation, streams and "
         "revalidates every source entry while building a same-directory temporary package, atomically publishes it "
-        "without clobbering an existing destination, then immediately reopens and verifies the published package "
-        "against the current manifest/copy-root evidence before returning success. Failed or Python-interrupted "
-        "verification removes only the exact package bytes published by this invocation. It writes exactly one "
-        "repository-local tar/zip package from the verified archive root and does not stage, commit, push, poll "
-        "workflows, rerun validation, change remotes, or prove signer identity."
+        "without clobbering an existing destination, durably syncs the destination directory with ownership-checked "
+        "rollback if that sync fails, then immediately reopens and verifies the published package against the current "
+        "manifest/copy-root evidence before returning success. Failed or Python-interrupted verification removes only "
+        "the exact package bytes published by this invocation. It writes exactly one repository-local tar/zip package "
+        "from the verified archive root and does not stage, commit, push, poll workflows, rerun validation, change "
+        "remotes, or prove signer identity."
     )
     return result
 
