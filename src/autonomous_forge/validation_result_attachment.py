@@ -20,6 +20,7 @@ from autonomous_forge.validation_result_writer import (
 ATTACHMENT_SCHEMA_VERSION = "validation-attachment/v1"
 ATTACHMENT_DIRECTORY = Path(".ai/run-history/validation-attachments")
 MAX_VALIDATION_ATTACHMENT_BYTES = 1024 * 1024
+HASH_CHUNK_BYTES = 64 * 1024
 
 
 class ValidationResultAttachmentError(ValueError):
@@ -129,11 +130,41 @@ def _fsync_directory(directory: Path) -> None:
         os.close(fd)
 
 
+def _file_sha256(path: Path) -> str:
+    """Hash one attachment incrementally so rollback never materializes it in memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while True:
+            chunk = stream.read(HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _rollback_owned_attachment(target: Path, *, expected_sha256: str) -> bool:
+    """Remove a just-published sidecar only while this invocation still owns its bytes."""
+    try:
+        if not target.is_file() or _file_sha256(target) != expected_sha256:
+            return False
+        target.unlink()
+        _fsync_directory(target.parent)
+        return True
+    except FileNotFoundError:
+        return True
+    except OSError as exc:
+        raise ValidationResultAttachmentError(
+            "validation attachment rollback could not be durably completed: "
+            f"{target.name}: {exc}"
+        ) from exc
+
+
 def _atomic_create_text(target: Path, text: str) -> None:
     """Publish one immutable file without overwriting an existing path."""
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     linked = False
+    expected_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     try:
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -147,28 +178,46 @@ def _atomic_create_text(target: Path, text: str) -> None:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
-        os.link(temporary, target)
+        try:
+            os.link(temporary, target)
+        except FileExistsError as exc:
+            raise ValidationResultAttachmentError("attachment output already exists") from exc
         linked = True
         temporary.unlink()
         temporary = None
-        _fsync_directory(target.parent)
-    except FileExistsError as exc:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
-        raise ValidationResultAttachmentError("attachment output already exists") from exc
+        try:
+            _fsync_directory(target.parent)
+        except OSError as exc:
+            rolled_back = _rollback_owned_attachment(
+                target,
+                expected_sha256=expected_sha256,
+            )
+            detail = (
+                "rolled back owned attachment"
+                if rolled_back
+                else "attachment changed after publication; preserved for inspection"
+            )
+            raise ValidationResultAttachmentError(
+                "validation attachment publication durability sync failed: "
+                f"{target.name}: {exc}; {detail}"
+            ) from exc
+    except ValidationResultAttachmentError:
+        raise
     except OSError as exc:
+        if linked:
+            raise ValidationResultAttachmentError(
+                "validation attachment was published but final durability handling failed; "
+                f"inspect {target.name} before retrying"
+            ) from exc
+        raise ValidationResultAttachmentError(
+            "immutable validation attachment write failed; source record was not modified"
+        ) from exc
+    finally:
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
-        if linked:
-            raise ValidationResultAttachmentError(
-                "validation attachment was created but directory durability sync failed; inspect it before retrying"
-            ) from exc
-        raise ValidationResultAttachmentError(
-            "immutable validation attachment write failed; source record was not modified"
-        ) from exc
 
 
 def write_validation_result_attachment_sidecar(
