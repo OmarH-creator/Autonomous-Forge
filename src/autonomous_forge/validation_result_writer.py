@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -23,6 +24,7 @@ CONTEXT_FIELDS = (
     "risk_register",
 )
 MAX_VALIDATION_RESULT_RECORD_BYTES = 1024 * 1024
+HASH_CHUNK_BYTES = 64 * 1024
 
 
 class ValidationResultWriteError(ValueError):
@@ -101,8 +103,72 @@ def _fsync_directory(directory: Path) -> None:
         os.close(fd)
 
 
-def _atomic_replace_text(target: Path, text: str) -> None:
-    """Replace one record atomically and durably after flushing a same-directory temp file."""
+def _file_sha256(path: Path) -> str:
+    """Hash one record incrementally for ownership checks without an unbounded read."""
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while True:
+            chunk = stream.read(HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _restore_original_after_sync_failure(
+    target: Path,
+    *,
+    original_bytes: bytes,
+    replacement_sha256: str,
+) -> bool:
+    """Restore prior bytes only while the current target still belongs to this invocation."""
+    try:
+        if not target.is_file() or _file_sha256(target) != replacement_sha256:
+            return False
+
+        rollback: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                dir=target.parent,
+                prefix=f".{target.name}.rollback.",
+                suffix=".tmp",
+                delete=False,
+            ) as stream:
+                rollback = Path(stream.name)
+                stream.write(original_bytes)
+                stream.flush()
+                os.fsync(stream.fileno())
+
+            if not target.is_file() or _file_sha256(target) != replacement_sha256:
+                return False
+
+            os.replace(rollback, target)
+            rollback = None
+            _fsync_directory(target.parent)
+            return True
+        finally:
+            if rollback is not None:
+                try:
+                    rollback.unlink(missing_ok=True)
+                except OSError:
+                    pass
+    except OSError as exc:
+        raise ValidationResultWriteError(
+            "validation-result rollback could not be durably completed; inspect the record before retrying"
+        ) from exc
+
+
+def _atomic_replace_text(
+    target: Path,
+    text: str,
+    *,
+    original_bytes: bytes | None = None,
+) -> None:
+    """Replace one record atomically, restoring prior owned bytes if final durability sync fails."""
+    if original_bytes is None:
+        original_bytes = _read_bounded_record_bytes(target)
+    replacement_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     temporary: Path | None = None
     replaced = False
     try:
@@ -118,23 +184,48 @@ def _atomic_replace_text(target: Path, text: str) -> None:
             stream.write(text)
             stream.flush()
             os.fsync(stream.fileno())
+
+        if _read_bounded_record_bytes(target) != original_bytes:
+            raise ValidationResultWriteError(
+                "record changed immediately before replacement; refusing stale attachment"
+            )
+
         os.replace(temporary, target)
         replaced = True
         temporary = None
-        _fsync_directory(target.parent)
+        try:
+            _fsync_directory(target.parent)
+        except OSError as exc:
+            restored = _restore_original_after_sync_failure(
+                target,
+                original_bytes=original_bytes,
+                replacement_sha256=replacement_sha256,
+            )
+            detail = (
+                "original record restored"
+                if restored
+                else "replacement changed after publication; preserved for inspection"
+            )
+            raise ValidationResultWriteError(
+                "validation-result record replacement durability sync failed; "
+                f"{detail}"
+            ) from exc
+    except ValidationResultWriteError:
+        raise
     except OSError as exc:
+        if replaced:
+            raise ValidationResultWriteError(
+                "validation-result record was replaced but final durability handling failed; inspect the record before retrying"
+            ) from exc
+        raise ValidationResultWriteError(
+            "atomic validation-result write failed; original record preserved"
+        ) from exc
+    finally:
         if temporary is not None:
             try:
                 temporary.unlink(missing_ok=True)
             except OSError:
                 pass
-        if replaced:
-            raise ValidationResultWriteError(
-                "validation-result record was replaced but directory durability sync failed; inspect the record before retrying"
-            ) from exc
-        raise ValidationResultWriteError(
-            "atomic validation-result write failed; original record preserved"
-        ) from exc
 
 
 def build_validation_result_write_payload(
@@ -217,7 +308,7 @@ def write_validation_result_attachment(
         )
 
     text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-    _atomic_replace_text(safe_record, text)
+    _atomic_replace_text(safe_record, text, original_bytes=source_bytes)
     return {
         "path": str(safe_record),
         "validation_execution": payload["record"]["validation_execution"],
