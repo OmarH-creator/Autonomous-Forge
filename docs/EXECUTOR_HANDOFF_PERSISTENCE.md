@@ -36,6 +36,8 @@ This preview is useful between `executor-run --format json` and the confirmed pe
 The helper and CLI accept one executor-run JSON file and check that:
 
 - the executor-output file is a real `.json` file inside the repository root, not a symlink, directory, missing file, or external path;
+- the executor-output payload is read through a strict 1,000,000-byte bound; Forge reads at most 1,000,001 bytes and rejects the input before JSON parsing if the bound is exceeded, so a file that grows after path validation cannot trigger an unbounded in-memory read;
+- the executor-output bytes are valid UTF-8 and decode to a JSON object;
 - `persistence_handoff.available` is `true`;
 - `persistence_handoff.auto_persistence` is `false`;
 - `persistence_handoff.confirmation_required` is `--confirm-write`;
@@ -49,6 +51,8 @@ The preview builder returns the exact payload that would be written without muta
 ## Safety boundary
 
 Executor handoff persistence does not run validation commands, rerun executor output, poll GitHub workflows, infer success, inspect diffs, generate patches, enforce policy, commit, push, or automatically mutate history. It persists only a supplied, already-observed executor result after explicit confirmation.
+
+The 1 MiB input bound applies to both preview and confirmed persistence because both load the same executor-run JSON through the bounded reader. It is a resource-safety limit, not a trust signal: a payload within the bound must still pass all handoff, record, result, and confirmation checks.
 
 ## Example programmatic flow
 
