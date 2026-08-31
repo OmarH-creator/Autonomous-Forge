@@ -2,15 +2,15 @@
 
 - Current roadmap version: v3
 - Current task ID: AUTO-241 — In-place validation-result durability rollback
-- Current task status: VALIDATING
+- Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-08-31T15:12:00Z
+- Last run timestamp: 2026-08-31T15:13:00Z
 - Latest run summary: The historical in-place validation-result writer now treats parent-directory durability `fsync` failure after `os.replace()` as a failed publication and attempts to restore the exact bounded pre-write run-history bytes. Restoration is allowed only while the current record still matches the SHA-256 of this invocation's replacement; changed bytes are preserved for inspection.
 - Safety: Existing explicit confirmation, `.ai/run-history` path confinement, non-symlink validation, 1 MiB source ceiling, stale-source checks, atomic same-directory replacement, and single-assignment validation evidence remain intact. Rollback writes/flushed/fsyncs a same-directory sibling containing the exact original bytes, verifies ownership again, restores with `os.replace()`, and fsyncs the directory. No network, Git mutation, workflow control, force push, remote, or protection behavior was added.
 - Repository assessment: Started from green AUTO-240 head `ec6defda4db827da81d3184ee20ddb48491ffc51`; inspected README/docs/examples, validation-result writer/attachment source and tests, repository policy and CI status, autonomous plan/state/changelog/decisions, recent commits, all eight visible branches, open issues, and PR history. The requested policy-aware `forge plan` capability is already shipped. Seven non-main branches remain historical/diverged; there are no open PRs requiring integration. Open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this integrity repair.
 - Branch and PR disposition: Work stayed directly on `main`; no branch, PR, merge, force-push, remote change, workflow change, or protection change was used.
-- Validation: Deterministic direct-helper and public confirmed-write regression tests have been added. GitHub Actions on the final run head is still being inspected before completion is reported; the repository matrix covers Python 3.10, 3.11, and 3.12 installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest.
-- Current blockers: None known; final CI confirmation is pending.
+- Validation: Deterministic direct-helper and public confirmed-write regression tests were added. GitHub Actions run `33407065542` on complete AUTO-241 product/docs/state head `7dff5556042ea5acf2a4be1cfdc36104ccdcbcb5` passed on Python 3.10, 3.11, and 3.12, including package installation, source compilation, installed CLI smoke tests, roadmap validation, and full pytest. This final state-only commit is checked again before completion is reported.
+- Current blockers: None known for AUTO-241.
 - Known risks and assumptions: Rollback requires Python cleanup to execute. `SIGKILL`, host/interpreter failure, or power loss can prevent it. A second directory `fsync` failure leaves durability uncertain. There is no shared cross-process filesystem lock, so a target mutation in the narrow interval after the final ownership check remains outside the guarantee.
 - Visuals: None; maintenance workflow topology did not change, only durability recovery semantics at an existing authoritative evidence-write boundary became safer.
 - Project-memory note: `docs/VALIDATION_RESULT_WRITES.md`, `tests/test_auto168_validation_result_directory_sync.py`, `tests/test_auto241_validation_result_restore.py`, this state file, and `.ai/AUTO-241.md` carry the detailed run record. `AUTONOMOUS_PLAN.md`, `AUTONOMOUS_CHANGELOG.md`, and `DECISIONS.md` were inspected; roadmap direction and architecture did not change, so no status-only rewrite was warranted.
