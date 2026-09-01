@@ -109,7 +109,9 @@ def _safe_output_path(output_path: Path, *, root: Path) -> Path:
 def _persist_text_no_clobber(target: Path, text: str) -> None:
     """Durably publish text without replacing a target created after preflight."""
     payload = text.encode("utf-8")
+    expected_sha256 = hashlib.sha256(payload).hexdigest()
     temp_path: Path | None = None
+    published = False
     try:
         fd, temp_name = tempfile.mkstemp(prefix=".archive-manifest-", suffix=".tmp", dir=target.parent)
         temp_path = Path(temp_name)
@@ -118,6 +120,7 @@ def _persist_text_no_clobber(target: Path, text: str) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.link(temp_path, target)
+        published = True
         dir_fd = os.open(target.parent, os.O_RDONLY)
         try:
             os.fsync(dir_fd)
@@ -128,6 +131,11 @@ def _persist_text_no_clobber(target: Path, text: str) -> None:
             "output path already exists; refusing to overwrite archive manifest"
         ) from exc
     except OSError as exc:
+        if published:
+            try:
+                _rollback_published_manifest(target, expected_sha256=expected_sha256)
+            except MaintenanceArchiveManifestError as rollback_exc:
+                raise rollback_exc from exc
         raise MaintenanceArchiveManifestError(f"archive manifest persistence failed: {exc}") from exc
     finally:
         if temp_path is not None:
