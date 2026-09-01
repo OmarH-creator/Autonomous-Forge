@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
@@ -64,9 +65,42 @@ def _read_json(path: Path, *, root: Path, label: str) -> dict[str, Any]:
     return payload
 
 
+def _sha256_file(path: Path) -> str:
+    """Hash one persisted evidence file without materializing it in memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sync_directory(path: Path) -> None:
+    """Flush one directory-entry update before reporting durable state."""
+    dir_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _rollback_owned_publication(target: Path, expected_sha256: str) -> None:
+    """Remove this invocation's publication only while its bytes still match."""
+    try:
+        if _sha256_file(target) != expected_sha256:
+            return
+    except FileNotFoundError:
+        return
+    try:
+        target.unlink()
+    except FileNotFoundError:
+        return
+    _sync_directory(target.parent)
+
+
 def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
     """Durably publish text and return False when another writer wins the target path."""
     payload = text.encode("utf-8")
+    payload_sha256 = hashlib.sha256(payload).hexdigest()
     temp_path: Path | None = None
     try:
         fd, temp_name = tempfile.mkstemp(prefix=f".{label}-", suffix=".tmp", dir=target.parent)
@@ -78,11 +112,11 @@ def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
 
         os.link(temp_path, target)
 
-        dir_fd = os.open(target.parent, os.O_RDONLY)
         try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
+            _sync_directory(target.parent)
+        except OSError:
+            _rollback_owned_publication(target, payload_sha256)
+            raise
         return True
     except FileExistsError:
         return False
