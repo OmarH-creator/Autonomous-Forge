@@ -57,10 +57,11 @@ Recent preservation hardening includes:
 - the historical in-place validation-result writer restores the exact original run-history bytes when its post-replacement directory sync fails, but only while the current record still matches this invocation's replacement digest;
 - immutable run-history publication removes its own unchanged record when the post-link parent-directory durability sync fails, while preserving a destination whose bytes changed before rollback;
 - verified full-maintenance push-evidence publication removes its own unchanged JSON when the post-link parent-directory durability sync fails, while preserving a destination whose bytes changed before rollback;
+- maintenance evidence bundle and history-link publication now use the same ownership-checked rollback rule after post-link parent-directory durability failure;
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md` for the executor-output review and bounded-input contract, `docs/RUN_HISTORY_WRITES.md` for the durable run-history publication contract, and `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md` for the full-maintenance push-evidence recovery boundary.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md` for the executor-output review and bounded-input contract, `docs/RUN_HISTORY_WRITES.md` for the durable run-history publication contract, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md` for the full-maintenance push-evidence recovery boundary, and `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md` for the shared bundle/history-link publication recovery contract.
 
 ## Testing and CI
 
@@ -99,13 +100,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-244 — push-evidence publication durability rollback**.
+Latest stewardship run: **AUTO-245 — maintenance evidence publication durability rollback**.
 
-- **Changed:** the existing confirmed push-evidence writer used by `forge verified-full-maintenance-run` now SHA-256 binds the exact serialized JSON before no-clobber hard-link publication. If the following parent-directory `fsync` fails, Forge removes the destination only while those bytes still match this invocation and then syncs the directory again.
-- **Why:** the previous path could report persistence failure after the final JSON had already been published, leaving ambiguous evidence immediately before maintenance-bundle construction. AUTO-244 closes that concrete write-integrity gap without adding a new command or weakening any confirmation gate.
-- **Validation:** deterministic regression tests cover rollback after a synthetic post-publication directory-sync failure and preservation of a destination changed by another writer during that failure window. The final pushed head is checked through the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is reported complete.
-- **Safety:** explicit push-evidence write confirmation, repository confinement, `.json` enforcement, no-clobber publication, same-directory temporary-file durability, non-force push behavior, and downstream bundle verification remain unchanged. Rollback is ownership-checked and refuses to delete changed bytes.
+- **Changed:** the shared no-clobber publisher used by maintenance evidence bundles and maintenance history links now SHA-256 binds the exact serialized payload before hard-link publication. If the following parent-directory `fsync` fails, Forge removes the destination only while those bytes still match this invocation and then syncs the directory again.
+- **Why:** the previous shared helper could report persistence failure after the final JSON had already been published, leaving ambiguous bundle or run-history-link evidence. AUTO-245 closes that concrete durability gap without adding a new command or weakening any confirmation gate.
+- **Validation:** deterministic regression tests cover rollback after a synthetic post-publication directory-sync failure and preservation of a destination changed by another writer during that failure window. The pushed head is checked through the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is reported complete.
+- **Safety:** explicit write/link confirmation, repository confinement, `.json` enforcement, no-clobber publication, same-directory temporary-file durability, and downstream evidence verification remain unchanged. Rollback is ownership-checked and refuses to delete changed bytes.
 - **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged, no open PR requires integration, and open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
 - **Visual updates:** none; workflow topology did not change, only the durability semantics of an existing evidence-write boundary became safer.
 - **Current limitations:** Python cleanup cannot run after `SIGKILL`, host/interpreter failure, or power loss; a second directory-sync failure leaves durability uncertain; and there is still no shared filesystem lock to eliminate the narrow race after the final ownership digest check.
-- **Next autonomous objective:** harden the shared maintenance-evidence bundle/history-link no-clobber publication helper against the same post-link parent-directory durability failure, unless a fresh CI failure takes priority.
+- **Next autonomous objective:** inspect the preservation-receipt publisher for the corresponding post-link parent-directory durability failure and close it if still present, unless a fresh CI failure takes priority.

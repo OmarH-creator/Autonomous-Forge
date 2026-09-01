@@ -65,10 +65,37 @@ def _resolve_under_root(root: Path, raw_path: Path, *, kind: str, must_exist: bo
     return resolved
 
 
+def _sha256_file(path: Path) -> str:
+    """Hash one publication in bounded chunks for ownership checks."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _rollback_owned_publication(target: Path, *, expected_sha256: str) -> None:
+    """Remove a failed publication only while its bytes still belong to this invocation."""
+    try:
+        current_sha256 = _sha256_file(target)
+    except FileNotFoundError:
+        return
+    if current_sha256 != expected_sha256:
+        return
+    target.unlink()
+    dir_fd = os.open(target.parent, os.O_RDONLY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
 def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
     """Durably publish text and return False if another writer wins the target path."""
     payload = text.encode("utf-8")
+    expected_sha256 = hashlib.sha256(payload).hexdigest()
     temp_path: Path | None = None
+    published = False
     try:
         fd, temp_name = tempfile.mkstemp(prefix=f".{label}-", suffix=".tmp", dir=target.parent)
         temp_path = Path(temp_name)
@@ -78,6 +105,7 @@ def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
             os.fsync(handle.fileno())
 
         os.link(temp_path, target)
+        published = True
 
         dir_fd = os.open(target.parent, os.O_RDONLY)
         try:
@@ -88,6 +116,13 @@ def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
     except FileExistsError:
         return False
     except OSError as exc:
+        if published:
+            try:
+                _rollback_owned_publication(target, expected_sha256=expected_sha256)
+            except OSError as rollback_exc:
+                raise MaintenanceEvidenceBundleError(
+                    f"{label} persistence failed: {exc}; ownership-checked rollback failed: {rollback_exc}"
+                ) from exc
         raise MaintenanceEvidenceBundleError(f"{label} persistence failed: {exc}") from exc
     finally:
         if temp_path is not None:
