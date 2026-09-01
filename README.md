@@ -38,7 +38,7 @@ Guarded patch application now also treats a failed parent-directory durability s
 
 The connected workflow includes guarded replacement → live-diff verification → retained validation → optional verified local commit → trust/status/protection readiness → separately confirmed fast-forward push → post-push verification → durable maintenance evidence and history. The higher-level `forge verified-full-maintenance-run` composes that lifecycle while keeping independent authority gates for side effects.
 
-Verified commit creation isolates staging through a private temporary Git index, binds reviewed target bytes and changed paths to the expected parent, refuses unrelated shared staging, and rechecks reviewed state before and after commit synchronization. Push execution is non-force and explicitly confirmed, and post-push verification remains separate.
+Verified commit creation isolates staging through a private temporary Git index, binds reviewed target bytes and changed paths to the expected parent, refuses unrelated shared staging, and rechecks reviewed state before and after commit synchronization. Shared-index synchronization now acquires Git's conventional `index.lock`, rechecks reviewed entries while that lock is held, updates a lock-backed snapshot, and atomically publishes it. A caller-owned lock or a competing reviewed-path staging change causes synchronization to fail closed rather than overwrite caller staging.
 
 Executor handoff persistence keeps observed executor output reviewable before it becomes durable validation history. The reviewed executor-run JSON must stay inside the repository, be a real `.json` file, and is read through a strict 1,000,000-byte bound before UTF-8 and JSON parsing so the persistence bridge cannot consume an unbounded input file.
 
@@ -65,7 +65,7 @@ Recent preservation hardening includes:
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, and `docs/PATCH_APPLY.md` for the current write-integrity boundaries.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, `docs/PATCH_APPLY.md`, and `docs/VERIFIED_COMMIT_SHARED_INDEX_LOCKING.md` for the current write-integrity boundaries.
 
 ## Testing and CI
 
@@ -75,7 +75,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, shared-index lock-aware synchronization, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
 
 Important limitations remain:
 
@@ -83,6 +83,7 @@ Important limitations remain:
 - passing configured validation commands does not prove those commands are sufficient for correctness;
 - hashes prove byte continuity, not signer identity;
 - secret detection is not a full secret scanner;
+- Git's `index.lock` protects against normal Git writers, not arbitrary processes that directly mutate `.git/index` while ignoring Git locking;
 - no filesystem-level lock can permanently prevent later evidence mutation;
 - Python cleanup cannot run after abrupt termination such as `SIGKILL`, host failure, interpreter crash, or power loss;
 - a filesystem that fails both publication and rollback directory sync leaves durability uncertain and requires inspection;
@@ -104,13 +105,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-248 — guarded patch-apply durability rollback**.
+Latest stewardship run: **AUTO-249 — shared Git index synchronization locking**.
 
-- **Changed:** the actual write-capable `forge patch-apply` target replacement now retains the exact pre-write bytes and mode, SHA-256 binds the replacement, and ownership-checks the target when parent-directory `fsync` fails after `os.replace`. If the replacement is still owned by this invocation, Forge durably restores the original target; if another writer changed the target, Forge preserves those changed bytes.
-- **Why:** the prior implementation explicitly reported that replacement had already occurred after a post-replace durability-sync failure. That left a real repository mutation in an ambiguous state. AUTO-248 strengthens the end-to-end maintenance write boundary rather than adding another read-only review command.
-- **Validation:** deterministic regression tests cover successful original-content restoration after a synthetic post-replacement directory-sync failure and preservation of a target changed by another writer during that failure window. The final pushed head is checked through the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is reported complete.
-- **Safety:** explicit `--confirm-apply`, preview/readiness matching, repository confinement, stale-target refusal, permission preservation, atomic replacement, target-scoped live-diff verification, and rollback-on-verification-failure remain unchanged. Durability rollback refuses to overwrite bytes it no longer owns.
-- **Branch/PR disposition:** all eight visible branches, open issues, and recent PR history were inspected. The seven non-main branches remain historical/diverged, no open PR requires integration, and issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
-- **Visual updates:** none; workflow topology did not change, only the failure semantics of the existing guarded patch-write boundary became safer.
-- **Current limitations:** Python rollback cannot run after `SIGKILL`, host/interpreter failure, or power loss; a second directory-sync failure leaves durability uncertain; and there is no shared filesystem lock to eliminate the narrow race after the final ownership digest check.
-- **Next autonomous objective:** inspect the remaining overwrite-capable repository mutation and evidence writers for another confirmed post-publication durability ambiguity, prioritizing actual change/commit execution paths over new read-only commands; any fresh CI failure takes priority.
+- **Changed:** post-commit synchronization of reviewed paths no longer performs a check followed by an unlocked `git reset` against the live shared index. Forge resolves the active index, acquires Git's conventional `index.lock` with exclusive creation, rechecks reviewed entries while that lock is held, copies the exact shared index into the lock-backed index, performs the path-scoped reset there, fsyncs it, and atomically publishes it.
+- **Why:** the previous check-then-reset sequence left a concrete race in the real commit execution path: a user or another Git process could stage a reviewed path after Forge's final comparison but before `git reset`, and Forge could overwrite that newer staging state.
+- **Validation:** deterministic tests cover preservation of a pre-existing caller-owned `index.lock` and a competing reviewed-path staging change immediately before lock acquisition. The final pushed head is required to pass the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is marked complete.
+- **Safety:** verified commit creation remains confirmation-gated and isolated through a private temporary index. Forge never removes a lock it did not create; lock contention or reviewed-entry drift marks the created commit `created_unverified` and leaves caller staging untouched.
+- **Branch/PR disposition:** all eight visible branches, open issues, and recent PR history were inspected. Seven non-main branches remain historical/diverged, there are no open PRs, and issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
+- **Visual updates:** none; the maintenance workflow topology did not change, only concurrency safety at the verified-commit/shared-index boundary.
+- **Current limitations:** Git's lock protocol cannot stop a non-Git process that directly mutates `.git/index`; `HEAD` uses separate ref locking, so the existing post-synchronization HEAD recheck remains necessary; abrupt process/host failure can still leave a stale lock requiring normal Git recovery.
+- **Next autonomous objective:** inspect the verified commit/push handoff for another concrete caller-state or concurrency defect, prioritizing real execution-path correctness over new review-only surfaces; any fresh CI failure takes priority.
