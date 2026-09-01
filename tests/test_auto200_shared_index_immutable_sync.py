@@ -18,11 +18,15 @@ def test_shared_index_sync_uses_immutable_created_commit_and_rechecks_head(tmp_p
     created = "a" * 40
     calls: list[list[str]] = []
     heads = iter([created, created])
+    index_path = tmp_path / "index"
+    index_path.write_bytes(b"shared-index")
 
     def runner(command, **kwargs):
         calls.append(command)
         if command[-2:] == ["rev-parse", "HEAD"]:
             return SimpleNamespace(returncode=0, stdout=next(heads) + "\n", stderr="")
+        if command[-3:] == ["rev-parse", "--git-path", "index"]:
+            return SimpleNamespace(returncode=0, stdout=str(index_path) + "\n", stderr="")
         if "ls-files" in command:
             return SimpleNamespace(returncode=0, stdout="unchanged", stderr="")
         if "reset" in command:
@@ -53,6 +57,8 @@ def test_shared_index_sync_uses_immutable_created_commit_and_rechecks_head(tmp_p
     assert report["shared_index_sync_head_after"] == created
     assert report["shared_index_sync_status"] == "reviewed_paths_synchronized"
     assert report["commit_verified"] is True
+    assert index_path.exists()
+    assert not Path(str(index_path) + ".lock").exists()
 
 
 def test_shared_index_sync_reports_head_move_during_immutable_sync(tmp_path: Path):
@@ -60,10 +66,14 @@ def test_shared_index_sync_reports_head_move_during_immutable_sync(tmp_path: Pat
     moved = "b" * 40
     heads = iter([created, moved])
     reset_commands: list[list[str]] = []
+    index_path = tmp_path / "index"
+    index_path.write_bytes(b"shared-index")
 
     def runner(command, **kwargs):
         if command[-2:] == ["rev-parse", "HEAD"]:
             return SimpleNamespace(returncode=0, stdout=next(heads) + "\n", stderr="")
+        if command[-3:] == ["rev-parse", "--git-path", "index"]:
+            return SimpleNamespace(returncode=0, stdout=str(index_path) + "\n", stderr="")
         if "ls-files" in command:
             return SimpleNamespace(returncode=0, stdout="unchanged", stderr="")
         if "reset" in command:
@@ -95,3 +105,5 @@ def test_shared_index_sync_reports_head_move_during_immutable_sync(tmp_path: Pat
     assert report["shared_index_sync_head_after"] == moved
     assert report["shared_index_sync_status"] == "synchronized_head_drift_detected"
     assert "repository HEAD moved during shared Git index synchronization" in report["commit_blockers"][-1]
+    assert index_path.exists()
+    assert not Path(str(index_path) + ".lock").exists()
