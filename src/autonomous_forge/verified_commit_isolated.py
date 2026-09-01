@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -107,6 +108,96 @@ def _capture_shared_head(*, root: Path, runner: Runner) -> str:
     return observed.stdout.strip()
 
 
+def _shared_index_path(*, root: Path, runner: Runner) -> Path:
+    """Resolve the repository's active shared index path, including linked worktrees."""
+    observed = runner(
+        ["git", "-C", str(root.resolve()), "rev-parse", "--git-path", "index"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if observed.returncode != 0:
+        stderr = "" if observed.stderr is None else str(observed.stderr).strip()
+        raise VerifiedCommitCreateError(
+            f"could not resolve shared Git index path: {stderr or 'unknown error'}"
+        )
+    if not isinstance(observed.stdout, str) or not observed.stdout.strip():
+        raise VerifiedCommitCreateError("git rev-parse returned unsupported shared-index path output")
+    path = Path(observed.stdout.strip())
+    if not path.is_absolute():
+        path = root.resolve() / path
+    return path.resolve()
+
+
+def _synchronize_shared_index_under_lock(
+    *,
+    root: Path,
+    reviewed_paths: list[str],
+    before_entries: str,
+    created_commit: str,
+    runner: Runner,
+) -> tuple[bool, str]:
+    """Synchronize reviewed entries while holding Git's conventional index lock."""
+    index_path = _shared_index_path(root=root, runner=runner)
+    if not index_path.is_file():
+        return False, "shared Git index is missing or is not a regular file"
+    lock_path = Path(str(index_path) + ".lock")
+    mode = index_path.stat().st_mode & 0o777
+    fd: int | None = None
+    published = False
+    try:
+        try:
+            fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        except FileExistsError:
+            return False, "shared Git index is locked; refusing to overwrite concurrent staging state"
+
+        # Once index.lock exists, well-behaved Git writers cannot replace the shared
+        # index. Recheck the reviewed entries while that exclusion is active.
+        after_entries = _capture_shared_index_entries(
+            root=root,
+            reviewed_paths=reviewed_paths,
+            runner=runner,
+        )
+        if after_entries != before_entries:
+            return False, (
+                "shared Git index entries for reviewed paths changed during isolated commit creation; "
+                "refusing automatic index synchronization"
+            )
+
+        with os.fdopen(fd, "wb") as locked_handle, index_path.open("rb") as shared_handle:
+            fd = None
+            shutil.copyfileobj(shared_handle, locked_handle, length=1024 * 1024)
+            locked_handle.flush()
+            os.fsync(locked_handle.fileno())
+
+        locked_runner = _isolated_runner(runner, index_path=lock_path)
+        synchronized = locked_runner(
+            ["git", "-C", str(root.resolve()), "reset", "--quiet", created_commit, "--", *reviewed_paths],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if synchronized.returncode != 0:
+            stderr = "" if synchronized.stderr is None else str(synchronized.stderr).strip()
+            return False, f"shared Git index synchronization failed: {stderr or 'unknown error'}"
+
+        with lock_path.open("rb") as locked_handle:
+            os.fsync(locked_handle.fileno())
+        os.replace(lock_path, index_path)
+        published = True
+        return True, ""
+    except OSError as exc:
+        return False, f"shared Git index synchronization failed safely: {exc}"
+    finally:
+        if fd is not None:
+            os.close(fd)
+        if not published:
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def _synchronize_shared_index_after_verified_commit(
     *,
     root: Path,
@@ -144,34 +235,27 @@ def _synchronize_shared_index_after_verified_commit(
         report["shared_index_sync_status"] = "blocked_head_drift"
         return
 
-    after_entries = _capture_shared_index_entries(
-        root=root,
-        reviewed_paths=reviewed_paths,
-        runner=runner,
-    )
-    if after_entries != before_entries:
+    try:
+        synchronized, sync_error = _synchronize_shared_index_under_lock(
+            root=root,
+            reviewed_paths=reviewed_paths,
+            before_entries=before_entries,
+            created_commit=created_commit,
+            runner=runner,
+        )
+    except VerifiedCommitCreateError as exc:
+        synchronized, sync_error = False, str(exc)
+    if not synchronized:
         report["commit_status"] = "created_unverified"
         report["commit_verified"] = False
-        report.setdefault("commit_blockers", []).append(
-            "shared Git index entries for reviewed paths changed during isolated commit creation; refusing automatic index synchronization"
+        report.setdefault("commit_blockers", []).append(sync_error)
+        report["shared_index_sync_status"] = (
+            "blocked_index_locked"
+            if "index is locked" in sync_error
+            else "blocked_concurrent_change"
+            if "entries for reviewed paths changed" in sync_error
+            else "failed"
         )
-        report["shared_index_sync_status"] = "blocked_concurrent_change"
-        return
-
-    synchronized = runner(
-        ["git", "-C", str(root.resolve()), "reset", "--quiet", created_commit, "--", *reviewed_paths],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if synchronized.returncode != 0:
-        stderr = "" if synchronized.stderr is None else str(synchronized.stderr).strip()
-        report["commit_status"] = "created_unverified"
-        report["commit_verified"] = False
-        report.setdefault("commit_blockers", []).append(
-            f"created commit was verified but shared Git index synchronization failed: {stderr or 'unknown error'}"
-        )
-        report["shared_index_sync_status"] = "failed"
         return
 
     try:
