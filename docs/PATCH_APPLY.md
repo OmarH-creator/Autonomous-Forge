@@ -16,7 +16,11 @@ The command is deliberately narrow:
 
 Confirmed writes are prepared in a same-directory temporary file. Forge preserves the target's permission mode, flushes and `fsync`s the complete replacement, then uses `os.replace` to atomically switch the target path to the prepared file and `fsync`s the containing directory.
 
-This prevents an interrupted write from exposing a partially truncated working file. If replacement fails before `os.replace`, the original target remains intact and the temporary file is cleaned up. If the atomic replacement succeeds but the parent-directory durability sync fails, Forge reports that the replacement has already occurred and requires inspection before retrying instead of falsely claiming the original file survived.
+This prevents an interrupted write from exposing a partially truncated working file. If replacement fails before `os.replace`, the original target remains intact and the temporary file is cleaned up.
+
+If `os.replace` succeeds but the following parent-directory durability sync fails, Forge now performs ownership-checked recovery. It retains the exact pre-write bytes and mode, SHA-256 binds the replacement bytes, and restores the original content only while the current target still matches this invocation's replacement digest. The rollback copy is written in the same directory, flushed and `fsync`ed, ownership is checked again immediately before the rollback `os.replace`, and the directory is synced after restoration. If another writer changes the target during the failure window, Forge preserves those changed bytes instead of overwriting them.
+
+This recovery is deliberately conservative rather than transactional. Abrupt interpreter or host termination can prevent rollback, a second directory-sync failure leaves durability uncertain, and without a shared filesystem lock there remains a small race after the final ownership check.
 
 ## Optional live-diff verification
 
