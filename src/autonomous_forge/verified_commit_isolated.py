@@ -144,10 +144,12 @@ def _synchronize_shared_index_under_lock(
     lock_path = Path(str(index_path) + ".lock")
     mode = index_path.stat().st_mode & 0o777
     fd: int | None = None
+    lock_owned = False
     published = False
     try:
         try:
             fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+            lock_owned = True
         except FileExistsError:
             return False, "shared Git index is locked; refusing to overwrite concurrent staging state"
 
@@ -191,7 +193,7 @@ def _synchronize_shared_index_under_lock(
     finally:
         if fd is not None:
             os.close(fd)
-        if not published:
+        if lock_owned and not published:
             try:
                 lock_path.unlink()
             except FileNotFoundError:
