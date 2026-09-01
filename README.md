@@ -52,6 +52,7 @@ Recent preservation hardening includes:
 - archive copy/package verification hashes content incrementally and rejects byte-count or digest drift;
 - archive manifests and archive packages are immediately reverified after publication;
 - failed or Python-interrupted verification rolls back only bytes still owned by the current invocation;
+- archive-manifest publication now also performs ownership-checked rollback when parent-directory durability sync fails after the no-clobber hard link succeeds;
 - archive-package and archive-copy publication perform ownership-checked rollback when parent-directory durability sync fails after publication;
 - immutable validation-result sidecar publication applies the same ownership-checked rollback rule when its parent-directory durability sync fails;
 - the historical in-place validation-result writer restores the exact original run-history bytes when its post-replacement directory sync fails, but only while the current record still matches this invocation's replacement digest;
@@ -62,7 +63,7 @@ Recent preservation hardening includes:
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, and `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md` for the current write-integrity boundaries.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, and `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md` for the current write-integrity boundaries.
 
 ## Testing and CI
 
@@ -101,13 +102,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-246 — preservation receipt publication durability rollback**.
+Latest stewardship run: **AUTO-247 — archive manifest publication durability rollback**.
 
-- **Changed:** immutable preservation-receipt publication now SHA-256 binds the exact serialized receipt before no-clobber hard-link publication. If the following parent-directory `fsync` fails, Forge removes the destination only while those bytes still match this invocation, then syncs the directory again. The post-publication source-drift cleanup path uses the same ownership check.
-- **Why:** the previous writer could report persistence failure after the final receipt had already been published, leaving ambiguous preservation evidence. AUTO-246 closes that concrete write-integrity gap without adding a command or weakening confirmation/source-binding gates.
-- **Validation:** deterministic regression tests cover rollback after a synthetic post-publication directory-sync failure and preservation of a destination changed by another writer during that failure window. The pushed head is checked through the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is reported complete.
-- **Safety:** explicit write confirmation, repository confinement, `.json` enforcement, source-completeness rechecks, no-clobber publication, and same-directory temporary-file durability remain unchanged. Rollback is ownership-checked and refuses to delete changed bytes.
+- **Changed:** the core archive-manifest no-clobber writer now SHA-256 binds the exact serialized manifest before hard-link publication. If the following parent-directory `fsync` fails, Forge removes the destination only while its bytes still match this invocation, then durability-syncs the directory again. A destination changed during the failure window is preserved instead of being deleted.
+- **Why:** the previous writer could report persistence failure after the final manifest path had already been created, leaving ambiguous authoritative preservation evidence. AUTO-247 closes that concrete end-to-end write-integrity gap rather than adding another review-only command.
+- **Validation:** deterministic regression tests cover rollback after a synthetic post-publication directory-sync failure and preservation of a destination changed by another writer during that failure window. The pushed final head is checked through the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is reported complete.
+- **Safety:** explicit write confirmation, repository confinement, ready-manifest gating, no-clobber hard-link publication, same-directory temporary-file durability, and immediate post-publication manifest verification remain unchanged. Rollback is ownership-checked and refuses to delete changed bytes.
 - **Branch/PR disposition:** all eight visible branches and current PR/issue history were inspected. The seven non-main branches remain historical/diverged, no open PR requires integration, and open issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
-- **Visual updates:** none; workflow topology did not change, only the durability semantics of an existing evidence-write boundary became safer.
+- **Visual updates:** none; workflow topology did not change, only the durability semantics of an existing archive-manifest write boundary became safer.
 - **Current limitations:** Python cleanup cannot run after `SIGKILL`, host/interpreter failure, or power loss; a second directory-sync failure leaves durability uncertain; and there is still no shared filesystem lock to eliminate the narrow race after the final ownership digest check.
-- **Next autonomous objective:** inspect the remaining durable evidence writers for another confirmed post-publication durability ambiguity, prioritizing authoritative maintenance evidence over new read-only commands; any fresh CI failure takes priority.
+- **Next autonomous objective:** inspect the remaining durable evidence writers for another confirmed post-publication durability ambiguity, prioritizing authoritative maintenance evidence; any fresh CI failure takes priority.
