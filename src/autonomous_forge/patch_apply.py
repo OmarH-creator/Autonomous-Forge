@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import os
 import tempfile
@@ -72,12 +73,73 @@ def _read_bounded_text(path: Path, *, kind: str) -> str:
     return text
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sync_directory(path: Path) -> None:
+    dir_fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)
+
+
+def _restore_original_after_failed_directory_sync(
+    target: Path,
+    *,
+    replacement_sha256: str,
+    original_bytes: bytes,
+    target_mode: int,
+) -> bool:
+    """Restore prior bytes only while the target is still this invocation's replacement."""
+    try:
+        if _sha256_file(target) != replacement_sha256:
+            return False
+    except FileNotFoundError:
+        return False
+
+    rollback_path: Path | None = None
+    try:
+        fd, rollback_name = tempfile.mkstemp(
+            prefix=f".{target.name}.forge-rollback-",
+            suffix=".tmp",
+            dir=target.parent,
+        )
+        rollback_path = Path(rollback_name)
+        os.chmod(rollback_path, target_mode)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(original_bytes)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        if _sha256_file(target) != replacement_sha256:
+            return False
+        os.replace(rollback_path, target)
+        rollback_path = None
+        _sync_directory(target.parent)
+        return True
+    finally:
+        if rollback_path is not None:
+            try:
+                rollback_path.unlink()
+            except FileNotFoundError:
+                pass
+
+
 def _replace_target_atomically(target: Path, text: str, *, expected_current_text: str | None = None) -> None:
     """Atomically replace one target, optionally refusing stale target contents."""
     temp_path: Path | None = None
     replaced = False
+    original_bytes = target.read_bytes()
+    target_mode = target.stat().st_mode & 0o7777
+    replacement_bytes = text.encode("utf-8")
+    replacement_sha256 = hashlib.sha256(replacement_bytes).hexdigest()
     try:
-        target_mode = target.stat().st_mode & 0o7777
         fd, temp_name = tempfile.mkstemp(
             prefix=f".{target.name}.forge-",
             suffix=".tmp",
@@ -85,8 +147,8 @@ def _replace_target_atomically(target: Path, text: str, *, expected_current_text
         )
         temp_path = Path(temp_name)
         os.chmod(temp_path, target_mode)
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-            handle.write(text)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(replacement_bytes)
             handle.flush()
             os.fsync(handle.fileno())
 
@@ -99,17 +161,30 @@ def _replace_target_atomically(target: Path, text: str, *, expected_current_text
                 raise PatchApplyError("target changed after patch evidence was prepared; refusing to overwrite concurrent edits")
 
         os.replace(temp_path, target)
+        temp_path = None
         replaced = True
-
-        dir_fd = os.open(target.parent, os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
+        _sync_directory(target.parent)
     except OSError as exc:
         if replaced:
+            try:
+                restored = _restore_original_after_failed_directory_sync(
+                    target,
+                    replacement_sha256=replacement_sha256,
+                    original_bytes=original_bytes,
+                    target_mode=target_mode,
+                )
+            except OSError as rollback_exc:
+                raise PatchApplyError(
+                    "target replacement completed but directory durability sync failed and ownership-checked rollback failed; "
+                    f"inspect target before retrying: publication={exc}; rollback={rollback_exc}"
+                ) from exc
+            if restored:
+                raise PatchApplyError(
+                    "target replacement directory durability sync failed; original content restored: "
+                    f"{exc}"
+                ) from exc
             raise PatchApplyError(
-                "target replacement completed but directory durability sync failed; inspect target before retrying: "
+                "target replacement directory durability sync failed and target changed before rollback; changed bytes preserved: "
                 f"{exc}"
             ) from exc
         raise PatchApplyError(f"atomic target replacement failed before publication: {exc}") from exc
