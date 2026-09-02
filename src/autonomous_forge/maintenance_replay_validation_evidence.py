@@ -63,12 +63,12 @@ def _attachment_fingerprint(root: Path, label: str) -> tuple[str, int]:
         raise MaintenanceEvidenceBundleError("validation attachment path escaped repository root") from exc
     if not candidate.is_file():
         raise MaintenanceEvidenceBundleError("validation attachment path must be a regular file")
-    size = candidate.stat().st_size
-    if size > _MAX_ATTACHMENT_BYTES:
+    with candidate.open("rb") as handle:
+        raw = handle.read(_MAX_ATTACHMENT_BYTES + 1)
+    if len(raw) > _MAX_ATTACHMENT_BYTES:
         raise MaintenanceEvidenceBundleError(
             f"validation attachment exceeds {_MAX_ATTACHMENT_BYTES} byte replay provenance limit"
         )
-    raw = candidate.read_bytes()
     return hashlib.sha256(raw).hexdigest(), len(raw)
 
 
