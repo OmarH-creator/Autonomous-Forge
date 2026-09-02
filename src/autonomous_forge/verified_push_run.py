@@ -263,3 +263,42 @@ def build_verified_push_run_data(
         "post_push_verified" if post_push.get("post_push_verified") is True else "pushed_unverified"
     )
     return data
+
+
+def read_verified_push_run(
+    change_evidence_path: Path,
+    commit_trust_path: Path,
+    status_review_path: Path | None,
+    branch_protection_path: Path,
+    *,
+    root: Path = Path("."),
+    branch: str = "main",
+    remote: str = "origin",
+    confirm_push: bool = False,
+    fetch_after_push: bool = False,
+    live_status: bool = False,
+    git_runner: GitRunner = _run_git,
+) -> dict[str, Any]:
+    """Read bounded evidence, optionally collect fresh workflow status, then run guarded push orchestration."""
+    change_evidence = _read_json(change_evidence_path, root=root, label="verified change evidence")
+    if live_status:
+        if status_review_path is not None:
+            raise VerifiedPushRunError("live status collection and supplied status-review evidence are mutually exclusive")
+        status_review = _collect_live_status_review(change_evidence, root=root)
+    else:
+        if status_review_path is None:
+            raise VerifiedPushRunError("status-review evidence is required unless live status collection is selected")
+        status_review = _read_json(status_review_path, root=root, label="status review")
+
+    return build_verified_push_run_data(
+        change_evidence,
+        _read_json(commit_trust_path, root=root, label="commit trust"),
+        status_review,
+        _read_json(branch_protection_path, root=root, label="branch protection"),
+        root=root,
+        branch=branch,
+        remote=remote,
+        confirm_push=confirm_push,
+        fetch_after_push=fetch_after_push,
+        git_runner=git_runner,
+    )
