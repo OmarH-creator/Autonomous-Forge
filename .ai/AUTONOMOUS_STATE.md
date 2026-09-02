@@ -2,15 +2,15 @@
 
 - Current roadmap version: v3
 - Current task ID: AUTO-253 — Bind maintenance bundle source snapshots
-- Current task status: IN PROGRESS
+- Current task status: DONE
 - Current branch: main
-- Last run timestamp: 2026-09-02T15:20:00Z
+- Last run timestamp: 2026-09-02T15:25:00Z
 - Latest run summary: The legacy maintenance evidence bundle reader now reads each repository-local source report through one bounded binary snapshot, rejects anything above the 1,000,000-byte review limit before UTF-8/JSON parsing, and derives both retained byte count and SHA-256 from the exact bytes that are parsed. This closes the separate hash/read race identified by AUTO-252.
 - Safety: Existing repository confinement, symlink rejection, `.json` and expected-title validation, bundle consistency checks, explicit persistence confirmations, downstream durable-write safeguards, non-force push behavior, and post-push verification remain unchanged. No new network access, external command authority, remote change, workflow change, telemetry, secret handling, or branch-protection change was added.
 - Repository assessment: Started from AUTO-252 head `eee652c34d4f2ea16788c06985f1d65645e6b2e8`. Inspected README/docs/examples, source/tests/config/CI inventory, `.forge/policy.md`, autonomous plan/state/changelog/decisions, recent commits and Actions, all eight visible branches, open issues, TODO-oriented source search, and PR history. The requested policy-aware `forge plan` milestone and guarded end-to-end maintenance chain are already shipped. Seven non-main branches remain historical/diverged; there are no open PRs. Issues #1, #6, and #9 remain broader product/discussion requests rather than blockers.
 - Branch and PR disposition: Work stayed directly on `main`; no branch, PR, merge, force-push, remote change, workflow change, or protection change was used. Historical branch/PR work was not integrated because current `main` supersedes the relevant capabilities and no open PR is ready for merge.
-- Validation: Deterministic AUTO-253 tests cover exact-snapshot byte-count/SHA binding, oversized input rejection, and invalid UTF-8. The final pushed head must pass package installation, source compilation, installed CLI smoke testing, roadmap validation, and full pytest on Python 3.10, 3.11, and 3.12 before this task is marked DONE.
-- Current blockers: None known before final CI.
+- Validation: Deterministic AUTO-253 tests cover exact-snapshot byte-count/SHA binding, oversized input rejection, and invalid UTF-8. GitHub Actions run `33646512662` on head `f194036b510fe9d5e92ebc3ba35bff1599940c03` passed package installation, source compilation, installed CLI smoke testing, roadmap validation, and the full pytest suite on Python 3.10, 3.11, and 3.12. This final state-only commit requires the same workflow to remain green on the exact final head.
+- Current blockers: None.
 - Known risks and assumptions: Single-snapshot ingestion binds the retained source metadata to exactly the bytes parsed, but it does not make the source report immutable or authenticate its author. A source can still change after its snapshot; the retained digest enables later continuity checks to detect drift.
 - Visuals: None; workflow topology did not change.
 - Project-memory note: `src/autonomous_forge/maintenance_evidence_bundle.py`, `tests/test_maintenance_evidence_bundle_bounded_snapshot.py`, `docs/MAINTENANCE_BUNDLE_SOURCE_SNAPSHOT_BINDING.md`, README, this state file, and `.ai/AUTO-253.md` carry the run record. `AUTONOMOUS_PLAN.md`, changelog, and decisions were inspected; the roadmap direction remains the same end-to-end maintenance-integrity milestone, so no architectural or priority rewrite was warranted.
