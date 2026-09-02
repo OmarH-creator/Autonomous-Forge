@@ -46,6 +46,8 @@ Verified push-run evidence ingestion is bounded at the actual file read: Forge r
 
 Verified maintenance evidence ingestion now applies the same bound at the post-push-to-durable-history boundary. The reader hashes and records the byte count from the exact bounded byte snapshot that it parses, so a pre-read file-size observation cannot diverge from the evidence bytes retained in source metadata.
 
+The legacy maintenance evidence bundle reader now uses the same exact-snapshot rule for all five source reports. Each report is read once through a bounded binary snapshot, and its parsed JSON, byte count, and SHA-256 are derived from those same bytes rather than separate filesystem reads.
+
 Executor handoff persistence keeps observed executor output reviewable before it becomes durable validation history. The reviewed executor-run JSON must stay inside the repository, be a real `.json` file, and is read through a strict 1,000,000-byte bound before UTF-8 and JSON parsing so the persistence bridge cannot consume an unbounded input file.
 
 ## Evidence and preservation
@@ -71,7 +73,7 @@ Recent preservation hardening includes:
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, `docs/PATCH_APPLY.md`, `docs/VERIFIED_COMMIT_SHARED_INDEX_LOCKING.md`, `docs/PUSH_HANDOFF_PRE_EXECUTION_REVALIDATION.md`, `docs/VERIFIED_PUSH_BOUNDED_JSON_INPUT.md`, and `docs/VERIFIED_MAINTENANCE_BOUNDED_INPUT.md` for the current write- and execution-integrity boundaries.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, `docs/PATCH_APPLY.md`, `docs/VERIFIED_COMMIT_SHARED_INDEX_LOCKING.md`, `docs/PUSH_HANDOFF_PRE_EXECUTION_REVALIDATION.md`, `docs/VERIFIED_PUSH_BOUNDED_JSON_INPUT.md`, `docs/VERIFIED_MAINTENANCE_BOUNDED_INPUT.md`, and `docs/MAINTENANCE_BUNDLE_SOURCE_SNAPSHOT_BINDING.md` for the current write- and execution-integrity boundaries.
 
 ## Testing and CI
 
@@ -81,7 +83,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded verified-push and verified-maintenance evidence input, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, shared-index lock-aware synchronization, immediate pre-push local-state revalidation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded verified-push and verified-maintenance evidence input, bounded maintenance-bundle source snapshots, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, shared-index lock-aware synchronization, immediate pre-push local-state revalidation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
 
 Important limitations remain:
 
@@ -112,13 +114,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-252 — bounded post-push maintenance evidence ingestion**.
+Latest stewardship run: **AUTO-253 — maintenance bundle source snapshot binding**.
 
-- **Changed:** the repository-local reader used by `forge verified-maintenance-run` now performs one bounded binary read of at most 1,000,001 bytes and derives both the retained byte count and SHA-256 digest from the exact byte snapshot that is parsed.
-- **Why:** the prior implementation checked `stat().st_size`, then performed an unbounded `read_bytes()`, and retained the earlier stat size beside a digest of the later bytes. A concurrently growing evidence file could therefore bypass the intended 1,000,000-byte limit and make durable source metadata internally inconsistent.
+- **Changed:** the legacy `maintenance_evidence_bundle` reader now reads each patch-apply, post-apply-validation, commit-verify, push-handoff, and post-push-verify report once through a bounded binary snapshot. JSON parsing, retained byte count, and SHA-256 are derived from the exact same bytes.
+- **Why:** the previous implementation recorded `stat()` size and a SHA-256 from one read, then parsed the same source through another read. A concurrent mutation could therefore make the durable source metadata describe different bytes from the JSON that entered the evidence chain.
 - **Validation:** deterministic tests cover exact-snapshot byte-count/SHA binding, oversized-input refusal, and invalid UTF-8. The final pushed head must pass the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is marked complete.
-- **Safety:** repository confinement, symlink and `.json` checks, expected-title validation, provenance and commit/path consistency checks, explicit persistence confirmations, and downstream durable-write safeguards remain unchanged. No new network, command, push, remote, workflow, or branch-protection authority was added.
-- **Branch/PR disposition:** all eight visible branches, open issues, and recent PR history were inspected. Seven non-main branches remain historical/diverged, there are no open PRs, and issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
-- **Visual updates:** none; workflow topology did not change, only the evidence-ingestion semantics at an existing post-push-to-history boundary.
-- **Current limitations:** bounded single-snapshot reading prevents this reader from accepting more than the configured evidence limit and keeps its digest/byte count consistent with parsed bytes, but it does not make the source file immutable or authenticate its author.
-- **Next autonomous objective:** fix the separate maintenance-bundle legacy reader/hash split if inspection confirms it still hashes and parses the same source report in different filesystem reads; any fresh CI failure takes priority.
+- **Safety:** repository confinement, symlink and `.json` checks, expected-title validation, evidence-chain consistency checks, explicit persistence confirmations, and downstream durable-write safeguards remain unchanged. No new command, network, push, remote, workflow, or branch-protection authority was added.
+- **Branch/PR disposition:** all eight visible branches, open issues, and PR history were inspected. Seven non-main branches remain historical/diverged, there are no open PRs, and issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
+- **Visual updates:** none; workflow topology did not change, only source-ingestion identity semantics at an existing durable-evidence boundary.
+- **Current limitations:** single-snapshot ingestion binds retained metadata to exactly the bytes parsed, but it does not make source files immutable or authenticate their author. A source can still change after the snapshot, with later digest checks responsible for detecting drift.
+- **Next autonomous objective:** inspect remaining evidence/history readers for an equivalent split-read identity gap or address any fresh CI failure first, continuing to prioritize real execution and durable-history correctness.
