@@ -13,8 +13,10 @@ _SAFE_BOUNDARY = (
     "Push-handoff consumes branch-protection-aware push-readiness JSON evidence, checks local git branch "
     "and remote refs, confirms the requested update is fast-forward-only, and only runs "
     "`git push <remote> <commit>:refs/heads/<branch>` after explicit confirmation. "
-    "It never force-pushes, pushes tags, changes remotes, changes branch protections, stages files, "
-    "creates commits, reads environment variables, or uses shell execution."
+    "Immediately before a confirmed push it rechecks the local branch, HEAD, upstream, and remote-tracking "
+    "ref and repeats the fast-forward check when that ref moved. It never force-pushes, pushes tags, "
+    "changes remotes, changes branch protections, stages files, creates commits, reads environment variables, "
+    "or uses shell execution."
 )
 _BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 _COMMIT_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
@@ -232,6 +234,7 @@ def build_push_handoff_data(
     upstream_ref = ""
     remote_sha = ""
     fast_forward_checked = False
+    pre_push_revalidated = False
     push_command = ["git", "push", remote, f"{verified_commit}:refs/heads/{branch}"] if verified_commit else []
 
     try:
@@ -265,15 +268,40 @@ def build_push_handoff_data(
     push_error = ""
     if handoff_status == "ready" and confirm_push:
         try:
-            git_runner(["push", remote, f"{verified_commit}:refs/heads/{branch}"], root)
-            pushed = True
-            handoff_status = "pushed"
+            current_branch = git_runner(["branch", "--show-current"], root)
+            current_head = git_runner(["rev-parse", "HEAD"], root)
+            current_upstream = git_runner(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], root)
+            current_remote_sha = git_runner(["rev-parse", "--verify", f"{remote}/{branch}"], root)
+            pre_push_revalidated = True
+            if current_branch != local_branch or current_branch != branch:
+                blockers.append("local branch changed after push handoff inspection")
+            if current_head != head_sha or current_head != verified_commit:
+                blockers.append("local HEAD changed after push handoff inspection")
+            if current_upstream != upstream_ref or current_upstream != f"{remote}/{branch}":
+                blockers.append("configured upstream changed after push handoff inspection")
+            if current_remote_sha != remote_sha:
+                if current_remote_sha == verified_commit:
+                    blockers.append("verified commit became present on the requested remote branch before push")
+                elif current_remote_sha and verified_commit:
+                    try:
+                        git_runner(["merge-base", "--is-ancestor", current_remote_sha, verified_commit], root)
+                    except subprocess.CalledProcessError:
+                        blockers.append("updated remote-tracking ref is not an ancestor of verified commit")
+                    except OSError as exc:
+                        blockers.append(f"updated fast-forward inspection failed: {exc}")
+            if blockers:
+                handoff_status = "blocked"
+            else:
+                remote_sha = current_remote_sha
+                git_runner(["push", remote, f"{verified_commit}:refs/heads/{branch}"], root)
+                pushed = True
+                handoff_status = "pushed"
         except subprocess.CalledProcessError as exc:
-            push_error = f"git push failed: {' '.join(exc.cmd)}"
+            push_error = f"git push preflight or push failed: {' '.join(exc.cmd)}"
             blockers.append(push_error)
             handoff_status = "blocked"
         except OSError as exc:
-            push_error = f"git push failed: {exc}"
+            push_error = f"git push preflight or push failed: {exc}"
             blockers.append(push_error)
             handoff_status = "blocked"
 
@@ -295,6 +323,7 @@ def build_push_handoff_data(
         "upstream_ref": upstream_ref,
         "remote_sha": remote_sha,
         "fast_forward_checked": fast_forward_checked,
+        "pre_push_revalidated": pre_push_revalidated,
         "push_command": push_command,
         "push_confirmed": confirm_push,
         "push_executed": pushed,
@@ -309,6 +338,7 @@ def build_push_handoff_data(
             "blockers": len(blockers),
             "push_executed": pushed,
             "fast_forward_checked": fast_forward_checked,
+            "pre_push_revalidated": pre_push_revalidated,
         },
         "push_handoff_blockers": blockers,
         "next_step": (
@@ -339,6 +369,7 @@ def format_push_handoff(data: dict[str, Any]) -> str:
         f"Upstream: {data['upstream_ref'] or 'none'}",
         f"Remote SHA: {data['remote_sha'] or 'none'}",
         f"Fast-forward checked: {str(data['fast_forward_checked']).lower()}",
+        f"Pre-push revalidated: {str(data['pre_push_revalidated']).lower()}",
         f"Push confirmed: {str(data['push_confirmed']).lower()}",
         f"Push executed: {str(data['push_executed']).lower()}",
         f"Force push allowed: {str(data['force_push_allowed']).lower()}",
