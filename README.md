@@ -42,6 +42,8 @@ Verified commit creation isolates staging through a private temporary Git index,
 
 Confirmed push handoff now also revalidates the local branch, `HEAD`, configured upstream, and remote-tracking branch immediately before executing the non-force push. Branch/HEAD/upstream drift blocks execution, and a moved remote-tracking ref triggers a fresh fast-forward ancestry check before the push can proceed.
 
+Verified push-run evidence ingestion is bounded at the actual file read: Forge reads at most 1,000,001 bytes, rejects anything beyond the 1,000,000-byte review limit before UTF-8/JSON parsing, and no longer relies on a pre-read `stat()` that a concurrently growing file could race.
+
 Executor handoff persistence keeps observed executor output reviewable before it becomes durable validation history. The reviewed executor-run JSON must stay inside the repository, be a real `.json` file, and is read through a strict 1,000,000-byte bound before UTF-8 and JSON parsing so the persistence bridge cannot consume an unbounded input file.
 
 ## Evidence and preservation
@@ -67,7 +69,7 @@ Recent preservation hardening includes:
 - preservation-receipt verification and discovery use bounded input/candidate limits and remain informational rather than readiness gates;
 - externally supplied validation sidecars remain advisory provenance and are never promoted into executor-produced validation authority.
 
-See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, `docs/PATCH_APPLY.md`, `docs/VERIFIED_COMMIT_SHARED_INDEX_LOCKING.md`, and `docs/PUSH_HANDOFF_PRE_EXECUTION_REVALIDATION.md` for the current write-integrity boundaries.
+See `docs/EXECUTOR_HANDOFF_PERSISTENCE.md`, `docs/RUN_HISTORY_WRITES.md`, `docs/ARCHIVE_MANIFEST_DURABILITY_ROLLBACK.md`, `docs/PUSH_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/MAINTENANCE_EVIDENCE_DURABILITY_ROLLBACK.md`, `docs/PRESERVATION_RECEIPT_DURABILITY_ROLLBACK.md`, `docs/PATCH_APPLY.md`, `docs/VERIFIED_COMMIT_SHARED_INDEX_LOCKING.md`, `docs/PUSH_HANDOFF_PRE_EXECUTION_REVALIDATION.md`, and `docs/VERIFIED_PUSH_BOUNDED_JSON_INPUT.md` for the current write- and execution-integrity boundaries.
 
 ## Testing and CI
 
@@ -77,7 +79,7 @@ There is still no dedicated lint, type-check, coverage, or release workflow, and
 
 ## Safety boundary
 
-Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, shared-index lock-aware synchronization, immediate pre-push local-state revalidation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
+Important controls include repository path/symlink containment, policy-aware path checks, explicit confirmations for side effects, bounded local subprocesses, bounded verified-push and executor-handoff input, stale-target refusal, SHA-256 evidence binding, private-index commit isolation, shared-index lock-aware synchronization, immediate pre-push local-state revalidation, fast-forward-only non-force push behavior, post-push verification, no-clobber durable publication, bounded-memory archive hashing, and ownership-checked rollback of newly published or replaced evidence and guarded patch targets.
 
 Important limitations remain:
 
@@ -108,13 +110,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-250 — pre-execution push-state revalidation**.
+Latest stewardship run: **AUTO-251 — bounded verified-push evidence reads**.
 
-- **Changed:** a confirmed `forge push-handoff` now re-reads the local branch, `HEAD`, configured upstream, and requested remote-tracking branch immediately before `git push`. Branch, HEAD, or upstream drift blocks execution. If the remote-tracking ref moved, Forge repeats the fast-forward ancestry check against the new SHA before deciding whether a push is still eligible.
-- **Why:** the prior handoff performed these checks only during its initial review. A concurrent checkout/reset/upstream change/fetch could therefore make the later confirmed push rely on stale local assumptions even though the explicit verified-commit refspec still named the intended commit.
-- **Validation:** deterministic tests cover HEAD drift refusal, moved remote-tracking ref revalidation, and the unchanged-state happy path. The exact final pushed head must pass the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is marked complete.
-- **Safety:** the push remains explicit-confirmation-only, explicit-refspec, branch-policy-aware, shell-free, and non-force. No tag push, remote mutation, branch-protection change, staging, commit creation, or new network authority was added.
+- **Changed:** the repository-local JSON reader used by `forge verified-push-run` now reads at most 1,000,001 bytes and rejects any input beyond the 1,000,000-byte review limit before UTF-8 decoding or JSON parsing.
+- **Why:** the prior implementation checked `stat().st_size` and then called unbounded `read_text()`. A file that grew after the size check could therefore bypass the intended review bound and consume arbitrary memory in the real push/post-push orchestration path.
+- **Validation:** deterministic tests cover a valid bounded JSON object, an oversized input whose underlying reader is invoked exactly once with the sentinel limit, and invalid UTF-8. The final pushed head must pass the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is marked complete.
+- **Safety:** repository confinement, no-symlink handling, `.json` enforcement, UTF-8/JSON object validation, and all existing push confirmation/trust/status/protection gates remain unchanged. No new network, command, push, remote, workflow, or branch-protection authority was added.
 - **Branch/PR disposition:** all eight visible branches, open issues, and recent PR history were inspected. Seven non-main branches remain historical/diverged, there are no open PRs, and issues #1, #6, and #9 remain broader product/discussion requests rather than blockers for this repair.
-- **Visual updates:** none; the workflow topology did not change, only the concurrency/staleness guard at the confirmed push boundary.
-- **Current limitations:** remote-tracking refs may lag the server, so the ordinary non-force push remains the authoritative receive-side fast-forward check. A remote update can still race the final local revalidation and is resolved by Git's server-side ref update semantics.
-- **Next autonomous objective:** inspect post-push verification/evidence handoff for a concrete stale-state or identity-binding defect, prioritizing real execution correctness over new read-only surfaces; any fresh CI failure takes priority.
+- **Visual updates:** none; workflow topology did not change, only the bounded-input behavior at an existing execution boundary.
+- **Current limitations:** bounded reading prevents memory growth beyond the configured evidence-review limit but does not make an evidence file immutable; the existing provenance and commit-identity checks remain responsible for authority and consistency.
+- **Next autonomous objective:** continue through the post-push verification → durable-evidence handoff and inspect commit/remote identity binding for a concrete stale-state defect; any fresh CI failure takes priority.
