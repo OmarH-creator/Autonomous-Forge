@@ -114,10 +114,10 @@ def _read_json(path: Path, *, root: Path, label: str) -> tuple[dict[str, Any], d
         raise VerifiedMaintenanceProvenanceError(f"{label} input must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise VerifiedMaintenanceProvenanceError(f"{label} input must be a repository-local .json file")
-    size = resolved.stat().st_size
-    if size > _MAX_JSON_BYTES:
+    with resolved.open("rb") as handle:
+        raw = handle.read(_MAX_JSON_BYTES + 1)
+    if len(raw) > _MAX_JSON_BYTES:
         raise VerifiedMaintenanceProvenanceError(f"{label} input is too large for bounded review")
-    raw = resolved.read_bytes()
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -127,7 +127,7 @@ def _read_json(path: Path, *, root: Path, label: str) -> tuple[dict[str, Any], d
     return payload, {
         "path": str(path),
         "sha256": hashlib.sha256(raw).hexdigest(),
-        "bytes": size,
+        "bytes": len(raw),
     }
 
 
