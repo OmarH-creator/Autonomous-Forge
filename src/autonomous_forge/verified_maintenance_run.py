@@ -42,10 +42,14 @@ def _read_json(
         raise VerifiedMaintenanceRunError(f"{label} input must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise VerifiedMaintenanceRunError(f"{label} input must be a repository-local .json file")
-    size = resolved.stat().st_size
+    try:
+        with resolved.open("rb") as handle:
+            raw = handle.read(_MAX_JSON_BYTES + 1)
+    except OSError as exc:
+        raise VerifiedMaintenanceRunError(f"{label} input could not be read") from exc
+    size = len(raw)
     if size <= 0 or size > _MAX_JSON_BYTES:
         raise VerifiedMaintenanceRunError(f"{label} input has an invalid bounded size")
-    raw = resolved.read_bytes()
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
