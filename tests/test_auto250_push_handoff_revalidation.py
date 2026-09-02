@@ -1,7 +1,27 @@
 import subprocess
 
 from autonomous_forge.push_handoff import build_push_handoff_data
-from tests.test_push_handoff import READY_PUSH_READINESS
+
+
+READY_PUSH_READINESS = {
+    "title": "Autonomous Forge push readiness report",
+    "mode": "pre-push readiness gate",
+    "push_readiness_status": "ready",
+    "verified_commit": "abc1234",
+    "status_commit": "abc1234",
+    "branch_protection_status": "clear",
+    "protected_branch": "main",
+    "branch_status_checks_strict": True,
+    "required_status_contexts": ["test / py3.12"],
+    "observed_status_contexts": ["test / py3.12"],
+    "missing_required_status_contexts": [],
+    "reviewed_paths": ["README.md", "src/autonomous_forge/push_readiness.py"],
+    "status_summary": {"total": 1, "success": 1, "failure": 0, "pending": 0, "unknown": 0},
+    "push_ready": True,
+    "push_allowed": False,
+    "remote_changes_allowed": False,
+    "push_readiness_blockers": [],
+}
 
 
 def _stateful_runner(sequence, calls):
