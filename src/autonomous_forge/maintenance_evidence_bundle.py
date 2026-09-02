@@ -132,35 +132,40 @@ def _persist_text_no_clobber(target: Path, text: str, *, label: str) -> bool:
                 pass
 
 
-def _source_report_record(stage: str, path: Path, *, root: Path) -> dict[str, Any]:
-    resolved = _resolve_under_root(root, path, kind=stage)
-    size_bytes = resolved.stat().st_size
-    if size_bytes > _MAX_JSON_BYTES:
-        raise MaintenanceEvidenceBundleError(f"{stage} input is too large for bounded review")
-    digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
-    return {
-        "stage": stage.replace("-", "_"),
-        "path": str(path),
-        "sha256": digest,
-        "bytes": size_bytes,
-    }
-
-
-def _read_json(path: Path, *, root: Path, kind: str, expected_title: str) -> dict[str, Any]:
+def _read_json_snapshot(
+    path: Path,
+    *,
+    root: Path,
+    kind: str,
+    expected_title: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Read, validate, hash, and size one source report from one bounded byte snapshot."""
     resolved = _resolve_under_root(root, path, kind=kind)
     if resolved.suffix != ".json":
         raise MaintenanceEvidenceBundleError(f"{kind} input must use .json extension")
-    if resolved.stat().st_size > _MAX_JSON_BYTES:
+    with resolved.open("rb") as handle:
+        raw = handle.read(_MAX_JSON_BYTES + 1)
+    if len(raw) > _MAX_JSON_BYTES:
         raise MaintenanceEvidenceBundleError(f"{kind} input is too large for bounded review")
     try:
-        payload = json.loads(resolved.read_text(encoding="utf-8"))
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise MaintenanceEvidenceBundleError(f"{kind} input must be valid UTF-8") from exc
+    try:
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise MaintenanceEvidenceBundleError(f"{kind} input must be valid JSON") from exc
     if not isinstance(payload, dict):
         raise MaintenanceEvidenceBundleError(f"{kind} input must be a JSON object")
     if payload.get("title") != expected_title:
         raise MaintenanceEvidenceBundleError(f"{kind} input has unexpected title")
-    return payload
+    source_report = {
+        "stage": kind.replace("-", "_"),
+        "path": str(path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "bytes": len(raw),
+    }
+    return payload, source_report
 
 
 def _reviewed_paths_from(value: Any, *, label: str) -> list[str]:
@@ -497,30 +502,22 @@ def read_maintenance_evidence_bundle_data(
     root: Path = Path("."),
     bundle_id: str = "maintenance-evidence-bundle",
 ) -> dict[str, Any]:
-    """Read repository-local evidence reports and build a hash-linked bundle."""
-    source_reports = [
-        _source_report_record("patch-apply", patch_apply_path, root=root),
-        _source_report_record("post-apply-validation", post_apply_validation_path, root=root),
-        _source_report_record("commit-verify", commit_verify_path, root=root),
-        _source_report_record("push-handoff", push_handoff_path, root=root),
-        _source_report_record("post-push-verify", post_push_verify_path, root=root),
+    """Read repository-local evidence reports and build a hash-linked bundle from exact source snapshots."""
+    inputs = (
+        ("patch-apply", patch_apply_path, "Autonomous Forge guarded patch apply"),
+        ("post-apply-validation", post_apply_validation_path, "Autonomous Forge post-apply validation handoff"),
+        ("commit-verify", commit_verify_path, "Autonomous Forge commit verification report"),
+        ("push-handoff", push_handoff_path, "Autonomous Forge push handoff report"),
+        ("post-push-verify", post_push_verify_path, "Autonomous Forge post-push verification report"),
+    )
+    snapshots = [
+        _read_json_snapshot(path, root=root, kind=kind, expected_title=expected_title)
+        for kind, path, expected_title in inputs
     ]
+    reports = [payload for payload, _source_report in snapshots]
+    source_reports = [source_report for _payload, source_report in snapshots]
     return build_maintenance_evidence_bundle_data(
-        _read_json(patch_apply_path, root=root, kind="patch-apply", expected_title="Autonomous Forge guarded patch apply"),
-        _read_json(
-            post_apply_validation_path,
-            root=root,
-            kind="post-apply-validation",
-            expected_title="Autonomous Forge post-apply validation handoff",
-        ),
-        _read_json(commit_verify_path, root=root, kind="commit-verify", expected_title="Autonomous Forge commit verification report"),
-        _read_json(push_handoff_path, root=root, kind="push-handoff", expected_title="Autonomous Forge push handoff report"),
-        _read_json(
-            post_push_verify_path,
-            root=root,
-            kind="post-push-verify",
-            expected_title="Autonomous Forge post-push verification report",
-        ),
+        *reports,
         bundle_id=bundle_id,
         source_reports=source_reports,
     )
