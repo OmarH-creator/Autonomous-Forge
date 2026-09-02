@@ -33,10 +33,15 @@ def _read_json(path: Path, *, root: Path, label: str) -> dict[str, Any]:
         raise VerifiedPushRunError(f"{label} must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise VerifiedPushRunError(f"{label} must be a repository-local .json file")
-    if resolved.stat().st_size > _MAX_JSON_BYTES:
+    try:
+        with resolved.open("rb") as handle:
+            raw = handle.read(_MAX_JSON_BYTES + 1)
+    except OSError as exc:
+        raise VerifiedPushRunError(f"{label} could not be read safely") from exc
+    if len(raw) > _MAX_JSON_BYTES:
         raise VerifiedPushRunError(f"{label} is too large for bounded review")
     try:
-        data = json.loads(resolved.read_text(encoding="utf-8"))
+        data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise VerifiedPushRunError(f"{label} must be valid UTF-8 JSON") from exc
     if not isinstance(data, dict):
@@ -258,42 +263,3 @@ def build_verified_push_run_data(
         "post_push_verified" if post_push.get("post_push_verified") is True else "pushed_unverified"
     )
     return data
-
-
-def read_verified_push_run(
-    change_evidence_path: Path,
-    commit_trust_path: Path,
-    status_review_path: Path | None,
-    branch_protection_path: Path,
-    *,
-    root: Path = Path("."),
-    branch: str = "main",
-    remote: str = "origin",
-    confirm_push: bool = False,
-    fetch_after_push: bool = False,
-    live_status: bool = False,
-    git_runner: GitRunner = _run_git,
-) -> dict[str, Any]:
-    """Read bounded evidence, optionally collect fresh workflow status, then run guarded push orchestration."""
-    change_evidence = _read_json(change_evidence_path, root=root, label="verified change evidence")
-    if live_status:
-        if status_review_path is not None:
-            raise VerifiedPushRunError("live status collection and supplied status-review evidence are mutually exclusive")
-        status_review = _collect_live_status_review(change_evidence, root=root)
-    else:
-        if status_review_path is None:
-            raise VerifiedPushRunError("status-review evidence is required unless live status collection is selected")
-        status_review = _read_json(status_review_path, root=root, label="status review")
-
-    return build_verified_push_run_data(
-        change_evidence,
-        _read_json(commit_trust_path, root=root, label="commit trust"),
-        status_review,
-        _read_json(branch_protection_path, root=root, label="branch protection"),
-        root=root,
-        branch=branch,
-        remote=remote,
-        confirm_push=confirm_push,
-        fetch_after_push=fetch_after_push,
-        git_runner=git_runner,
-    )
