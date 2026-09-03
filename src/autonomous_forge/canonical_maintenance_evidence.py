@@ -33,10 +33,15 @@ def _resolve_json(path: Path, *, root: Path, label: str) -> Path:
         raise CanonicalMaintenanceEvidenceError(f"{label} input must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise CanonicalMaintenanceEvidenceError(f"{label} input must be a repository-local .json file")
-    size = resolved.stat().st_size
-    if size <= 0 or size > _MAX_JSON_BYTES:
-        raise CanonicalMaintenanceEvidenceError(f"{label} input has an invalid bounded size")
     return resolved
+
+
+def _read_bounded_json_bytes(path: Path, *, label: str) -> bytes:
+    with path.open("rb") as handle:
+        raw = handle.read(_MAX_JSON_BYTES + 1)
+    if not raw or len(raw) > _MAX_JSON_BYTES:
+        raise CanonicalMaintenanceEvidenceError(f"{label} input has an invalid bounded size")
+    return raw
 
 
 def _read_json(
@@ -47,7 +52,7 @@ def _read_json(
     expected_title: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     resolved = _resolve_json(path, root=root, label=label)
-    raw = resolved.read_bytes()
+    raw = _read_bounded_json_bytes(resolved, label=label)
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
