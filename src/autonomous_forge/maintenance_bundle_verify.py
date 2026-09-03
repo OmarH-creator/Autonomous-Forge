@@ -13,9 +13,10 @@ _MAX_JSON_BYTES = 1_000_000
 _REQUIRED_STAGES = {"patch_apply", "post_apply_validation", "commit_verify", "push_handoff", "post_push_verify"}
 _SAFE_BOUNDARY = (
     "Maintenance bundle verification reads one persisted bundle and the repository-local source reports named inside "
-    "its source_reports array, then recomputes byte counts and SHA-256 hashes to detect drift. It does not modify "
-    "files, apply patches, run validation commands, stage files, create commits, push, change remotes, rerun workflows, "
-    "or read environment variables."
+    "its source_reports array, then recomputes byte counts and SHA-256 hashes to detect drift. Every bundle/source read "
+    "is bounded to the 1,000,000-byte review limit at the actual binary read boundary. It does not modify files, apply "
+    "patches, run validation commands, stage files, create commits, push, change remotes, rerun workflows, or read "
+    "environment variables."
 )
 
 
@@ -25,14 +26,25 @@ def _clean_text(value: Any) -> str:
     return str(value).strip()
 
 
+def _read_bounded_bytes(path: Path, *, kind: str) -> bytes:
+    with path.open("rb") as handle:
+        raw = handle.read(_MAX_JSON_BYTES + 1)
+    if len(raw) > _MAX_JSON_BYTES:
+        raise MaintenanceEvidenceBundleError(f"{kind} is too large for bounded verification")
+    return raw
+
+
 def _read_bundle(bundle_path: Path, *, root: Path) -> dict[str, Any]:
     resolved = _resolve_under_root(root, bundle_path, kind="bundle")
     if resolved.suffix != ".json":
         raise MaintenanceEvidenceBundleError("bundle input must use .json extension")
-    if resolved.stat().st_size > _MAX_JSON_BYTES:
-        raise MaintenanceEvidenceBundleError("bundle input is too large for bounded verification")
+    raw = _read_bounded_bytes(resolved, kind="bundle input")
     try:
-        payload = json.loads(resolved.read_text(encoding="utf-8"))
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise MaintenanceEvidenceBundleError("bundle input must be UTF-8 JSON") from exc
+    try:
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise MaintenanceEvidenceBundleError("bundle input must be valid JSON") from exc
     if not isinstance(payload, dict):
@@ -81,10 +93,9 @@ def build_maintenance_bundle_verification_data(bundle_path: Path, *, root: Path 
         stage = entry["stage"]
         report_path = Path(entry["path"])
         resolved = _resolve_under_root(root, report_path, kind=f"source report {stage}")
-        size = resolved.stat().st_size
-        if size > _MAX_JSON_BYTES:
-            raise MaintenanceEvidenceBundleError(f"source report {stage} is too large for bounded verification")
-        digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+        raw = _read_bounded_bytes(resolved, kind=f"source report {stage}")
+        size = len(raw)
+        digest = hashlib.sha256(raw).hexdigest()
         bytes_match = size == entry["expected_bytes"]
         hash_match = digest == entry["expected_sha256"]
         if not bytes_match:
