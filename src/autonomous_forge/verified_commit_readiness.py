@@ -28,6 +28,17 @@ def _safe_path(label: str) -> None:
         raise VerifiedCommitReadinessError(f"unsafe target path: {label!r}")
 
 
+def _read_bounded_bytes(path: Path, *, limit: int, label: str) -> bytes:
+    try:
+        with path.open("rb") as stream:
+            payload = stream.read(limit + 1)
+    except OSError as exc:
+        raise VerifiedCommitReadinessError(f"unable to read {label}") from exc
+    if len(payload) > limit:
+        raise VerifiedCommitReadinessError(f"{label} is too large for bounded review")
+    return payload
+
+
 def capture_validated_target_sha256(root: Path, target_path: str) -> str:
     """Hash the exact bounded target bytes that successful validation observed."""
     _safe_path(target_path)
@@ -42,9 +53,13 @@ def capture_validated_target_sha256(root: Path, target_path: str) -> str:
         raise VerifiedCommitReadinessError("validated target must stay inside repository root") from exc
     if not resolved.is_file():
         raise VerifiedCommitReadinessError("validated target must be a regular file")
-    if resolved.stat().st_size > _MAX_TARGET_BYTES:
-        raise VerifiedCommitReadinessError("validated target is too large for bounded commit binding")
-    return hashlib.sha256(resolved.read_bytes()).hexdigest()
+    try:
+        payload = _read_bounded_bytes(resolved, limit=_MAX_TARGET_BYTES, label="validated target")
+    except VerifiedCommitReadinessError as exc:
+        if "too large" in str(exc):
+            raise VerifiedCommitReadinessError("validated target is too large for bounded commit binding") from exc
+        raise
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _resolve_json(path: Path, *, root: Path, label: str) -> Path:
@@ -59,15 +74,14 @@ def _resolve_json(path: Path, *, root: Path, label: str) -> Path:
         raise VerifiedCommitReadinessError(f"{label} must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise VerifiedCommitReadinessError(f"{label} must be a repository-local .json file")
-    if resolved.stat().st_size > _MAX_JSON_BYTES:
-        raise VerifiedCommitReadinessError(f"{label} is too large for bounded review")
     return resolved
 
 
 def _read_json(path: Path, *, root: Path, label: str, title: str) -> tuple[Path, dict[str, Any]]:
     resolved = _resolve_json(path, root=root, label=label)
+    payload = _read_bounded_bytes(resolved, limit=_MAX_JSON_BYTES, label=label)
     try:
-        data = json.loads(resolved.read_text(encoding="utf-8"))
+        data = json.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise VerifiedCommitReadinessError(f"{label} must be valid UTF-8 JSON") from exc
     if not isinstance(data, dict) or data.get("title") != title:
