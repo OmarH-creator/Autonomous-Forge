@@ -1,8 +1,14 @@
 import hashlib
 import json
 
+import pytest
+
 from autonomous_forge.cli_entry_patch import main as forge_main
-from autonomous_forge.verified_commit_readiness import read_verified_commit_readiness_data
+from autonomous_forge.verified_commit_readiness import (
+    VerifiedCommitReadinessError,
+    capture_validated_target_sha256,
+    read_verified_commit_readiness_data,
+)
 
 
 def _write_inputs(tmp_path, *, include_second=True, mismatch_target=False):
@@ -97,6 +103,28 @@ def test_target_mismatch_is_refused(tmp_path, capsys):
         "--status-review", str(status),
     ]) == 2
     assert "target does not match patch target" in capsys.readouterr().out
+
+
+def test_oversized_validated_target_is_refused(tmp_path):
+    target = tmp_path / "src" / "large.bin"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"x" * 1_000_001)
+    with pytest.raises(VerifiedCommitReadinessError, match="too large for bounded commit binding"):
+        capture_validated_target_sha256(tmp_path, "src/large.bin")
+
+
+def test_oversized_json_evidence_is_refused(tmp_path):
+    patch, status, runs, _ = _write_inputs(tmp_path)
+    patch.write_bytes(b"{" + b" " * 1_000_000)
+    with pytest.raises(VerifiedCommitReadinessError, match="too large for bounded review"):
+        read_verified_commit_readiness_data(patch, runs, status, root=tmp_path)
+
+
+def test_invalid_utf8_json_is_refused(tmp_path):
+    patch, status, runs, _ = _write_inputs(tmp_path)
+    patch.write_bytes(b"\xff")
+    with pytest.raises(VerifiedCommitReadinessError, match="valid UTF-8 JSON"):
+        read_verified_commit_readiness_data(patch, runs, status, root=tmp_path)
 
 
 def test_primary_router_exposes_verified_commit_readiness_help():
