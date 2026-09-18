@@ -1,17 +1,17 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-257 — Bound canonical maintenance-evidence ingestion
-- Current task status: DONE
+- Current task ID: AUTO-258 — Harden verified commit-readiness bounded reads
+- Current task status: IMPLEMENTED; final CI pending
 - Current branch: main
-- Last run timestamp: 2026-09-03T07:08:00Z
-- Latest run summary: Canonical maintenance evidence assembly now reads every canonical source report through one bounded binary snapshot. Forge reads at most 1,000,001 bytes, rejects empty or over-limit inputs, and derives parsed JSON, retained byte count, and SHA-256 from the exact same bytes.
-- Safety: Existing repository confinement, symlink rejection, `.json` enforcement, expected report titles, verified push-wrapper consistency checks, reviewed-path checks, and downstream bundle/provenance validation remain unchanged. No new network access, external-command authority, write authority, push behavior, workflow change, telemetry, secret handling, remote mutation, or branch-protection change was added.
-- Repository assessment: Started from green AUTO-256 head `839b8d9b07e97c66671b165db6db77aa212035e2`. Inspected README/docs/examples, source/tests/config/CI inventory, `.forge/policy.md`, autonomous plan/state/changelog/decisions, recent commits and Actions, all eight visible branches, open issues, TODO-oriented source search, and PR history. The requested policy-aware `forge plan` milestone and guarded end-to-end maintenance chain are already shipped. Seven non-main branches remain historical/diverged; no open PR requires integration. Issues #1, #6, and #9 remain broader product/discussion requests rather than blockers.
-- Branch and PR disposition: Work stayed directly on `main`; no branch, PR, merge, force-push, remote change, workflow change, or protection change was used. Historical branch/PR work was not integrated because current `main` supersedes the relevant capabilities and no open PR is ready for merge.
-- Validation: Deterministic AUTO-257 tests assert the exact 1,000,001-byte sentinel read, over-limit refusal, and exact parse/size/SHA snapshot binding. Direct checkout/full pytest execution is unavailable because outbound DNS to github.com is blocked in the runtime. The exact final pushed head must pass the repository GitHub Actions workflow before completion is reported.
-- Current blockers: None.
-- Known risks and assumptions: Single-snapshot ingestion prevents a concurrent growth race from bypassing the intended read bound and keeps parse/size/hash metadata internally consistent, but it does not make source evidence immutable or authenticate its author.
+- Last run timestamp: 2026-09-18T03:05:00Z
+- Latest run summary: Verified commit-readiness now reads validated targets and repository-local JSON evidence through one bounded binary snapshot. Forge reads at most 1,000,001 bytes for the 1,000,000-byte limit, rejects over-limit inputs, computes target SHA-256 from the accepted snapshot, and decodes/parses JSON from the accepted snapshot.
+- Safety: Existing repository confinement, symlink rejection, regular-file and `.json` enforcement, expected-title checks, validation binding, and commit-readiness authority remain unchanged. No new network, command execution, write authority, push behavior, workflow permission, remote mutation, or branch-protection change was added.
+- Repository assessment: Started from AUTO-257 head `b1ff64a756754c31561823fa3f3ac1fc44158e81`. Inspected the current implementation/tests, README/docs/state, all eight visible branches, open pull requests, and issue #14. Seven non-main branches remain historical/diverged and no open PR requires integration. The policy-aware `forge plan` milestone and guarded end-to-end maintenance chain are already shipped.
+- Branch and PR disposition: Work stayed directly on `main`; no branch, PR, merge, force-push, workflow change, remote change, or protection change was used.
+- Validation: Deterministic AUTO-258 coverage adds oversized validated-target refusal, oversized JSON refusal, and invalid UTF-8 refusal while preserving existing readiness tests. GitHub Actions on the exact final pushed head is the strongest practical validation available in this runtime and must pass before the run is reported complete.
+- Current blockers: None in implementation; final CI is pending.
+- Known risks and assumptions: Single-snapshot ingestion closes the pre-check/unbounded-read race but does not make source files immutable or authenticate their author.
 - Visuals: None; workflow topology did not change.
-- Project-memory note: `src/autonomous_forge/canonical_maintenance_evidence.py`, `tests/test_auto257_canonical_evidence_bounded_snapshot.py`, `docs/CANONICAL_MAINTENANCE_EVIDENCE_BOUNDED_INPUT.md`, README, this state file, and `.ai/AUTO-257.md` carry the run record. `AUTONOMOUS_PLAN.md`, changelog, and decisions were inspected; the roadmap direction remains the same end-to-end maintenance-integrity milestone, so no architectural or priority rewrite was warranted.
-- Recommended next task: Inspect remaining execution/history/evidence readers for another equivalent pre-check/unbounded-read, split-read identity, or stale-state gap, or address any fresh CI failure first.
+- Project-memory note: `src/autonomous_forge/verified_commit_readiness.py`, `tests/test_verified_commit_readiness.py`, `docs/VERIFIED_COMMIT_READINESS_BOUNDED_INPUT.md`, this state file, and `.ai/AUTO-258.md` carry the run record. Issue #14 records the original blocker.
+- Recommended next task: After final CI is green, close issue #14 and inspect remaining execution/history/evidence readers for another concrete split-read, stale-state, or pre-check/unbounded-read defect; address any fresh CI failure first.
