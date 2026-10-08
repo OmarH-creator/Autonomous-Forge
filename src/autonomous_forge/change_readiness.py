@@ -191,6 +191,17 @@ def build_change_readiness(diff_review_text: str, status_review_text: str, *, ou
     return format_change_readiness(data)
 
 
+def _read_bounded_review_text(candidate: Path, *, label: str) -> str:
+    with candidate.open("rb") as handle:
+        raw = handle.read(_MAX_REVIEW_BYTES + 1)
+    if len(raw) > _MAX_REVIEW_BYTES:
+        raise ChangeReadinessError(f"{label} input is too large for bounded review")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ChangeReadinessError(f"{label} input must be valid UTF-8") from exc
+
+
 def _read_review_file(review_path: Path, *, root: Path, label: str) -> str:
     try:
         resolved_root = root.resolve()
@@ -204,9 +215,7 @@ def _read_review_file(review_path: Path, *, root: Path, label: str) -> str:
         raise ChangeReadinessError(f"{label} input must be a regular file")
     if candidate.suffix != ".json":
         raise ChangeReadinessError(f"{label} input must use .json extension")
-    if candidate.stat().st_size > _MAX_REVIEW_BYTES:
-        raise ChangeReadinessError(f"{label} input is too large for bounded review")
-    return candidate.read_text(encoding="utf-8")
+    return _read_bounded_review_text(candidate, label=label)
 
 
 def read_change_readiness(
