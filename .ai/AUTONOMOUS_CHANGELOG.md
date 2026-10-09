@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-10-09 — AUTO-259 bounded history-link bundle snapshots
+
+- Objective: Fix issue #15's unbounded read and split SHA/byte-count observation in the durable maintenance-history writer, advancing the existing guarded maintenance workflow rather than creating another read-only command.
+- Change: One 1,000,001-byte sentinel read; reject over-limit bundles before publication; derive digest and size from that same snapshot. Added focused deterministic regression tests, CLI-facing docs, README status, and project-memory records.
+- Inspection and disposition: Reviewed README/docs/examples, source/tests/config/CI, policy, plan/state/changelog/decisions, recent commits, issues/TODOs, all eight branches, and all visible PR history. Seven non-main branches remain historical; no open PR is eligible or needed.
+- Validation: Local isolated probe passed three checks; final exact-head Python 3.10/3.11/3.12 Actions run is the acceptance gate. No claim of CI success is made before observing it.
+- Safety: Main-only fast-forward, policy-allowed paths, no force-push, new branches/PRs, workflow permission changes, network authority, or unrelated/generated changes.
+- Next: After exact-head green CI, close issue #15; continue the same guarded maintenance workflow milestone with a concrete execution/history gap.
+
 ## 2026-08-17 — AUTO-152 end-to-end guarded maintenance integration proof
 
 - Task ID: AUTO-152 — Prove guarded maintenance workflow end to end

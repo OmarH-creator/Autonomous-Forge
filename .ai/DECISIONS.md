@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-259 — 2026-10-09 — History-link fingerprints must share one bounded byte observation
+
+Context: The durable maintenance-history writer hashed an unbounded `read_bytes()` result and recorded a separately sampled `stat().st_size`. Concurrent mutation could make the two values disagree, and a growing bundle could exceed the established JSON evidence boundary.
+
+Decision: Open the already-confined persisted bundle once, read at most 1,000,001 bytes, reject any observed bundle over 1,000,000 bytes before publication, and calculate both SHA-256 and byte count from the admitted snapshot. Preserve existing confirmation, no-clobber, and rollback behavior.
+
+Alternatives considered: Retain the pre-read stat check, perform two reads, or create a separate audit command. All leave the original integrity gap or fragment the end-to-end workflow.
+
+Consequences: Durable links describe one bounded observed byte sequence. This does not make files immutable, authenticate authors, or change write/remote authority. Exact-head supported-version CI is required for acceptance.
+
+Human decision still required: No.
+
 ## DEC-153 — 2026-08-17 — Prove composition before adding orchestration
 
 Context: AUTO-143 through AUTO-151 created the individual live-diff, patch, validation, commit, push, post-push, and durable-evidence gates, but successful isolated tests did not prove that their contracts compose as one workflow.

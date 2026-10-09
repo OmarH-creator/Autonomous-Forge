@@ -580,6 +580,12 @@ def write_maintenance_history_link(
     if resolved_link.exists():
         blockers.append("history link output already exists")
 
+    # Fingerprint one bounded observation, not independent stat/read states.
+    with resolved_bundle.open("rb") as handle:
+        bundle_snapshot = handle.read(_MAX_JSON_BYTES + 1)
+    if len(bundle_snapshot) > _MAX_JSON_BYTES:
+        raise MaintenanceEvidenceBundleError("bundle output is too large for bounded history linking")
+
     bundle_id = _safe_bundle_id(_clean_text(data.get("bundle_id")))
     external_validation_summary = _external_validation_history_summary(data)
     live_status_summary = _live_status_history_summary(data)
@@ -589,8 +595,8 @@ def write_maintenance_history_link(
         "mode": "explicit local run-history link",
         "bundle_id": bundle_id,
         "bundle_path": str(bundle_path),
-        "bundle_sha256": hashlib.sha256(resolved_bundle.read_bytes()).hexdigest(),
-        "bundle_bytes": resolved_bundle.stat().st_size,
+        "bundle_sha256": hashlib.sha256(bundle_snapshot).hexdigest(),
+        "bundle_bytes": len(bundle_snapshot),
         "commit_sha": _clean_text(data.get("commit_sha")),
         "remote": _clean_text(data.get("remote")),
         "branch": _clean_text(data.get("branch")),

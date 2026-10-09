@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-257 — bounded canonical maintenance-evidence ingestion**.
+Latest stewardship run: **AUTO-259 — bounded maintenance history-link snapshots**.
 
-- **Changed:** `canonical_maintenance_evidence` now opens each canonical source report once and performs a single 1,000,001-byte sentinel read for the 1,000,000-byte input limit. JSON parsing, retained byte count, and SHA-256 now derive from that exact snapshot.
-- **Why:** the previous canonical reader checked `stat().st_size` and then performed unbounded `read_bytes()`. Concurrent growth could bypass the intended bound, and the pre-read size observation did not necessarily describe the bytes actually parsed and hashed.
-- **Validation:** deterministic tests cover the exact sentinel read size, over-limit refusal, and exact parse/size/SHA snapshot binding. The exact final pushed head must pass the full Python 3.10/3.11/3.12 GitHub Actions workflow before this run is marked complete.
-- **Safety:** repository confinement, symlink rejection, `.json` enforcement, expected-title checks, verified wrapper consistency, reviewed-path checks, and downstream bundle/provenance validation remain unchanged. No new network, command execution, write, push, workflow-permission, or remote authority was introduced.
-- **Branch/PR disposition:** all eight visible branches, open issues, and recent PR history were inspected. Seven non-main branches remain historical/diverged; no open PR requires integration, and older PR work is superseded by current `main`.
-- **Visual updates:** none; workflow topology did not change, only an existing canonical evidence-ingestion integrity boundary.
-- **Current limitations:** a bounded snapshot keeps Forge's observed bytes internally consistent but does not make source files immutable or authenticate their author. Later mutation remains possible.
-- **Next autonomous objective:** inspect the remaining execution/history/evidence readers for another confirmed split-read, stale-state, or pre-check/unbounded-read defect, with any fresh CI failure taking priority.
+- **Changed:** `write_maintenance_history_link()` opens the already-written bundle once, reads at most 1,000,001 bytes, refuses input over 1,000,000 bytes, and derives `bundle_sha256` and `bundle_bytes` from the same snapshot.
+- **Why:** the previous unbounded `read_bytes()` and separate `stat().st_size` could create inconsistent durable provenance during concurrent changes.
+- **Validation:** deterministic tests cover sentinel size, snapshot-bound fingerprints, exact boundary acceptance, oversized refusal, and growth visible only during the read. An isolated local probe passed three checks; the exact final pushed SHA must pass the Python 3.10/3.11/3.12 Actions matrix before completion is reported.
+- **Safety:** repository confinement, symlink refusal, explicit confirmation, no-clobber publication, and rollback remain unchanged. No new network, subprocess, push, remote, workflow-permission, or branch-protection authority.
+- **Branch/PR disposition:** eight branches and all PR history inspected; seven non-main branches are historical, with no open PR to integrate. Work remains directly on `main`.
+- **Visual updates:** none; workflow topology is unchanged.
+- **Current limitations:** the snapshot does not make evidence immutable or authenticate its author; later changes still require verification.
+- **Next autonomous objective:** keep advancing the guarded maintenance workflow, fixing fresh CI failures first and then a proven execution/history integrity gap or material end-to-end product limitation.

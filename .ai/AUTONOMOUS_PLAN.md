@@ -182,6 +182,16 @@ Validation: Actions run `31978493467` passed install, compile, installed CLI smo
 Risks or assumptions: External commit trust, workflow status, and branch-protection evidence are deterministic fixtures; the test does not prove remote GitHub freshness or signer identity.
 Notes: Initial CI failure was a test-only assertion against a nonexistent planner key; corrected to the established top-level `expected_file_changes` contract without changing production behavior.
 
+## Active maintenance-integrity milestone — AUTO-259
+
+The guarded planning → diff → patch → validation → commit → push → durable
+history workflow is already shipped. AUTO-259 resolves a concrete provenance
+blocker in that workflow: history-link bundle fingerprints must come from one
+bounded binary snapshot. The acceptance gate is a complete green Python
+3.10/3.11/3.12 matrix on the exact final `main` SHA. After that gate, continue
+this same end-to-end workflow milestone rather than creating new read-only
+audit/preflight commands.
+
 ## Future Ideas
 
 - Hash-linked local run reports.

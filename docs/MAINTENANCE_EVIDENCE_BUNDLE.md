@@ -31,7 +31,7 @@ Durable bundle outputs are immutable through this writer once created. If `--out
 
 After the bundle has been written, the same command can write a small run-history pointer with `--history-link .ai/run-history/AUTO-108-link.json --confirm-history-link --require-history-linked`.
 
-The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, retained validation context, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`.
+The link file uses schema `maintenance-bundle-history-link/v1` and records the bundle ID, persisted bundle path, bundle SHA-256, bundle byte count, commit SHA, remote branch, reviewed paths, validation steps, retained validation context, and source-report fingerprints. The link refuses to overwrite an existing file and must stay under `.ai/run-history/`. The persisted bundle is fingerprinted from one bounded binary snapshot (maximum 1,000,000 bytes), so SHA-256 and byte count describe the same observed bytes; see [bounded history-link snapshots](MAINTENANCE_HISTORY_LINK_BOUNDED_SNAPSHOT.md).
 
 ## Immutable external validation provenance
 
