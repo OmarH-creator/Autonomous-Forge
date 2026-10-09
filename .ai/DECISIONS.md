@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-261 — 2026-10-09 — Preview output and strict gate must use the same bounded inputs
+
+Context: The guarded patch-generation reader size-checked target and replacement files before unbounded text reads, and parsed readiness JSON without an actual read bound. The CLI printed one preview, then reopened inputs to decide --require-generated, permitting contradictory displayed evidence and exit status under concurrent mutation.
+
+Decision: Open readiness JSON, target text, and replacement text once each in binary mode with a 1,000,001-byte sentinel; refuse more than 1,000,000 bytes; decode/parse only admitted snapshots. Compute CLI strict exit status from the already displayed preview object, not a second invocation.
+
+Alternatives considered: Keep stat prechecks, re-run preview for strict mode, or create another standalone audit command. Those preserve the race or fragment the existing guarded workflow.
+
+Consequences: Preview and strict gate share one decision snapshot. This does not authenticate evidence or lock files; downstream guarded patch application independently rechecks target staleness. No new external command, network, write, commit, or push authority.
+
+Human decision still required: No.
+
 ## DEC-259 — 2026-10-09 — History-link fingerprints must share one bounded byte observation
 
 Context: The durable maintenance-history writer hashed an unbounded `read_bytes()` result and recorded a separately sampled `stat().st_size`. Concurrent mutation could make the two values disagree, and a growing bundle could exceed the established JSON evidence boundary.

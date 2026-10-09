@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-259 — bounded maintenance history-link snapshots**.
+Latest stewardship run: **AUTO-261 — single-snapshot guarded patch preview and strict CLI gate**.
 
-- **Changed:** `write_maintenance_history_link()` opens the already-written bundle once, reads at most 1,000,001 bytes, refuses input over 1,000,000 bytes, and derives `bundle_sha256` and `bundle_bytes` from the same snapshot.
-- **Why:** the previous unbounded `read_bytes()` and separate `stat().st_size` could create inconsistent durable provenance during concurrent changes.
-- **Validation:** deterministic tests cover sentinel size, snapshot-bound fingerprints, exact boundary acceptance, oversized refusal, and growth visible only during the read. An isolated local probe passed three checks; the exact final pushed SHA must pass the Python 3.10/3.11/3.12 Actions matrix before completion is reported.
-- **Safety:** repository confinement, symlink refusal, explicit confirmation, no-clobber publication, and rollback remain unchanged. No new network, subprocess, push, remote, workflow-permission, or branch-protection authority.
-- **Branch/PR disposition:** eight branches and all PR history inspected; seven non-main branches are historical, with no open PR to integrate. Work remains directly on `main`.
-- **Visual updates:** none; workflow topology is unchanged.
-- **Current limitations:** the snapshot does not make evidence immutable or authenticate its author; later changes still require verification.
-- **Next autonomous objective:** keep advancing the guarded maintenance workflow, fixing fresh CI failures first and then a proven execution/history integrity gap or material end-to-end product limitation.
+- **Changed:** `forge patch-generation-preview` now reads readiness JSON, target text, and replacement text through one bounded binary snapshot each (1,000,001-byte sentinel; 1,000,000-byte limit). `--require-generated` evaluates the exact preview already printed, without a second read.
+- **Why:** a pre-read size check followed by unbounded text reads could accept growing files; the CLI could also display one preview and decide its strict exit code from a different, concurrently changed input.
+- **Validation:** isolated local snapshot/gate probe passed five checks. Deterministic repository tests cover all three bounded inputs, exact boundary, read-time growth, invalid UTF-8, and the single-read CLI gate. The exact pushed SHA must pass the Python 3.10/3.11/3.12 Actions matrix.
+- **Safety:** no new commands, network, subprocess, write, commit, push, or workflow authority. Existing path confinement and explicit patch-application confirmations remain unchanged.
+- **Branch/PR disposition:** eight branches and all nine visible historical PRs reviewed; seven non-main branches remain historical and no open PR requires integration. Changes are main-only.
+- **Visual updates:** none; the existing maintenance workflow diagram remains accurate.
+- **Current limitations:** a snapshot does not authenticate evidence or freeze files; downstream guarded patch apply must still recheck the target.
+- **Next autonomous objective:** continue the guarded end-to-end maintenance milestone by fixing a demonstrated patch/commit/execution integrity defect or shipping a material workflow capability, prioritizing any failing CI.

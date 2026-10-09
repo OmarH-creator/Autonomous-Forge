@@ -6,7 +6,11 @@ import argparse
 import json
 from pathlib import Path
 
-from autonomous_forge.patch_generation_preview import PatchGenerationPreviewError, read_patch_generation_preview
+from autonomous_forge.patch_generation_preview import (
+    PatchGenerationPreviewError,
+    format_patch_generation_preview,
+    read_patch_generation_preview_data,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,12 +42,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        output = read_patch_generation_preview(
+        data = read_patch_generation_preview_data(
             Path(args.readiness),
             target_path=args.path,
             replacement_path=Path(args.replacement),
             root=Path(args.root),
-            output_format=args.format,
+        )
+        output = (
+            json.dumps(data, indent=2, sort_keys=True)
+            if args.format == "json"
+            else format_patch_generation_preview(data)
         )
     except FileNotFoundError as exc:
         print(f"Patch-generation preview input not found: {exc.filename}")
@@ -56,18 +64,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     print(output)
-    if args.require_generated:
-        gate_data = json.loads(
-            read_patch_generation_preview(
-                Path(args.readiness),
-                target_path=args.path,
-                replacement_path=Path(args.replacement),
-                root=Path(args.root),
-                output_format="json",
-            )
-        )
-        if not gate_data["patch_generation_allowed"]:
-            return 2
+    if args.require_generated and not data["patch_generation_allowed"]:
+        return 2
     return 0
 
 

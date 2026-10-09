@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-10-09 — AUTO-261 guarded patch-preview single-snapshot gate
+
+- Objective: Resolve a real guarded patch-generation defect: pre-read size checks followed by unbounded text reads and a second --require-generated read could make displayed preview and exit decision disagree.
+- Changes: Bounded binary snapshots for readiness JSON, target text, and replacement text; decode/parse from the admitted bytes; CLI derives strict exit code from the displayed preview object. Added deterministic regression tests, corrected the repo-local replacement example, and updated README/roadmap/state/decisions.
+- Inspection: Reviewed source/test/docs/config/CI and autonomous policy/memory, recent commits and green AUTO-259 CI, eight branches, nine historical PRs, and issues/TODOs. Seven non-main branches are historical; no open PR or branch work should be merged. Issue #15 is implemented and green but closing it is blocked by connector safety checks.
+- Validation: Isolated five-check local probe passed; exact-head Python 3.10/3.11/3.12 Actions matrix is required before reporting completion.
+- Safety: Main-only fast-forward, policy-allowed files, no new commands, network/subprocess authority, side effects, remote changes, workflow permissions, branch/PR creation, or force push. No new visuals are necessary.
+- Next: Continue the same end-to-end guarded maintenance milestone; prioritize any CI failure, then a proven patch/commit/execution integrity gap.
+
 ## 2026-10-09 — AUTO-259 bounded history-link bundle snapshots
 
 - Objective: Fix issue #15's unbounded read and split SHA/byte-count observation in the durable maintenance-history writer, advancing the existing guarded maintenance workflow rather than creating another read-only command.

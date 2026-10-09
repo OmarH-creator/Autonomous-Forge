@@ -38,11 +38,22 @@ def _validate_path_label(label: str) -> None:
         raise PatchGenerationPreviewError(f"unsafe patch target path: {label!r}")
 
 
+def _read_bounded_bytes(path: Path, *, kind: str) -> bytes:
+    """Read one bounded binary snapshot before interpreting review input."""
+    with path.open("rb") as stream:
+        raw = stream.read(_MAX_TEXT_BYTES + 1)
+    if len(raw) > _MAX_TEXT_BYTES:
+        raise PatchGenerationPreviewError(f"{kind} input is too large for bounded patch preview")
+    return raw
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     if path.suffix != ".json":
         raise PatchGenerationPreviewError("readiness input must be a .json file")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(_read_bounded_bytes(path, kind="readiness").decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise PatchGenerationPreviewError("readiness input must be UTF-8 text") from exc
     except json.JSONDecodeError as exc:
         raise PatchGenerationPreviewError("readiness input is not valid JSON") from exc
     if not isinstance(data, dict):
@@ -55,10 +66,8 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _read_bounded_text(path: Path, *, kind: str) -> str:
-    if path.stat().st_size > _MAX_TEXT_BYTES:
-        raise PatchGenerationPreviewError(f"{kind} input is too large for bounded patch preview")
     try:
-        text = path.read_text(encoding="utf-8")
+        text = _read_bounded_bytes(path, kind=kind).decode("utf-8")
     except UnicodeDecodeError as exc:
         raise PatchGenerationPreviewError(f"{kind} input must be UTF-8 text") from exc
     lowered = text.lower()

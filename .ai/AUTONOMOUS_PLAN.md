@@ -182,15 +182,27 @@ Validation: Actions run `31978493467` passed install, compile, installed CLI smo
 Risks or assumptions: External commit trust, workflow status, and branch-protection evidence are deterministic fixtures; the test does not prove remote GitHub freshness or signer identity.
 Notes: Initial CI failure was a test-only assertion against a nonexistent planner key; corrected to the established top-level `expected_file_changes` contract without changing production behavior.
 
-## Active maintenance-integrity milestone — AUTO-259
+### AUTO-261 — Bind guarded patch previews and strict gates to one bounded snapshot
+Priority: P1
+Status: DONE
+Goal: Ensure one patch-generation preview and its strict CLI exit decision use the same admitted readiness, target, and replacement bytes.
+Why it matters: A pre-read size check could race growing inputs, and --require-generated could re-read changed inputs after printing an earlier preview, giving a mismatched exit decision.
+Scope: Bound all three inputs with one 1,000,001-byte binary read each, decode/parse from admitted bytes, derive --require-generated from the printed preview object, add deterministic tests, command documentation, README status, and durable engineering records.
+Expected files or areas: src/autonomous_forge/patch_generation_preview.py, src/autonomous_forge/patch_generation_preview_cli.py, tests/test_auto261_patch_generation_snapshot.py, docs/PATCH_GENERATION_PREVIEW.md, README.md, and .ai records.
+Acceptance criteria: At most 1,000,001 bytes are read per input; exact-limit inputs are admitted; oversized and invalid UTF-8 inputs fail closed; strict exit status matches the displayed preview even if input files change; no new network, command execution, write, commit, or push authority; supported CI remains green.
+Validation: An isolated five-check local probe passed before repository mutation; the exact final main SHA must pass package installation, compilation, CLI smoke, roadmap lint, and pytest on Python 3.10/3.11/3.12.
+Risks or assumptions: One snapshot does not authenticate the readiness producer or freeze files after preview; the guarded patch applier retains its independent stale-target verification.
+Notes: This continues the already-shipped end-to-end guarded maintenance milestone; it does not add a new standalone review command.
 
-The guarded planning → diff → patch → validation → commit → push → durable
-history workflow is already shipped. AUTO-259 resolves a concrete provenance
-blocker in that workflow: history-link bundle fingerprints must come from one
-bounded binary snapshot. The acceptance gate is a complete green Python
-3.10/3.11/3.12 matrix on the exact final `main` SHA. After that gate, continue
-this same end-to-end workflow milestone rather than creating new read-only
-audit/preflight commands.
+## Active maintenance-integrity milestone — guarded end-to-end workflow
+
+The policy-aware plan, actual tracked diff review, guarded patch apply, validation,
+verified commit, non-force push, post-push verification, and durable history chain
+are already shipped. AUTO-259 fixed a bounded history-link provenance defect.
+AUTO-261 fixes a demonstrated preview-to-strict-exit mismatch and unbounded
+patch-preview ingestion. Continue improving the same workflow through concrete
+execution, patch, commit, and durable-history defects rather than creating new
+standalone read-only audit/preflight commands.
 
 ## Future Ideas
 
