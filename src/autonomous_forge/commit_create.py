@@ -10,7 +10,7 @@ from typing import Any, Callable
 _MAX_JSON_BYTES = 1_000_000
 _SAFE_BOUNDARY = (
     "Commit-create reads supplied commit-proposal-preview JSON and runs local git only after explicit "
-    "confirmation. It stages only reviewed paths from the proposal, creates one local commit with the reviewed "
+    "confirmation. It stages reviewed paths and commits only those literal paths, even if unrelated files are staged, with the reviewed "
     "message, never pushes, never changes remotes, never calls networks, never reads environment variables, and "
     "does not run validation or workflows."
 )
@@ -186,8 +186,10 @@ def create_commit_from_proposal(
 
     resolved_root = root.resolve()
     reviewed_paths = [_clean_text(path) for path in proposal["reviewed_paths"]]
+    # Git pathspecs are patterns by default; bind each reviewed label to a literal root path.
+    pathspecs = [f":(top,literal){path}" for path in reviewed_paths]
     status = runner(
-        ["git", "-C", str(resolved_root), "status", "--porcelain", "--", *reviewed_paths],
+        ["git", "-C", str(resolved_root), "status", "--porcelain", "--", *pathspecs],
         text=True,
         capture_output=True,
         check=False,
@@ -197,15 +199,17 @@ def create_commit_from_proposal(
     if not status.stdout.strip():
         return build_commit_create_data(proposal, confirmed=True, git_status_stdout=status.stdout)
 
-    add = runner(["git", "-C", str(resolved_root), "add", "--", *reviewed_paths], text=True, capture_output=True, check=False)
+    add = runner(["git", "-C", str(resolved_root), "add", "--", *pathspecs], text=True, capture_output=True, check=False)
     if add.returncode != 0:
         raise CommitCreateError(f"git add failed: {_clean_text(add.stderr) or 'unknown error'}")
 
-    commit_command = ["git", "-C", str(resolved_root), "commit", "-m", _clean_text(proposal["commit_summary"])]
+    # --only excludes unrelated pre-staged index entries; add above retains new-file support.
+    commit_command = ["git", "-C", str(resolved_root), "commit", "--only", "-m", _clean_text(proposal["commit_summary"])]
     for line in proposal.get("commit_body_lines", []):
         cleaned = _clean_text(line)
         if cleaned:
             commit_command.extend(["-m", cleaned])
+    commit_command.extend(["--", *pathspecs])
     commit = runner(commit_command, text=True, capture_output=True, check=False)
     if commit.returncode != 0:
         raise CommitCreateError(f"git commit failed: {_clean_text(commit.stderr) or 'unknown error'}")

@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-262 — exact commit metadata and NUL-safe changed-path verification**.
+Latest stewardship run: **AUTO-263 — isolate legacy commit-create from unrelated staged changes**.
 
-- **Changed:** `forge commit-verify` now requires inspected summary and complete message, binds the message subject to inspected subject, and compares exact ordered non-empty body lines. Git changed paths use `diff-tree --root -z` NUL-delimited output, including initial commits.
-- **Why:** missing inspected metadata, substring-only body matches, and ambiguous newline-delimited filenames could undermine a verified result.
-- **Validation:** isolated real-Git root-commit probe passed. Deterministic tests cover missing/extra/reordered/duplicate body lines, newline filenames, malformed delimiters, and real root commits. Exact-head Python 3.10/3.11/3.12 CI remains the acceptance gate.
-- **Safety:** existing read-only Git inspection arguments and parsing only. No new network, staging, commit, push, remote, or workflow authority.
-- **Branch/PR disposition:** eight branches inspected; seven non-main branches historical, all nine PRs closed. Main-only.
+- **Changed:** `forge commit-create` now uses root-anchored literal pathspecs and `git commit --only` to include only proposal-reviewed paths even when unrelated index entries were already staged. Reviewed new files and deletions remain supported.
+- **Why:** the old `git add <reviewed paths>` followed by unrestricted `git commit` silently included previously staged unrelated files.
+- **Validation:** isolated real-Git staging, new-file, literal-path and deletion probes passed. Deterministic fake-runner and disposable-repository tests were added; the exact-head Python 3.10/3.11/3.12 CI matrix remains the release acceptance gate.
+- **Safety:** existing explicitly confirmed local Git commands only; no new external-command category, network, remote changes, push, or workflow edits.
+- **Branch/PR disposition:** eight branches assessed; seven non-main branches diverged far behind `main`, all nine historical PRs closed, no integration warranted. Work directly on `main`.
 - **Visual updates:** none; existing workflow diagram remains accurate.
-- **Current limitations:** commit-verify does not authenticate authors, prove code correctness, or verify committed file bytes; verified-commit-create provides stronger parent/index/byte checks.
-- **Next autonomous objective:** continue guarded end-to-end maintenance with a demonstrated legacy commit-creation staged-path integrity fix or another high-impact execution defect, after resolving any CI failure.
+- **Limitations:** the legacy command still stages reviewed paths in the shared index before commit, and does not independently verify committed bytes or protect against concurrent Git writers. Prefer `forge verified-commit-create` for stronger isolation and integrity. Issue #15 remains open despite its shipped fix.
+- **Next autonomous objective:** advance verified maintenance execution by addressing a demonstrated commit/apply integrity defect, prioritizing any CI regression first.

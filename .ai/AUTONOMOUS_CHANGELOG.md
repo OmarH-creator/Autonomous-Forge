@@ -1,5 +1,15 @@
 # Autonomous Changelog
 
+## 2026-10-10 — AUTO-263 isolate legacy commit creation from unrelated staging
+
+- Objective: Fix a real write-path defect: `git add` of reviewed paths followed by unrestricted `git commit` also committed unrelated already-staged index entries.
+- Changes: Use root-anchored literal Git pathspecs for status/add/commit and `git commit --only` to commit reviewed paths only while retaining new-file/deletion support. Added fake-runner and real-Git regression coverage, CLI docs, README, roadmap/state/decisions.
+- Inspection: README/docs/examples, source/tests/config/CI, policy and `.ai` records, latest green AUTO-262 matrix, issues/TODOs, eight branches and nine historical PRs. No open PR; historical branches diverged and are not suitable for merging.
+- Validation: Isolated real-Git probes passed for unrelated staged preservation, literal wildcard path, new files and deletion. Full local checkout and full pytest unavailable due GitHub DNS; exact pushed main SHA must pass the Python 3.10/3.11/3.12 CI matrix before completion.
+- Safety: Existing explicitly confirmed local Git command category only; no new network, push, remote, workflow, branch or PR action. No visuals needed.
+- Limitations and next: Legacy shared-index staging and concurrent writer races remain; prefer verified-commit-create. Resolve any CI failure, then advance a proven execution-integrity issue.
+
+
 ## 2026-10-10 — AUTO-262 exact commit metadata and NUL-safe path verification
 
 - Objective: Close a concrete verification integrity gap: absent inspected message fields and substring-only body matches could be verified; line-delimited Git paths were ambiguous.

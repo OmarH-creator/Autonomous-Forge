@@ -1,5 +1,18 @@
 # Autonomous Decisions
 
+## DEC-263 — 2026-10-10 — Legacy commit creation must exclude unrelated staged files
+
+Context: `forge commit-create` staged proposal paths but invoked `git commit` without a path restriction. Git therefore included unrelated changes staged before the command, violating the reviewed-path safety boundary.
+
+Decision: Preserve explicit confirmation and the existing reviewed-path staging (which supports new files), but use root-anchored literal pathspecs for status/add and `git commit --only -- <reviewed paths>` to restrict the created commit to the proposal's paths. Test real Git with unrelated staged entries, bracket-containing paths, new files and deletions.
+
+Alternatives considered: Unrestricted commit (unsafe), an entirely new command (fragments workflow), or a private-index rewrite of the legacy command (duplicates the already implemented verified-commit-create path). `--only` is the smallest reliable fix to the specific leakage defect.
+
+Consequences: Unrelated pre-staged index entries are preserved; reviewed changes alone enter the commit. The command can still leave reviewed paths staged after failure and does not provide byte/parent/concurrent-state attestation. Prefer verified-commit-create for stronger safety.
+
+Human decision still required: No new external-command category; only arguments of the existing explicitly confirmed local Git staging/commit workflow change.
+
+
 ## DEC-262 — 2026-10-10 — Commit verification must match full message and NUL-delimited paths
 
 Context: Legacy commit-verify accepted matching SHA/paths even when inspected subject or message was missing. Reviewed body lines could match only substrings of altered/extra text. Line-based diff-tree output was ambiguous for newline filenames and omitted root-commit changes.
