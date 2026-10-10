@@ -12,6 +12,12 @@ The command is deliberately narrow:
 - the replacement file must be UTF-8, repository-local, non-symlinked, under 1 MB, and free of simple blocked secret-marker strings;
 - it writes only the requested target file and never commits, pushes, calls networks, reads environment variables, mutates saved history, or runs validation commands.
 
+## Bounded write-boundary snapshots
+
+The patch-apply writer now opens preview and change-readiness JSON, replacement text, and target text in binary mode and reads at most **1,000,001 bytes** for each input. Files larger than 1,000,000 bytes are rejected before parsing or applying, even if a previous filesystem size observation became stale. The atomic replacement itself repeats this bound on the original target and on the final pre-publication target check, and refuses oversized in-memory replacement content.
+
+When stale-target protection is active, the original bytes retained for a possible durability rollback must match the reviewed expected original before a temporary replacement is created. The final bounded snapshot must still match those same bytes immediately before publication. This prevents rollback from restoring an unrelated earlier snapshot if the target changed between review and write. There remains a narrow race after the final check without a shared filesystem lock.
+
 ## Atomic target replacement
 
 Confirmed writes are prepared in a same-directory temporary file. Forge preserves the target's permission mode, flushes and `fsync`s the complete replacement, then uses `os.replace` to atomically switch the target path to the prepared file and `fsync`s the containing directory.

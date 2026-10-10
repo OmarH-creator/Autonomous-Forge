@@ -18,9 +18,9 @@ Roadmap v3 reaches guarded local commit creation, post-commit verification, comm
 
 The issue #13 green-baseline recovery milestone is complete. AUTO-141 repaired the importable primary router help-return contract without swallowing parser failures. AUTO-142 then corrected replay-context compatibility, made exact pytest failure identities visible without suppressing CI failures, aligned archive fixtures with generated evidence, repaired maintenance-review handoff context comparison, canonicalized repository-contained archive paths, collapsed semantically duplicate validation steps at the shared validation-plan boundary, restored the primary replay-policy help identity, repaired deterministic multi-bundle comparison fixtures, and fixed preservation ranking so it scores raw retained validation context instead of a lossy summary object. Stale planning/validation/executor assertions were updated to the current enriched safety contract rather than weakening product behavior. GitHub Actions run `31871553378` passed installation, compilation, installed CLI smoke, roadmap lint, and the full 655-test pytest suite on Python 3.10, 3.11, and 3.12.
 
-## Active product milestone — guarded end-to-end maintenance integrity (AUTO-263)
+## Active product milestone — guarded end-to-end maintenance integrity (AUTO-264)
 
-The policy-aware `forge plan` milestone is already implemented. Continue the existing guarded execution milestone rather than introducing a new read-only command. AUTO-263 addresses a concrete legacy commit-creation defect: an unrestricted `git commit` consumed unrelated pre-staged files. Limit `forge commit-create` to root-anchored literal reviewed paths with `git commit --only`, retain new-file and deletion support, and verify unrelated staged content survives unchanged. Expected areas: `src/autonomous_forge/commit_create.py`, `tests/test_commit_create.py`, `docs/COMMIT_CREATE.md`, README, and relevant `.ai` records. Acceptance: disposable real-Git tests and the exact-head Python 3.10/3.11/3.12 CI matrix. Risks: shared-index staging on failure and concurrent Git writers remain; the verified isolated-index workflow is preferred. Next: continue strengthening a demonstrated execution-integrity defect after CI.
+The policy-aware `forge plan` milestone and the confirmed apply/validation/verified commit/non-force push/history workflow are implemented. AUTO-264 closes a concrete guarded write-path resource and rollback-integrity gap: JSON/text reads and atomic target snapshots must be bounded by an actual binary sentinel, and rollback bytes must match the reviewed original before publication. This is the next slice of the same execution-integrity milestone, not a new read-only command. Expected areas: `src/autonomous_forge/patch_apply.py`, `tests/`, `docs/PATCH_APPLY.md`, README, and the four `.ai` records. Acceptance: deterministic size/growth/stale-snapshot tests and exact-head Python 3.10/3.11/3.12 CI. Remaining risks: no cross-process filesystem lock; continue with demonstrated commit/apply defects.
 
 ## Prioritized roadmap
 
@@ -209,6 +209,18 @@ Acceptance criteria: Missing, extra, reordered, duplicate, and substring-only bo
 Validation: Isolated real-Git root-commit probe passed. Exact-head CI must pass compilation, installed CLI smoke, roadmap lint, and full pytest on Python 3.10/3.11/3.12.
 Risks or assumptions: Empty paragraph separators are normalized; non-empty lines must match exactly. This does not attest signer identity or committed bytes. No new Git command is invoked, only safer arguments to existing inspection.
 Notes: Continues the active guarded end-to-end maintenance milestone, not a new standalone audit command.
+
+### AUTO-264 — Bind guarded patch writes to bounded original snapshots
+Priority: P1
+Status: DONE
+Goal: Prevent unbounded materialization and mismatched rollback bytes at the confirmed patch-apply write boundary.
+Why it matters: A growing file could bypass a pre-read size hint and consume unbounded memory; a changed target could make the retained rollback bytes differ from the original authorized by evidence.
+Scope: Use one bounded binary sentinel for JSON and text inputs, bound atomic original and final target snapshots and in-memory replacement, and require retained rollback bytes to match reviewed original before preparing a replacement.
+Expected files or areas: src/autonomous_forge/patch_apply.py, tests/test_auto264_patch_apply_bounded_snapshots.py, docs/PATCH_APPLY.md, README.md, and .ai records.
+Acceptance criteria: Exactly 1 MB is admitted; 1 MB plus one byte is refused; stale original or growth between snapshots is refused without overwriting concurrent edits; existing atomic rollback and CLI tests remain green.
+Validation: Local focused probe and deterministic tests; exact-head CI installation, compilation, CLI smoke, roadmap lint and full pytest on Python 3.10/3.11/3.12.
+Risks or assumptions: No cross-process filesystem lock; a narrow race remains after final check, and byte bounds do not authenticate evidence producers.
+Notes: Continues the active guarded maintenance execution milestone; no new standalone preflight command or external command authority.
 
 ## Active maintenance-integrity milestone — guarded end-to-end workflow
 

@@ -1,5 +1,15 @@
 # Autonomous Changelog
 
+## 2026-10-10 — AUTO-264 bounded guarded patch write snapshots
+
+- Objective: Resolve a confirmed write-path defect: size-hint checks followed by unbounded reads and an unbounded original snapshot at atomic replacement, with potential mismatch between retained rollback bytes and later stale-target observation.
+- Changes: Bounded binary sentinel for patch-apply JSON/text, original and final target snapshots; cap in-memory replacement; require rollback snapshot to equal reviewed original. Seven deterministic regression tests, CLI documentation, README status, roadmap/state/decisions.
+- Inspection: README/docs/examples, source/tests/config/CI, policy and autonomous records, green AUTO-263 CI, issues/TODOs, eight branches and nine closed historical PRs. No historical branch/PR warrants integration.
+- Validation: Three isolated local bounded-snapshot probes passed. Full local checkout and full pytest unavailable due GitHub DNS; exact pushed main SHA must pass Python 3.10/3.11/3.12 CI before completion.
+- Safety: Existing confirmed file-write contract only; no new command/network/push/remote/workflow authority, no new branch/PR, no policy-prohibited files or visuals.
+- Limitations and next: Final filesystem check is not locked against arbitrary concurrent writers; continue with a demonstrated commit/apply integrity defect after CI.
+
+
 ## 2026-10-10 — AUTO-263 isolate legacy commit creation from unrelated staging
 
 - Objective: Fix a real write-path defect: `git add` of reviewed paths followed by unrestricted `git commit` also committed unrelated already-staged index entries.

@@ -1,5 +1,18 @@
 # Autonomous Decisions
 
+## DEC-264 — 2026-10-10 — Guarded patch writes must bind rollback to bounded reviewed bytes
+
+Context: Patch-apply performed a filesystem size check before unbounded JSON/text reads, then materialized the entire original target at atomic replacement. The retained rollback snapshot could differ from the later pre-publication target observation if a writer intervened.
+
+Decision: Use one binary read with a 1,000,001-byte sentinel for each JSON/text input and each original/final write-boundary snapshot. Reject more than 1,000,000 bytes and overlarge in-memory replacements. Before preparing the replacement, require the retained original bytes to equal the reviewed expected text; immediately before publication compare a second bounded byte snapshot to those same bytes.
+
+Alternatives considered: Trust stat size hints, retain a different rollback snapshot, or add a new standalone preflight command. None fixes the actual guarded write boundary.
+
+Consequences: Growth and stale rollback inputs fail closed without unbounded materialization or unintended replacement. A small cross-process race remains after the last check; no filesystem lock or new command authority is introduced.
+
+Human decision still required: No new external-command category, network access, remote authority, or workflow permission.
+
+
 ## DEC-263 — 2026-10-10 — Legacy commit creation must exclude unrelated staged files
 
 Context: `forge commit-create` staged proposal paths but invoked `git commit` without a path restriction. Git therefore included unrelated changes staged before the command, violating the reviewed-path safety boundary.

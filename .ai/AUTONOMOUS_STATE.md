@@ -1,16 +1,16 @@
 # Autonomous State
 
 - Current roadmap version: v3
-- Current task ID: AUTO-263 — Legacy commit-create reviewed-path isolation
-- Current task status: IMPLEMENTED; exact-head CI is the acceptance gate
+- Current task ID: AUTO-264 — Guarded patch apply bounded original snapshots
+- Current task status: IMPLEMENTED; exact-head CI remains the release acceptance gate
 - Current branch: main
 - Last run date: 2026-10-10
-- Latest run summary: Legacy forge commit-create now uses literal root pathspecs and git commit --only so unrelated pre-staged files are not silently included. Reviewed new files and deletions remain supported.
-- Repository assessment: Reviewed README/docs/examples, source/tests/config/CI, policy and autonomous memory, recent commits, issues/TODOs, eight branches, nine historical PRs, and green AUTO-262 main CI. Policy-aware forge plan and the guarded maintenance chain already exist.
-- Branch and PR disposition: Seven historical non-main branches are all diverged far behind main; nine historical PRs closed, no integration warranted. Main-only, no new branch, PR, merge, force-push, workflow or remote changes.
-- Validation: Isolated real-Git probe passed for unrelated staged preservation, literal bracket paths, and reviewed new files; separate deletion probe passed. Deterministic fake-runner and disposable real-Git regressions added. Full local checkout/pytest unavailable due GitHub DNS; exact-head CI is required.
-- Safety: Existing explicitly confirmed local git add/commit command category only; no new network, push, remote or workflow authority. No policy-prohibited paths touched.
-- Current blockers: Issue #15 remains open although AUTO-259 is shipped; prior issue-close connector attempts were rejected. No feature blocker identified.
-- Known limitations: Legacy commit-create still stages reviewed paths in shared index and does not independently attest committed bytes, parent, or concurrent index state; verified-commit-create is preferred.
-- Visuals: None; existing maintenance workflow diagram remains accurate.
-- Next objective: Address any CI regression, then continue one meaningful verified maintenance execution-integrity milestone.
+- Latest run summary: Patch-apply JSON/text ingestion and atomic write-boundary snapshots now use a bounded binary sentinel; rollback originals must match reviewed bytes before preparing replacement, and the final target recheck is byte-exact.
+- Repository assessment: Inspected README/docs/examples, source/tests/config/CI, policy, roadmap/state/changelog/decisions, recent commits, open issues, eight branches, nine historical PRs and green AUTO-263 main CI. Policy-aware forge plan and guarded maintenance chain already exist.
+- Branch and PR disposition: Seven non-main branches are stale/diverged; nine historical PRs closed. No integration warranted. Main-only, no new branch, PR, merge, force-push, workflow or remote changes.
+- Validation: Three isolated bounded-snapshot probes passed locally. Seven deterministic regressions added for sentinel size, oversized inputs, stale original, invalid UTF-8 and growth before publication. Full local checkout/pytest unavailable due GitHub DNS; exact-head CI is required.
+- Safety: Existing confirmed patch-apply file replacement only; no new external command category, network, push, remote, workflow, secret, or prohibited path mutation.
+- Current blockers: Issue #15 remains open despite shipped AUTO-259; prior issue-close attempts were rejected. No feature blocker identified.
+- Known limitations: Final target check cannot hold a cross-process filesystem lock through os.replace; rollback is best effort under concurrent writers. Evidence hashes do not prove author identity.
+- Visuals: None; current workflow diagram remains accurate.
+- Next objective: Resolve any CI regression; then continue one meaningful guarded maintenance execution-integrity milestone.

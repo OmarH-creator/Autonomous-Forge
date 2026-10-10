@@ -44,15 +44,25 @@ def _resolve_under_root(root: Path, raw_path: Path, *, kind: str, must_exist: bo
     return resolved
 
 
+def _read_bounded_bytes(path: Path, *, kind: str) -> bytes:
+    """Admit one binary snapshot, never materializing more than the size sentinel."""
+    try:
+        with path.open("rb") as handle:
+            payload = handle.read(_MAX_TEXT_BYTES + 1)
+    except OSError as exc:
+        raise PatchApplyError(f"{kind} input could not be read: {exc}") from exc
+    if len(payload) > _MAX_TEXT_BYTES:
+        raise PatchApplyError(f"{kind} input is too large")
+    return payload
+
+
 def _read_json(path: Path, *, expected_title: str, kind: str) -> dict[str, Any]:
     if path.suffix != ".json":
         raise PatchApplyError(f"{kind} input must be a .json file")
-    if path.stat().st_size > _MAX_TEXT_BYTES:
-        raise PatchApplyError(f"{kind} input is too large")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise PatchApplyError(f"{kind} input is not valid JSON") from exc
+        data = json.loads(_read_bounded_bytes(path, kind=kind).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PatchApplyError(f"{kind} input is not valid UTF-8 JSON") from exc
     if not isinstance(data, dict):
         raise PatchApplyError(f"{kind} input must be a JSON object")
     if data.get("title") != expected_title:
@@ -61,10 +71,8 @@ def _read_json(path: Path, *, expected_title: str, kind: str) -> dict[str, Any]:
 
 
 def _read_bounded_text(path: Path, *, kind: str) -> str:
-    if path.stat().st_size > _MAX_TEXT_BYTES:
-        raise PatchApplyError(f"{kind} input is too large")
     try:
-        text = path.read_text(encoding="utf-8")
+        text = _read_bounded_bytes(path, kind=kind).decode("utf-8")
     except UnicodeDecodeError as exc:
         raise PatchApplyError(f"{kind} input must be UTF-8 text") from exc
     lowered = text.lower()
@@ -135,9 +143,14 @@ def _replace_target_atomically(target: Path, text: str, *, expected_current_text
     """Atomically replace one target, optionally refusing stale target contents."""
     temp_path: Path | None = None
     replaced = False
-    original_bytes = target.read_bytes()
-    target_mode = target.stat().st_mode & 0o7777
     replacement_bytes = text.encode("utf-8")
+    if len(replacement_bytes) > _MAX_TEXT_BYTES:
+        raise PatchApplyError("replacement input is too large")
+    original_bytes = _read_bounded_bytes(target, kind="target")
+    # Bind the rollback snapshot to the same original bytes that authorized apply.
+    if expected_current_text is not None and original_bytes != expected_current_text.encode("utf-8"):
+        raise PatchApplyError("target changed after patch evidence was prepared; refusing to overwrite concurrent edits")
+    target_mode = target.stat().st_mode & 0o7777
     replacement_sha256 = hashlib.sha256(replacement_bytes).hexdigest()
     try:
         fd, temp_name = tempfile.mkstemp(
@@ -153,11 +166,8 @@ def _replace_target_atomically(target: Path, text: str, *, expected_current_text
             os.fsync(handle.fileno())
 
         if expected_current_text is not None:
-            try:
-                current_text = target.read_text(encoding="utf-8")
-            except UnicodeDecodeError as exc:
-                raise PatchApplyError("target changed to non-UTF-8 content before replacement") from exc
-            if current_text != expected_current_text:
+            # Recheck one bounded byte snapshot immediately before publication.
+            if _read_bounded_bytes(target, kind="target") != original_bytes:
                 raise PatchApplyError("target changed after patch evidence was prepared; refusing to overwrite concurrent edits")
 
         os.replace(temp_path, target)

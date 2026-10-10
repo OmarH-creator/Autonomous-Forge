@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-263 — isolate legacy commit-create from unrelated staged changes**.
+Latest stewardship run: **AUTO-264 — bounded, rollback-bound guarded patch writes**.
 
-- **Changed:** `forge commit-create` now uses root-anchored literal pathspecs and `git commit --only` to include only proposal-reviewed paths even when unrelated index entries were already staged. Reviewed new files and deletions remain supported.
-- **Why:** the old `git add <reviewed paths>` followed by unrestricted `git commit` silently included previously staged unrelated files.
-- **Validation:** isolated real-Git staging, new-file, literal-path and deletion probes passed. Deterministic fake-runner and disposable-repository tests were added; the exact-head Python 3.10/3.11/3.12 CI matrix remains the release acceptance gate.
-- **Safety:** existing explicitly confirmed local Git commands only; no new external-command category, network, remote changes, push, or workflow edits.
-- **Branch/PR disposition:** eight branches assessed; seven non-main branches diverged far behind `main`, all nine historical PRs closed, no integration warranted. Work directly on `main`.
-- **Visual updates:** none; existing workflow diagram remains accurate.
-- **Limitations:** the legacy command still stages reviewed paths in the shared index before commit, and does not independently verify committed bytes or protect against concurrent Git writers. Prefer `forge verified-commit-create` for stronger isolation and integrity. Issue #15 remains open despite its shipped fix.
-- **Next autonomous objective:** advance verified maintenance execution by addressing a demonstrated commit/apply integrity defect, prioritizing any CI regression first.
+- **Changed:** `forge patch-apply` now reads its JSON/text inputs and write-boundary target snapshots with a 1,000,001-byte sentinel and refuses inputs exceeding 1,000,000 bytes. Its retained rollback bytes must equal the reviewed original before creating a temporary replacement; the final pre-publication check is also bounded and byte-exact.
+- **Why:** size prechecks followed by unbounded text reads could admit growing files; the atomic writer materialized the entire target and could retain an initial rollback snapshot different from the content checked later.
+- **Validation:** isolated bounded-reader probe passed; seven deterministic tests cover growth, UTF-8 rejection, exact size, oversized original/replacement, stale rollback snapshot, and growth before publication. Exact-head Python 3.10/3.11/3.12 CI is the release acceptance gate.
+- **Safety:** existing explicitly confirmed local file-replacement workflow only; no new commands, network, push, remote changes, or workflow edits.
+- **Branch/PR disposition:** eight branches assessed; seven historical non-main branches are thousands of commits behind or otherwise obsolete, and nine historical PRs are closed. No integration or new branch/PR warranted.
+- **Visual updates:** none; the existing end-to-end workflow diagram remains accurate.
+- **Limitations:** filesystem writes are not cross-process locked; a narrow race remains after the final check. This does not attest reviewer identity or prove validation correctness. Issue #15 remains open despite its previously shipped fix.
+- **Next autonomous objective:** continue the guarded end-to-end maintenance integrity milestone, prioritizing a demonstrated execution or commit-state defect after verifying CI.
