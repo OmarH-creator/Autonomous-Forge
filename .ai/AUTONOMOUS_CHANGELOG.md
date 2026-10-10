@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-10-10 — AUTO-262 exact commit metadata and NUL-safe path verification
+
+- Objective: Close a concrete verification integrity gap: absent inspected message fields and substring-only body matches could be verified; line-delimited Git paths were ambiguous.
+- Changes: Require summary/message, bind message subject to inspected summary, compare exact ordered nonempty body lines, parse git diff-tree --root -z without trimming/splitting filenames. Added deterministic regressions, real root-commit test, docs, README, roadmap/state/decisions.
+- Inspection: Reviewed source/tests/docs/config/CI, policy/autonomous records, recent commits and green AUTO-261 matrix, eight branches, nine historical PRs, and issues/TODOs. No open PR or historical branch needed.
+- Validation: Isolated real-Git root-commit NUL-path/message probe passed. Exact pushed main SHA must pass Python 3.10/3.11/3.12 CI before completion.
+- Safety: Existing read-only Git inspection only; no new subprocess category, network, file mutation, staging, commit, push, workflow edit, or force push. No visual changes needed.
+- Next: Fix any CI regression; then address a proven legacy commit-creation staging integrity gap.
+
 ## 2026-10-09 — AUTO-261 guarded patch-preview single-snapshot gate
 
 - Objective: Resolve a real guarded patch-generation defect: pre-read size checks followed by unbounded text reads and a second --require-generated read could make displayed preview and exit decision disagree.

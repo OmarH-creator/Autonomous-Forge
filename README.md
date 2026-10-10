@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-261 — single-snapshot guarded patch preview and strict CLI gate**.
+Latest stewardship run: **AUTO-262 — exact commit metadata and NUL-safe changed-path verification**.
 
-- **Changed:** `forge patch-generation-preview` now reads readiness JSON, target text, and replacement text through one bounded binary snapshot each (1,000,001-byte sentinel; 1,000,000-byte limit). `--require-generated` evaluates the exact preview already printed, without a second read.
-- **Why:** a pre-read size check followed by unbounded text reads could accept growing files; the CLI could also display one preview and decide its strict exit code from a different, concurrently changed input.
-- **Validation:** isolated local snapshot/gate probe passed five checks. Deterministic repository tests cover all three bounded inputs, exact boundary, read-time growth, invalid UTF-8, and the single-read CLI gate. The exact pushed SHA must pass the Python 3.10/3.11/3.12 Actions matrix.
-- **Safety:** no new commands, network, subprocess, write, commit, push, or workflow authority. Existing path confinement and explicit patch-application confirmations remain unchanged.
-- **Branch/PR disposition:** eight branches and all nine visible historical PRs reviewed; seven non-main branches remain historical and no open PR requires integration. Changes are main-only.
-- **Visual updates:** none; the existing maintenance workflow diagram remains accurate.
-- **Current limitations:** a snapshot does not authenticate evidence or freeze files; downstream guarded patch apply must still recheck the target.
-- **Next autonomous objective:** continue the guarded end-to-end maintenance milestone by fixing a demonstrated patch/commit/execution integrity defect or shipping a material workflow capability, prioritizing any failing CI.
+- **Changed:** `forge commit-verify` now requires inspected summary and complete message, binds the message subject to inspected subject, and compares exact ordered non-empty body lines. Git changed paths use `diff-tree --root -z` NUL-delimited output, including initial commits.
+- **Why:** missing inspected metadata, substring-only body matches, and ambiguous newline-delimited filenames could undermine a verified result.
+- **Validation:** isolated real-Git root-commit probe passed. Deterministic tests cover missing/extra/reordered/duplicate body lines, newline filenames, malformed delimiters, and real root commits. Exact-head Python 3.10/3.11/3.12 CI remains the acceptance gate.
+- **Safety:** existing read-only Git inspection arguments and parsing only. No new network, staging, commit, push, remote, or workflow authority.
+- **Branch/PR disposition:** eight branches inspected; seven non-main branches historical, all nine PRs closed. Main-only.
+- **Visual updates:** none; existing workflow diagram remains accurate.
+- **Current limitations:** commit-verify does not authenticate authors, prove code correctness, or verify committed file bytes; verified-commit-create provides stronger parent/index/byte checks.
+- **Next autonomous objective:** continue guarded end-to-end maintenance with a demonstrated legacy commit-creation staged-path integrity fix or another high-impact execution defect, after resolving any CI failure.

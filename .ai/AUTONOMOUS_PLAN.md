@@ -194,13 +194,26 @@ Validation: An isolated five-check local probe passed before repository mutation
 Risks or assumptions: One snapshot does not authenticate the readiness producer or freeze files after preview; the guarded patch applier retains its independent stale-target verification.
 Notes: This continues the already-shipped end-to-end guarded maintenance milestone; it does not add a new standalone review command.
 
+### AUTO-262 — Verify exact commit metadata and NUL-safe changed paths
+Priority: P1
+Status: DONE
+Goal: Prevent legacy commit verification from accepting incomplete or misleading inspected messages or ambiguous filename parsing.
+Why it matters: Missing git-show summary/body could be treated as verified, substring-only body matches could hide unreviewed text, and line-delimited Git paths cannot represent filenames containing newlines. Root commits were uninspectable.
+Scope: Require a non-empty inspected summary and message, match message subject and exact ordered non-empty body lines, use git diff-tree --root -z, and reject malformed path output. Add deterministic and real-Git root-commit tests, command docs, README status, and durable engineering records.
+Expected files or areas: src/autonomous_forge/commit_verify.py, tests/test_commit_verify.py, tests/test_auto262_commit_verify_integrity.py, docs/COMMIT_VERIFY.md, README.md, and .ai records.
+Acceptance criteria: Missing, extra, reordered, duplicate, and substring-only body lines cannot verify; newline filenames remain single paths; malformed delimiters fail closed; initial commits verify; existing CLI contracts remain; Python 3.10/3.11/3.12 CI passes.
+Validation: Isolated real-Git root-commit probe passed. Exact-head CI must pass compilation, installed CLI smoke, roadmap lint, and full pytest on Python 3.10/3.11/3.12.
+Risks or assumptions: Empty paragraph separators are normalized; non-empty lines must match exactly. This does not attest signer identity or committed bytes. No new Git command is invoked, only safer arguments to existing inspection.
+Notes: Continues the active guarded end-to-end maintenance milestone, not a new standalone audit command.
+
 ## Active maintenance-integrity milestone — guarded end-to-end workflow
 
 The policy-aware plan, actual tracked diff review, guarded patch apply, validation,
 verified commit, non-force push, post-push verification, and durable history chain
 are already shipped. AUTO-259 fixed a bounded history-link provenance defect.
 AUTO-261 fixes a demonstrated preview-to-strict-exit mismatch and unbounded
-patch-preview ingestion. Continue improving the same workflow through concrete
+patch-preview ingestion. AUTO-262 closes exact-message and filename parsing gaps
+in legacy commit verification. Continue improving the same workflow through concrete
 execution, patch, commit, and durable-history defects rather than creating new
 standalone read-only audit/preflight commands.
 

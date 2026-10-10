@@ -32,7 +32,7 @@ class FakeRunner:
             stdout = f"abc1234\0{self.summary}\0{self.summary}\n\nVerify created commits before any push workflow.\n"
             return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
         if command[3] == "diff-tree":
-            return subprocess.CompletedProcess(command, 0, stdout="\n".join(self.paths) + "\n", stderr="")
+            return subprocess.CompletedProcess(command, 0, stdout="\0".join(self.paths) + "\0", stderr="")
         raise AssertionError(command)
 
 

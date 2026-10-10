@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-262 — 2026-10-10 — Commit verification must match full message and NUL-delimited paths
+
+Context: Legacy commit-verify accepted matching SHA/paths even when inspected subject or message was missing. Reviewed body lines could match only substrings of altered/extra text. Line-based diff-tree output was ambiguous for newline filenames and omitted root-commit changes.
+
+Decision: Require inspected summary and message; bind message subject to inspected subject; compare ordered nonempty body lines exactly. Use existing git diff-tree with --root -z; reject malformed NUL framing and preserve exact filenames.
+
+Alternatives considered: Retain substring matching, parse quoted newline paths, or add a new review command. These preserve gaps or fragment the end-to-end workflow.
+
+Consequences: Verification fails closed on missing/extra/reordered message content or ambiguous Git paths while supporting initial commits. It does not attest authorship or committed bytes; verified-commit-create provides stronger parent/index/content checks.
+
+Human decision still required: No new external-command category or authority; only arguments and parsing of existing read-only Git inspection changed.
+
 ## DEC-261 — 2026-10-09 — Preview output and strict gate must use the same bounded inputs
 
 Context: The guarded patch-generation reader size-checked target and replacement files before unbounded text reads, and parsed readiness JSON without an actual read bound. The CLI printed one preview, then reopened inputs to decide --require-generated, permitting contradictory displayed evidence and exit status under concurrent mutation.

@@ -109,11 +109,20 @@ def build_commit_verify_data(
 
     if expected_commit and inspected_commit and inspected_commit != expected_commit:
         blockers.append("inspected commit SHA does not match commit-create report")
-    if expected_summary and inspected_summary and inspected_summary != expected_summary:
-        blockers.append("inspected commit summary does not match commit-create report")
-    for line in expected_body_lines:
-        if inspected_body and line not in inspected_body:
-            blockers.append(f"inspected commit body is missing reviewed line: {line}")
+    if inspected_commit:
+        if not inspected_summary:
+            blockers.append("git inspection did not return a commit summary")
+        elif expected_summary and inspected_summary != expected_summary:
+            blockers.append("inspected commit summary does not match commit-create report")
+        message_lines = inspected_body.splitlines()
+        if not message_lines:
+            blockers.append("git inspection did not return a commit message")
+        else:
+            if message_lines[0].strip() != inspected_summary:
+                blockers.append("inspected commit message subject disagrees with inspected summary")
+            observed_body_lines = [line.strip() for line in message_lines[1:] if line.strip()]
+            if observed_body_lines != expected_body_lines:
+                blockers.append("inspected commit body does not exactly match reviewed lines")
     missing_paths = sorted(set(expected_paths) - set(observed_paths))
     unexpected_paths = sorted(set(observed_paths) - set(expected_paths))
     if inspected_paths is not None and missing_paths:
@@ -243,14 +252,18 @@ def verify_commit_from_report(
     inspected_commit, inspected_summary, inspected_body = (_clean_text(parts[0]), _clean_text(parts[1]), parts[2])
 
     diff_tree = runner(
-        ["git", "-C", str(resolved_root), "diff-tree", "--no-commit-id", "--name-only", "-r", commit_sha],
+        ["git", "-C", str(resolved_root), "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", commit_sha],
         text=True,
         capture_output=True,
         check=False,
     )
     if diff_tree.returncode != 0:
         raise CommitVerifyError(f"git diff-tree failed: {_clean_text(diff_tree.stderr) or 'unknown error'}")
-    inspected_paths = [line.strip() for line in diff_tree.stdout.splitlines() if line.strip()]
+    if not isinstance(diff_tree.stdout, str) or (
+        diff_tree.stdout and not diff_tree.stdout.endswith("\0")
+    ):
+        raise CommitVerifyError("git diff-tree returned malformed NUL-delimited paths")
+    inspected_paths = [path for path in diff_tree.stdout.split("\0") if path]
     return build_commit_verify_data(
         report,
         inspected_commit=inspected_commit,
