@@ -1,5 +1,14 @@
 # Autonomous Changelog
 
+## 2026-10-10 — AUTO-265 bounded verified commit readiness ingestion
+
+- Objective: Close a confirmed commit-execution boundary defect: `verified_commit_create._read_readiness` checked `stat().st_size` before an unbounded `read_text()`, allowing growing evidence to bypass the 1,000,000-byte input limit.
+- Changes: One binary 1,000,001-byte sentinel read, over-limit refusal before UTF-8/JSON parsing or Git, eight deterministic regression cases, focused CLI docs, README, roadmap/state/decision records.
+- Inspection: README/docs, source/tests/config/CI, policy and autonomous records, green AUTO-264 CI, issues/TODOs, eight branches and nine closed historical PRs. Seven non-main branches diverged by thousands of commits; no integration warranted.
+- Validation: Seven-case isolated local reader probe passed. Full local checkout/full pytest unavailable due GitHub DNS; exact pushed main SHA must pass Python 3.10/3.11/3.12 CI before completion is reported.
+- Safety: Existing explicitly confirmed verified commit workflow only; no new command, network, push, remote, workflow authority, branch/PR, prohibited files or visuals.
+- Limitations and next: Snapshot is internally bounded but not immutable or identity-authenticated. Continue with a concrete guarded execution-integrity defect after CI.
+
 ## 2026-10-10 — AUTO-264 bounded guarded patch write snapshots
 
 - Objective: Resolve a confirmed write-path defect: size-hint checks followed by unbounded reads and an unbounded original snapshot at atomic replacement, with potential mismatch between retained rollback bytes and later stale-target observation.

@@ -19,7 +19,8 @@ The command refuses non-ready or contradictory readiness evidence before invokin
 
 Safety boundary:
 
-- repository-local bounded JSON input only;
+- repository-local JSON input is read once in binary mode with a 1,000,001-byte sentinel for a 1,000,000-byte maximum; oversized evidence is rejected before JSON parsing or any Git operation (including when it grows after an earlier filesystem observation);
+- UTF-8 decoding and JSON parsing use only that accepted byte snapshot; repository confinement, symlink rejection, and `.json` enforcement remain required;
 - explicit `--confirm-commit-create` required before any staging or commit;
 - `git add` is scoped to reviewed paths;
 - no push, force-push, tag push, remote changes, branch-protection changes, network calls, or workflow polling;

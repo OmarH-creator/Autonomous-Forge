@@ -49,15 +49,20 @@ def _resolve_json(path: Path, *, root: Path) -> Path:
         raise VerifiedCommitCreateError("verified readiness input must stay inside repository root") from exc
     if not resolved.is_file() or resolved.suffix != ".json":
         raise VerifiedCommitCreateError("verified readiness input must be a repository-local .json file")
-    if resolved.stat().st_size > _MAX_JSON_BYTES:
-        raise VerifiedCommitCreateError("verified readiness input is too large for bounded review")
     return resolved
 
 
 def _read_readiness(path: Path, *, root: Path) -> dict[str, Any]:
     resolved = _resolve_json(path, root=root)
     try:
-        data = json.loads(resolved.read_text(encoding="utf-8"))
+        with resolved.open("rb") as handle:
+            raw = handle.read(_MAX_JSON_BYTES + 1)
+    except OSError as exc:
+        raise VerifiedCommitCreateError("verified readiness input could not be read") from exc
+    if len(raw) > _MAX_JSON_BYTES:
+        raise VerifiedCommitCreateError("verified readiness input is too large for bounded review")
+    try:
+        data = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise VerifiedCommitCreateError("verified readiness input must be valid UTF-8 JSON") from exc
     if not isinstance(data, dict):

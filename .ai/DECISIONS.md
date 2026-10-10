@@ -1,5 +1,17 @@
 # Autonomous Decisions
 
+## DEC-265 — 2026-10-10 — Verified commit readiness must be bounded at the actual read
+
+Context: The verified commit creation command read readiness JSON using a size precheck followed by unbounded `read_text()`. A concurrently growing file could bypass the intended 1,000,000-byte bound before the confirmed Git execution boundary.
+
+Decision: Keep repository confinement, symlink rejection, and JSON-only validation, but read the resolved readiness file once in binary mode with a 1,000,001-byte sentinel. Refuse oversized evidence before UTF-8/JSON parsing or invoking Git, and parse the accepted byte snapshot only.
+
+Alternatives considered: Rely on `stat()` size hints, stream unbounded text, or add a standalone preflight command. None enforces the actual verified commit input boundary.
+
+Consequences: Resource bounds hold for a growing readiness file, and decoding uses the exact admitted bytes. This does not freeze later evidence mutations, authenticate the author, or change existing confirmation/isolated-index/commit-verification gates.
+
+Human decision still required: No new external-command category, network, remote authority, or workflow permission.
+
 ## DEC-264 — 2026-10-10 — Guarded patch writes must bind rollback to bounded reviewed bytes
 
 Context: Patch-apply performed a filesystem size check before unbounded JSON/text reads, then materialized the entire original target at atomic replacement. The retained rollback snapshot could differ from the later pre-publication target observation if a writer intervened.

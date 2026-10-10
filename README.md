@@ -122,13 +122,13 @@ Historical branches and pull requests are inspect-before-integrate evidence only
 
 ## Current Autonomous Status
 
-Latest stewardship run: **AUTO-264 — bounded, rollback-bound guarded patch writes**.
+Latest stewardship run: **AUTO-265 — bound verified commit-create readiness input at the read boundary**.
 
-- **Changed:** `forge patch-apply` now reads its JSON/text inputs and write-boundary target snapshots with a 1,000,001-byte sentinel and refuses inputs exceeding 1,000,000 bytes. Its retained rollback bytes must equal the reviewed original before creating a temporary replacement; the final pre-publication check is also bounded and byte-exact.
-- **Why:** size prechecks followed by unbounded text reads could admit growing files; the atomic writer materialized the entire target and could retain an initial rollback snapshot different from the content checked later.
-- **Validation:** isolated bounded-reader probe passed; seven deterministic tests cover growth, UTF-8 rejection, exact size, oversized original/replacement, stale rollback snapshot, and growth before publication. Exact-head Python 3.10/3.11/3.12 CI is the release acceptance gate.
-- **Safety:** existing explicitly confirmed local file-replacement workflow only; no new commands, network, push, remote changes, or workflow edits.
-- **Branch/PR disposition:** eight branches assessed; seven historical non-main branches are thousands of commits behind or otherwise obsolete, and nine historical PRs are closed. No integration or new branch/PR warranted.
-- **Visual updates:** none; the existing end-to-end workflow diagram remains accurate.
-- **Limitations:** filesystem writes are not cross-process locked; a narrow race remains after the final check. This does not attest reviewer identity or prove validation correctness. Issue #15 remains open despite its previously shipped fix.
-- **Next autonomous objective:** continue the guarded end-to-end maintenance integrity milestone, prioritizing a demonstrated execution or commit-state defect after verifying CI.
+- **Changed:** `forge verified-commit-create` now reads its repository-local readiness JSON exactly once in binary mode, requesting at most 1,000,001 bytes and rejecting anything above 1,000,000 bytes before decoding or invoking Git. The old pre-read `stat()` check plus unbounded `read_text()` has been removed.
+- **Why:** readiness evidence could grow after the size check, bypassing the intended limit immediately before a confirmed commit operation.
+- **Validation:** eight deterministic regression cases cover one exact sentinel read, the exact size boundary, growth/over-limit refusal, malformed UTF-8/JSON, non-object JSON, symlink refusal, and no Git execution for oversized evidence. An isolated seven-case local reader probe passed; exact-head Python 3.10/3.11/3.12 CI is required for release acceptance.
+- **Safety:** existing explicit commit confirmation, repository confinement, symlink and JSON checks, private-index commit isolation, verified target/parent/index binding, and post-commit verification remain unchanged. No new command, network, push, workflow, remote, or branch-protection authority.
+- **Branch/PR disposition:** all eight branches and nine historical PRs assessed; seven non-main branches are heavily diverged and none is suitable for integration. No new branch, PR, or merge.
+- **Visual updates:** none; the current end-to-end workflow diagram remains accurate.
+- **Limitations:** a bounded snapshot does not make evidence immutable or prove its author; the verified commit path still depends on accurate validation evidence and ordinary filesystem/Git concurrency controls. Issue #15 remains open despite the previously shipped AUTO-259 fix.
+- **Next autonomous objective:** continue the same guarded end-to-end maintenance-integrity milestone by fixing a demonstrated execution, commit, or publication defect; address any new CI regression first.
